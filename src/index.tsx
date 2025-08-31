@@ -309,6 +309,44 @@ app.get('/', (c) => {
             background-position: 0 88%;
             font-weight: 600;
           }
+          .tab-btn {
+            transition: all 0.2s;
+          }
+          .tab-btn.active {
+            border-bottom: 2px solid #4f46e5;
+            color: #4f46e5 !important;
+          }
+          .tab-content {
+            animation: fadeIn 0.3s ease-in;
+          }
+          @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          .project-card {
+            transition: all 0.2s;
+            cursor: pointer;
+          }
+          .project-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+          }
+          .category-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+          }
+          .category-travel { background: #dbeafe; color: #1e40af; }
+          .category-tech { background: #dcfce7; color: #166534; }
+          .category-food { background: #fed7aa; color: #9a3412; }
+          .category-business { background: #f3e8ff; color: #7c3aed; }
+          .category-health { background: #fecaca; color: #991b1b; }
+          .category-education { background: #fef3c7; color: #92400e; }
+          .category-entertainment { background: #f0f9ff; color: #0c4a6e; }
+          .category-other { background: #f1f5f9; color: #64748b; }
         </style>
     </head>
     <body class="bg-gray-50 min-h-screen">
@@ -567,6 +605,138 @@ app.get('/', (c) => {
             </div>
         </div>
 
+        <!-- 프로젝트 관리 모달 -->
+        <div id="projectModal" class="fixed inset-0 bg-black bg-opacity-50 z-50" style="display: none;">
+            <div class="flex items-center justify-center min-h-screen px-4">
+                <div class="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-xl font-bold text-gray-800 flex items-center">
+                            <i class="fas fa-folder-open mr-2 text-indigo-600"></i>프로젝트 관리
+                        </h3>
+                        <button id="closeProject" class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- 탭 메뉴 -->
+                    <div class="flex border-b mb-6">
+                        <button id="saveTab" class="tab-btn active px-4 py-2 border-b-2 border-indigo-600 text-indigo-600 font-semibold">
+                            <i class="fas fa-save mr-2"></i>저장하기
+                        </button>
+                        <button id="loadTab" class="tab-btn px-4 py-2 text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-folder-open mr-2"></i>불러오기
+                        </button>
+                        <button id="presetsTab" class="tab-btn px-4 py-2 text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-cog mr-2"></i>프리셋
+                        </button>
+                        <button id="keywordsTab" class="tab-btn px-4 py-2 text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-star mr-2"></i>즐겨찾기
+                        </button>
+                    </div>
+                    
+                    <!-- 저장 탭 -->
+                    <div id="saveTabContent" class="tab-content">
+                        <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-4">
+                            <p class="text-blue-700">현재 프로젝트를 저장하여 나중에 다시 불러올 수 있습니다.</p>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">프로젝트 이름</label>
+                                <input type="text" id="projectName" 
+                                       placeholder="예: 여행 블로그 프로젝트"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">카테고리</label>
+                                <select id="projectCategory" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                                    <option value="travel">여행</option>
+                                    <option value="tech">IT/기술</option>
+                                    <option value="food">음식/요리</option>
+                                    <option value="business">비즈니스</option>
+                                    <option value="health">건강/의료</option>
+                                    <option value="education">교육</option>
+                                    <option value="entertainment">엔터테인먼트</option>
+                                    <option value="other">기타</option>
+                                </select>
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">설명</label>
+                                <textarea id="projectDescription" rows="3"
+                                          placeholder="프로젝트에 대한 간단한 설명을 입력하세요"
+                                          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4 p-4 bg-gray-50 rounded-lg">
+                            <h4 class="font-semibold mb-2">저장될 내용:</h4>
+                            <ul class="text-sm text-gray-600 space-y-1">
+                                <li>• 메인 키워드 및 서브키워드 (<span id="keywordCount">0</span>개)</li>
+                                <li>• 생성된 블로그 글 (<span id="articleCount">0</span>개)</li>
+                                <li>• 편집 내역 및 수정사항</li>
+                                <li>• SEO 분석 결과</li>
+                                <li>• 설정값 (글 스타일, 길이, 대상 독자)</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="flex gap-3 mt-6">
+                            <button id="saveProjectBtn" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-lg transition">
+                                <i class="fas fa-save mr-2"></i>프로젝트 저장
+                            </button>
+                            <button id="exportProject" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition">
+                                <i class="fas fa-download mr-2"></i>JSON 내보내기
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 불러오기 탭 -->
+                    <div id="loadTabContent" class="tab-content" style="display: none;">
+                        <div class="flex justify-between items-center mb-4">
+                            <h4 class="text-lg font-semibold">저장된 프로젝트</h4>
+                            <div class="flex gap-2">
+                                <button id="importProject" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm">
+                                    <i class="fas fa-upload mr-1"></i>JSON 가져오기
+                                </button>
+                                <input type="file" id="importFile" accept=".json" style="display: none;">
+                            </div>
+                        </div>
+                        <div id="projectList" class="space-y-3 max-h-96 overflow-y-auto">
+                            <!-- 동적으로 생성됨 -->
+                        </div>
+                    </div>
+                    
+                    <!-- 프리셋 탭 -->
+                    <div id="presetsTabContent" class="tab-content" style="display: none;">
+                        <div class="flex justify-between items-center mb-4">
+                            <h4 class="text-lg font-semibold">설정 프리셋</h4>
+                            <button id="savePreset" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm">
+                                <i class="fas fa-plus mr-1"></i>현재 설정 저장
+                            </button>
+                        </div>
+                        <div id="presetList" class="space-y-3">
+                            <!-- 동적으로 생성됨 -->
+                        </div>
+                    </div>
+                    
+                    <!-- 즐겨찾기 탭 -->
+                    <div id="keywordsTabContent" class="tab-content" style="display: none;">
+                        <div class="flex justify-between items-center mb-4">
+                            <h4 class="text-lg font-semibold">즐겨찾기 키워드</h4>
+                            <div class="flex gap-2">
+                                <input type="text" id="newFavoriteKeyword" placeholder="키워드 입력" 
+                                       class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                <button id="addFavoriteKeyword" class="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg text-sm">
+                                    <i class="fas fa-star mr-1"></i>추가
+                                </button>
+                            </div>
+                        </div>
+                        <div id="favoriteKeywordsList" class="flex flex-wrap gap-2">
+                            <!-- 동적으로 생성됨 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- 설정 모달 -->
         <div id="settingsModal" class="fixed inset-0 bg-black bg-opacity-50 z-50" style="display: none;">
             <div class="flex items-center justify-center min-h-screen px-4">
@@ -592,9 +762,14 @@ app.get('/', (c) => {
                             </p>
                         </div>
                         
-                        <button id="saveSettings" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition">
-                            설정 저장
-                        </button>
+                        <div class="border-t pt-4">
+                            <button id="showProjectModal" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg transition mb-2">
+                                <i class="fas fa-folder-open mr-2"></i>프로젝트 관리
+                            </button>
+                            <button id="saveSettings" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition">
+                                설정 저장
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

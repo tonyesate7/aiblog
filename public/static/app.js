@@ -73,6 +73,54 @@ class BlogGenerator {
             this.analyzeSEO();
         });
 
+        // 프로젝트 관리 모달
+        document.getElementById('showProjectModal').addEventListener('click', () => {
+            this.showProjectModal();
+        });
+
+        document.getElementById('closeProject').addEventListener('click', () => {
+            this.hideProjectModal();
+        });
+
+        // 탭 전환
+        document.getElementById('saveTab').addEventListener('click', () => this.switchTab('save'));
+        document.getElementById('loadTab').addEventListener('click', () => this.switchTab('load'));
+        document.getElementById('presetsTab').addEventListener('click', () => this.switchTab('presets'));
+        document.getElementById('keywordsTab').addEventListener('click', () => this.switchTab('keywords'));
+
+        // 프로젝트 저장/불러오기
+        document.getElementById('saveProjectBtn').addEventListener('click', () => {
+            this.saveCurrentProject();
+        });
+
+        document.getElementById('exportProject').addEventListener('click', () => {
+            this.exportProjectAsJSON();
+        });
+
+        document.getElementById('importProject').addEventListener('click', () => {
+            document.getElementById('importFile').click();
+        });
+
+        document.getElementById('importFile').addEventListener('change', (e) => {
+            this.importProjectFromFile(e);
+        });
+
+        // 프리셋 관리
+        document.getElementById('savePreset').addEventListener('click', () => {
+            this.saveCurrentPreset();
+        });
+
+        // 즐겨찾기 키워드
+        document.getElementById('addFavoriteKeyword').addEventListener('click', () => {
+            this.addFavoriteKeyword();
+        });
+
+        document.getElementById('newFavoriteKeyword').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.addFavoriteKeyword();
+            }
+        });
+
         // 모달 외부 클릭시 닫기
         document.getElementById('settingsModal').addEventListener('click', (e) => {
             if (e.target.id === 'settingsModal') {
@@ -1479,6 +1527,521 @@ ${keyword}에 대해 자세히 알아보았습니다. 이 정보가 여러분에
         return 'poor';
     }
 
+    // ==================== 프로젝트 관리 기능 ====================
+
+    showProjectModal() {
+        document.getElementById('projectModal').style.display = 'flex';
+        this.updateProjectModalInfo();
+        this.loadProjectsList();
+        this.loadPresetsList();
+        this.loadFavoriteKeywords();
+        this.switchTab('save'); // 기본 탭
+    }
+
+    hideProjectModal() {
+        document.getElementById('projectModal').style.display = 'none';
+    }
+
+    switchTab(tabName) {
+        // 탭 버튼 상태 변경
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+            btn.classList.add('text-gray-500');
+            btn.classList.remove('text-indigo-600', 'border-indigo-600');
+        });
+
+        const activeTab = document.getElementById(tabName + 'Tab');
+        activeTab.classList.add('active');
+        activeTab.classList.remove('text-gray-500');
+        activeTab.classList.add('text-indigo-600');
+
+        // 탭 내용 전환
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.style.display = 'none';
+        });
+
+        document.getElementById(tabName + 'TabContent').style.display = 'block';
+    }
+
+    updateProjectModalInfo() {
+        const keywordCount = this.getSubKeywords().length;
+        const articleCount = this.generatedArticles.length;
+        
+        document.getElementById('keywordCount').textContent = keywordCount + 1; // 메인 + 서브
+        document.getElementById('articleCount').textContent = articleCount;
+
+        // 기본 프로젝트명 설정
+        const mainKeyword = document.getElementById('mainKeyword').value.trim();
+        if (mainKeyword && !document.getElementById('projectName').value) {
+            document.getElementById('projectName').value = `${mainKeyword} 프로젝트`;
+        }
+    }
+
+    saveCurrentProject() {
+        const projectName = document.getElementById('projectName').value.trim();
+        const projectCategory = document.getElementById('projectCategory').value;
+        const projectDescription = document.getElementById('projectDescription').value.trim();
+
+        if (!projectName) {
+            this.showAlert('프로젝트 이름을 입력해주세요.', 'error');
+            return;
+        }
+
+        if (this.generatedArticles.length === 0) {
+            this.showAlert('저장할 글이 없습니다. 먼저 블로그 글을 생성해주세요.', 'error');
+            return;
+        }
+
+        const projectData = {
+            id: Date.now().toString(),
+            name: projectName,
+            category: projectCategory,
+            description: projectDescription,
+            mainKeyword: document.getElementById('mainKeyword').value.trim(),
+            subKeywords: this.getSubKeywords(),
+            articles: this.generatedArticles,
+            settings: {
+                contentStyle: document.getElementById('contentStyle').value,
+                contentLength: document.getElementById('contentLength').value,
+                targetAudience: document.getElementById('targetAudience').value
+            },
+            seoAnalysis: this.lastSeoAnalysis || null,
+            createdAt: new Date().toISOString(),
+            lastModified: new Date().toISOString(),
+            version: '1.0'
+        };
+
+        try {
+            // 로컬 스토리지에 저장
+            const savedProjects = this.getSavedProjects();
+            savedProjects.push(projectData);
+            localStorage.setItem('blog_generator_projects', JSON.stringify(savedProjects));
+
+            this.showAlert(`프로젝트 "${projectName}"이 저장되었습니다! 💾`, 'success');
+            this.loadProjectsList(); // 목록 새로고침
+            
+        } catch (error) {
+            console.error('프로젝트 저장 오류:', error);
+            this.showAlert('프로젝트 저장 중 오류가 발생했습니다.', 'error');
+        }
+    }
+
+    exportProjectAsJSON() {
+        const projectName = document.getElementById('projectName').value.trim() || 'unnamed-project';
+        
+        if (this.generatedArticles.length === 0) {
+            this.showAlert('내보낼 글이 없습니다.', 'error');
+            return;
+        }
+
+        const projectData = {
+            name: projectName,
+            category: document.getElementById('projectCategory').value,
+            description: document.getElementById('projectDescription').value.trim(),
+            mainKeyword: document.getElementById('mainKeyword').value.trim(),
+            subKeywords: this.getSubKeywords(),
+            articles: this.generatedArticles,
+            settings: {
+                contentStyle: document.getElementById('contentStyle').value,
+                contentLength: document.getElementById('contentLength').value,
+                targetAudience: document.getElementById('targetAudience').value
+            },
+            seoAnalysis: this.lastSeoAnalysis || null,
+            exportedAt: new Date().toISOString(),
+            version: '1.0'
+        };
+
+        try {
+            const dataStr = JSON.stringify(projectData, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = `${this.sanitizeFilename(projectName)}-${new Date().toISOString().slice(0,10)}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+
+            this.showAlert('프로젝트가 JSON 파일로 내보내졌습니다! 📤', 'success');
+            
+        } catch (error) {
+            console.error('프로젝트 내보내기 오류:', error);
+            this.showAlert('프로젝트 내보내기 중 오류가 발생했습니다.', 'error');
+        }
+    }
+
+    importProjectFromFile(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const projectData = JSON.parse(e.target.result);
+                this.loadProject(projectData);
+                this.showAlert(`프로젝트 "${projectData.name}"을 불러왔습니다! 📁`, 'success');
+                this.hideProjectModal();
+            } catch (error) {
+                console.error('프로젝트 불러오기 오류:', error);
+                this.showAlert('잘못된 프로젝트 파일입니다.', 'error');
+            }
+        };
+        reader.readAsText(file);
+        
+        // 파일 입력 초기화
+        event.target.value = '';
+    }
+
+    getSavedProjects() {
+        try {
+            const saved = localStorage.getItem('blog_generator_projects');
+            return saved ? JSON.parse(saved) : [];
+        } catch (error) {
+            console.error('프로젝트 목록 로드 오류:', error);
+            return [];
+        }
+    }
+
+    loadProjectsList() {
+        const container = document.getElementById('projectList');
+        const projects = this.getSavedProjects();
+
+        if (projects.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-8 text-gray-500">
+                    <i class="fas fa-folder-open text-4xl mb-4 opacity-50"></i>
+                    <p>저장된 프로젝트가 없습니다.</p>
+                    <p class="text-sm mt-2">첫 번째 프로젝트를 저장해보세요!</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = projects.map((project, index) => `
+            <div class="project-card border border-gray-200 rounded-lg p-4 hover:shadow-md">
+                <div class="flex justify-between items-start mb-3">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-2">
+                            <h5 class="font-semibold text-gray-800">${project.name}</h5>
+                            <span class="category-badge category-${project.category}">${this.getCategoryName(project.category)}</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-2">${project.description || '설명 없음'}</p>
+                        <div class="flex items-center gap-4 text-xs text-gray-500">
+                            <span><i class="fas fa-key mr-1"></i>${project.mainKeyword}</span>
+                            <span><i class="fas fa-file-alt mr-1"></i>${project.articles.length}개 글</span>
+                            <span><i class="fas fa-calendar mr-1"></i>${new Date(project.createdAt).toLocaleDateString('ko-KR')}</span>
+                        </div>
+                    </div>
+                    <div class="flex gap-1">
+                        <button onclick="blogGenerator.loadProjectById('${project.id}')" 
+                                class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs">
+                            <i class="fas fa-folder-open mr-1"></i>불러오기
+                        </button>
+                        <button onclick="blogGenerator.deleteProject('${project.id}')" 
+                                class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs">
+                            <i class="fas fa-trash mr-1"></i>삭제
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    loadProjectById(projectId) {
+        const projects = this.getSavedProjects();
+        const project = projects.find(p => p.id === projectId);
+        
+        if (project) {
+            this.loadProject(project);
+            this.showAlert(`프로젝트 "${project.name}"을 불러왔습니다! 📁`, 'success');
+            this.hideProjectModal();
+        }
+    }
+
+    loadProject(projectData) {
+        try {
+            // 기본 설정 복원
+            document.getElementById('mainKeyword').value = projectData.mainKeyword || '';
+            
+            if (projectData.settings) {
+                document.getElementById('contentStyle').value = projectData.settings.contentStyle || 'informative';
+                document.getElementById('contentLength').value = projectData.settings.contentLength || '2000';
+                document.getElementById('targetAudience').value = projectData.settings.targetAudience || 'general';
+            }
+
+            // 서브키워드 복원
+            if (projectData.subKeywords && projectData.subKeywords.length > 0) {
+                const keywordsData = projectData.subKeywords.map((keyword, index) => ({
+                    id: index + 1,
+                    keyword: keyword,
+                    editable: true
+                }));
+                this.displaySubKeywords(keywordsData);
+                document.getElementById('subKeywordsSection').style.display = 'block';
+            }
+
+            // 글 복원
+            if (projectData.articles && projectData.articles.length > 0) {
+                this.generatedArticles = projectData.articles;
+                this.currentProgress = projectData.articles.length;
+                this.totalArticles = projectData.articles.length;
+                
+                document.getElementById('resultsSection').style.display = 'block';
+                this.showResults();
+
+                // SEO 분석 복원 또는 재실행
+                if (projectData.seoAnalysis) {
+                    this.lastSeoAnalysis = projectData.seoAnalysis;
+                    // SEO 섹션 표시는 하지 않고 데이터만 보관
+                } else {
+                    // SEO 분석 재실행
+                    setTimeout(() => this.analyzeSEO(), 1000);
+                }
+            }
+
+            // 데이터 저장 (현재 세션용)
+            this.saveToLocalStorage();
+
+        } catch (error) {
+            console.error('프로젝트 로드 오류:', error);
+            this.showAlert('프로젝트 로드 중 오류가 발생했습니다.', 'error');
+        }
+    }
+
+    deleteProject(projectId) {
+        if (confirm('정말로 이 프로젝트를 삭제하시겠습니까?')) {
+            try {
+                const projects = this.getSavedProjects();
+                const filteredProjects = projects.filter(p => p.id !== projectId);
+                localStorage.setItem('blog_generator_projects', JSON.stringify(filteredProjects));
+                
+                this.loadProjectsList(); // 목록 새로고침
+                this.showAlert('프로젝트가 삭제되었습니다.', 'info');
+            } catch (error) {
+                console.error('프로젝트 삭제 오류:', error);
+                this.showAlert('프로젝트 삭제 중 오류가 발생했습니다.', 'error');
+            }
+        }
+    }
+
+    getCategoryName(category) {
+        const categoryNames = {
+            travel: '여행',
+            tech: 'IT/기술',
+            food: '음식/요리',
+            business: '비즈니스',
+            health: '건강/의료',
+            education: '교육',
+            entertainment: '엔터테인먼트',
+            other: '기타'
+        };
+        return categoryNames[category] || '기타';
+    }
+
+    // ==================== 프리셋 관리 ====================
+
+    saveCurrentPreset() {
+        const presetName = prompt('프리셋 이름을 입력하세요:');
+        if (!presetName || !presetName.trim()) return;
+
+        const presetData = {
+            id: Date.now().toString(),
+            name: presetName.trim(),
+            contentStyle: document.getElementById('contentStyle').value,
+            contentLength: document.getElementById('contentLength').value,
+            targetAudience: document.getElementById('targetAudience').value,
+            createdAt: new Date().toISOString()
+        };
+
+        try {
+            const presets = this.getSavedPresets();
+            presets.push(presetData);
+            localStorage.setItem('blog_generator_presets', JSON.stringify(presets));
+
+            this.showAlert(`프리셋 "${presetName}"이 저장되었습니다! ⚙️`, 'success');
+            this.loadPresetsList();
+        } catch (error) {
+            console.error('프리셋 저장 오류:', error);
+            this.showAlert('프리셋 저장 중 오류가 발생했습니다.', 'error');
+        }
+    }
+
+    getSavedPresets() {
+        try {
+            const saved = localStorage.getItem('blog_generator_presets');
+            return saved ? JSON.parse(saved) : [];
+        } catch (error) {
+            console.error('프리셋 목록 로드 오류:', error);
+            return [];
+        }
+    }
+
+    loadPresetsList() {
+        const container = document.getElementById('presetList');
+        const presets = this.getSavedPresets();
+
+        if (presets.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-8 text-gray-500">
+                    <i class="fas fa-cog text-4xl mb-4 opacity-50"></i>
+                    <p>저장된 프리셋이 없습니다.</p>
+                    <p class="text-sm mt-2">자주 사용하는 설정을 저장해보세요!</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = presets.map(preset => `
+            <div class="border border-gray-200 rounded-lg p-4">
+                <div class="flex justify-between items-start">
+                    <div class="flex-1">
+                        <h5 class="font-semibold text-gray-800 mb-2">${preset.name}</h5>
+                        <div class="flex flex-wrap gap-2 text-xs">
+                            <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded">${this.getStyleName(preset.contentStyle)}</span>
+                            <span class="bg-green-100 text-green-800 px-2 py-1 rounded">${preset.contentLength}자</span>
+                            <span class="bg-purple-100 text-purple-800 px-2 py-1 rounded">${this.getAudienceName(preset.targetAudience)}</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2">${new Date(preset.createdAt).toLocaleDateString('ko-KR')}</p>
+                    </div>
+                    <div class="flex gap-1">
+                        <button onclick="blogGenerator.applyPreset('${preset.id}')" 
+                                class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-xs">
+                            <i class="fas fa-check mr-1"></i>적용
+                        </button>
+                        <button onclick="blogGenerator.deletePreset('${preset.id}')" 
+                                class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs">
+                            <i class="fas fa-trash mr-1"></i>삭제
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    applyPreset(presetId) {
+        const presets = this.getSavedPresets();
+        const preset = presets.find(p => p.id === presetId);
+        
+        if (preset) {
+            document.getElementById('contentStyle').value = preset.contentStyle;
+            document.getElementById('contentLength').value = preset.contentLength;
+            document.getElementById('targetAudience').value = preset.targetAudience;
+            
+            this.showAlert(`프리셋 "${preset.name}"이 적용되었습니다! ⚙️`, 'success');
+        }
+    }
+
+    deletePreset(presetId) {
+        if (confirm('정말로 이 프리셋을 삭제하시겠습니까?')) {
+            try {
+                const presets = this.getSavedPresets();
+                const filteredPresets = presets.filter(p => p.id !== presetId);
+                localStorage.setItem('blog_generator_presets', JSON.stringify(filteredPresets));
+                
+                this.loadPresetsList();
+                this.showAlert('프리셋이 삭제되었습니다.', 'info');
+            } catch (error) {
+                console.error('프리셋 삭제 오류:', error);
+                this.showAlert('프리셋 삭제 중 오류가 발생했습니다.', 'error');
+            }
+        }
+    }
+
+    // ==================== 즐겨찾기 키워드 관리 ====================
+
+    addFavoriteKeyword() {
+        const keywordInput = document.getElementById('newFavoriteKeyword');
+        const keyword = keywordInput.value.trim();
+        
+        if (!keyword) {
+            this.showAlert('키워드를 입력해주세요.', 'error');
+            return;
+        }
+
+        try {
+            const favorites = this.getFavoriteKeywords();
+            
+            if (favorites.includes(keyword)) {
+                this.showAlert('이미 추가된 키워드입니다.', 'warning');
+                return;
+            }
+            
+            favorites.push(keyword);
+            localStorage.setItem('blog_generator_favorite_keywords', JSON.stringify(favorites));
+            
+            keywordInput.value = '';
+            this.loadFavoriteKeywords();
+            this.showAlert(`"${keyword}"이 즐겨찾기에 추가되었습니다! ⭐`, 'success');
+        } catch (error) {
+            console.error('즐겨찾기 추가 오류:', error);
+            this.showAlert('즐겨찾기 추가 중 오류가 발생했습니다.', 'error');
+        }
+    }
+
+    getFavoriteKeywords() {
+        try {
+            const saved = localStorage.getItem('blog_generator_favorite_keywords');
+            return saved ? JSON.parse(saved) : [];
+        } catch (error) {
+            console.error('즐겨찾기 로드 오류:', error);
+            return [];
+        }
+    }
+
+    loadFavoriteKeywords() {
+        const container = document.getElementById('favoriteKeywordsList');
+        const favorites = this.getFavoriteKeywords();
+
+        if (favorites.length === 0) {
+            container.innerHTML = `
+                <div class="w-full text-center py-8 text-gray-500">
+                    <i class="fas fa-star text-4xl mb-4 opacity-50"></i>
+                    <p>즐겨찾기 키워드가 없습니다.</p>
+                    <p class="text-sm mt-2">자주 사용하는 키워드를 추가해보세요!</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = favorites.map(keyword => `
+            <div class="flex items-center bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+                <span class="flex-1 text-sm font-medium text-gray-700">${keyword}</span>
+                <div class="flex gap-1">
+                    <button onclick="blogGenerator.useFavoriteKeyword('${keyword}')" 
+                            class="text-yellow-600 hover:text-yellow-800 text-xs">
+                        <i class="fas fa-arrow-right"></i>
+                    </button>
+                    <button onclick="blogGenerator.removeFavoriteKeyword('${keyword}')" 
+                            class="text-red-600 hover:text-red-800 text-xs">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    useFavoriteKeyword(keyword) {
+        document.getElementById('mainKeyword').value = keyword;
+        this.showAlert(`"${keyword}"가 메인 키워드로 설정되었습니다! 🎯`, 'success');
+        this.hideProjectModal();
+    }
+
+    removeFavoriteKeyword(keyword) {
+        if (confirm(`"${keyword}"를 즐겨찾기에서 제거하시겠습니까?`)) {
+            try {
+                const favorites = this.getFavoriteKeywords();
+                const filteredFavorites = favorites.filter(k => k !== keyword);
+                localStorage.setItem('blog_generator_favorite_keywords', JSON.stringify(filteredFavorites));
+                
+                this.loadFavoriteKeywords();
+                this.showAlert('즐겨찾기에서 제거되었습니다.', 'info');
+            } catch (error) {
+                console.error('즐겨찾기 제거 오류:', error);
+                this.showAlert('즐겨찾기 제거 중 오류가 발생했습니다.', 'error');
+            }
+        }
+    }
+
     getStructureText(h1, h2, h3) {
         const score = (h1 >= 1 ? 25 : 0) + (h2 >= 2 ? 50 : h2 * 25) + (h3 >= 1 ? 25 : 0);
         if (score >= 75) return '우수';
@@ -2115,6 +2678,69 @@ ${article.content}
             }
         }, 5000);
     }
+}
+
+// 글로벌 함수들 - HTML에서 직접 호출되는 함수들
+function openProjectModal() {
+    blogGenerator.openProjectModal();
+}
+
+function closeProjectModal() {
+    blogGenerator.closeProjectModal();
+}
+
+function showProjectTab(tabName) {
+    blogGenerator.showProjectTab(tabName);
+}
+
+function saveProject() {
+    const projectName = document.getElementById('projectName').value.trim();
+    const projectCategory = document.getElementById('projectCategory').value;
+    const projectDescription = document.getElementById('projectDescription').value.trim();
+    
+    if (!projectName) {
+        blogGenerator.showAlert('프로젝트 이름을 입력해주세요.', 'error');
+        return;
+    }
+    
+    blogGenerator.saveCurrentProject(projectName, projectCategory, projectDescription);
+}
+
+function loadProjectFile() {
+    const fileInput = document.getElementById('projectFile');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        blogGenerator.showAlert('파일을 선택해주세요.', 'error');
+        return;
+    }
+    
+    blogGenerator.loadProjectFromFile(file);
+}
+
+function exportProject() {
+    blogGenerator.exportCurrentProject();
+}
+
+function savePreset() {
+    const presetName = document.getElementById('presetName').value.trim();
+    if (!presetName) {
+        blogGenerator.showAlert('프리셋 이름을 입력해주세요.', 'error');
+        return;
+    }
+    
+    blogGenerator.saveSettingsPreset(presetName);
+}
+
+function addFavoriteKeyword() {
+    const keyword = document.getElementById('favoriteKeywordInput').value.trim();
+    if (!keyword) {
+        blogGenerator.showAlert('키워드를 입력해주세요.', 'error');
+        return;
+    }
+    
+    blogGenerator.addFavoriteKeyword(keyword);
+    document.getElementById('favoriteKeywordInput').value = ''; // 입력창 초기화
 }
 
 // 앱 초기화
