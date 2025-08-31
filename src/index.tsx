@@ -15,7 +15,7 @@ app.get('/api/health', (c) => {
   return c.json({ status: 'ok', message: 'Blog Generator API is running' })
 })
 
-// 서브키워드 생성 API
+// 서브키워드 생성 API (Claude)
 app.post('/api/generate-subkeywords', async (c) => {
   try {
     const { mainKeyword, apiKey } = await c.req.json()
@@ -24,37 +24,44 @@ app.post('/api/generate-subkeywords', async (c) => {
       return c.json({ error: 'mainKeyword와 apiKey가 필요합니다' }, 400)
     }
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'system',
-            content: '당신은 SEO 전문가입니다. 주어진 메인 키워드를 바탕으로 블로그에 적합한 서브 키워드 10개를 생성해주세요. 각 키워드는 검색 볼륨이 높고 경쟁이 낮은 롱테일 키워드여야 합니다.'
-          },
-          {
-            role: 'user',
-            content: `메인 키워드: "${mainKeyword}"\n\n다음 조건에 맞는 서브 키워드 10개를 JSON 배열 형태로 제공해주세요:\n1. 메인 키워드와 관련성이 높을 것\n2. 블로그 글 제목으로 활용 가능할 것\n3. 다양한 검색 의도를 포함할 것 (정보성, 상업적, 탐색적)\n4. 한국어로 작성할 것\n\n예시 형태: ["키워드1", "키워드2", "키워드3", ...]`
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 500
+        model: 'claude-3-5-haiku-20241022',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: `당신은 SEO 전문가입니다. 주어진 메인 키워드를 바탕으로 블로그에 적합한 서브 키워드 10개를 생성해주세요.
+
+메인 키워드: "${mainKeyword}"
+
+다음 조건에 맞는 서브 키워드 10개를 JSON 배열 형태로만 제공해주세요:
+1. 메인 키워드와 관련성이 높을 것
+2. 블로그 글 제목으로 활용 가능할 것  
+3. 다양한 검색 의도를 포함할 것 (정보성, 상업적, 탐색적)
+4. 한국어로 작성할 것
+5. 롱테일 키워드 형태일 것
+
+응답은 반드시 이 형태로만: ["키워드1", "키워드2", "키워드3", "키워드4", "키워드5", "키워드6", "키워드7", "키워드8", "키워드9", "키워드10"]
+
+다른 설명 없이 JSON 배열만 제공하세요.`
+        }]
       })
     })
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('OpenAI API Error:', errorText)
-      return c.json({ error: 'OpenAI API 호출 실패' }, 500)
+      console.error('Claude API Error:', errorText)
+      return c.json({ error: 'Claude API 호출 실패' }, 500)
     }
 
     const data = await response.json()
-    const content = data.choices[0].message.content
+    const content = data.content[0].text
 
     // JSON 배열 추출 시도
     try {
@@ -73,7 +80,7 @@ app.post('/api/generate-subkeywords', async (c) => {
         // JSON 형태가 아닌 경우 줄바꿈으로 분리
         const lines = content.split('\n').filter(line => line.trim())
         const keywords = lines.slice(0, 10).map(line => 
-          line.replace(/^\d+\.\s*/, '').replace(/^-\s*/, '').trim()
+          line.replace(/^\d+\.\s*/, '').replace(/^-\s*/, '').replace(/["""]/g, '').trim()
         )
         return c.json({ 
           success: true, 
@@ -95,7 +102,7 @@ app.post('/api/generate-subkeywords', async (c) => {
   }
 })
 
-// 블로그 글 생성 API
+// 블로그 글 생성 API (Claude)
 app.post('/api/generate-article', async (c) => {
   try {
     const { keyword, mainKeyword, contentStyle, contentLength, targetAudience, apiKey } = await c.req.json()
@@ -119,22 +126,21 @@ app.post('/api/generate-article', async (c) => {
       expert: '전문 지식을 가진 사람들을 대상으로 한 심화된'
     }
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'system',
-            content: `당신은 전문 블로그 작가입니다. SEO에 최적화된 고품질 블로그 글을 작성해주세요.`
-          },
-          {
-            role: 'user',
-            content: `다음 조건에 맞는 블로그 글을 작성해주세요:
+        model: 'claude-3-5-haiku-20241022',
+        max_tokens: 3000,
+        messages: [{
+          role: 'user',
+          content: `당신은 전문 블로그 작가입니다. SEO에 최적화된 고품질 블로그 글을 작성해주세요.
+
+다음 조건에 맞는 블로그 글을 작성해주세요:
 
 **키워드**: ${keyword}
 **메인 키워드**: ${mainKeyword}
@@ -154,23 +160,21 @@ app.post('/api/generate-article', async (c) => {
 - 한국어로 작성
 - 마크다운 형식으로 작성
 - 제목에 #, 소제목에 ##, 작은 제목에 ### 사용
+- 실제 도움이 되는 구체적인 내용으로 구성
 
 글을 작성해주세요.`
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 2000
+        }]
       })
     })
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('OpenAI API Error:', errorText)
-      return c.json({ error: 'OpenAI API 호출 실패' }, 500)
+      console.error('Claude API Error:', errorText)
+      return c.json({ error: 'Claude API 호출 실패' }, 500)
     }
 
     const data = await response.json()
-    const content = data.choices[0].message.content
+    const content = data.content[0].text
 
     // 제목 추출
     const titleMatch = content.match(/^#\s*(.+)$/m)
@@ -373,11 +377,16 @@ app.get('/', (c) => {
                     
                     <div class="space-y-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">OpenAI API 키</label>
-                            <input type="password" id="openaiApiKey" 
-                                   placeholder="sk-..."
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Claude API 키</label>
+                            <input type="password" id="claudeApiKey" 
+                                   placeholder="sk-ant-..."
                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                            <p class="text-xs text-gray-500 mt-1">설정된 API 키는 브라우저에 안전하게 저장됩니다</p>
+                            <p class="text-xs text-gray-500 mt-1">
+                                설정된 API 키는 브라우저에 안전하게 저장됩니다<br>
+                                <a href="https://console.anthropic.com" target="_blank" class="text-blue-600 hover:underline">
+                                    console.anthropic.com에서 발급 받으세요
+                                </a>
+                            </p>
                         </div>
                         
                         <button id="saveSettings" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition">

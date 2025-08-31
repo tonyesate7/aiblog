@@ -62,9 +62,9 @@ class BlogGenerator {
             return;
         }
 
-        const apiKey = localStorage.getItem('openai_api_key');
+        const apiKey = localStorage.getItem('claude_api_key');
         if (!apiKey) {
-            this.showAlert('OpenAI API 키가 설정되지 않았습니다. 설정에서 API 키를 입력해주세요.', 'error');
+            this.showAlert('Claude API 키가 설정되지 않았습니다. 설정에서 API 키를 입력해주세요.', 'error');
             return;
         }
 
@@ -183,9 +183,9 @@ class BlogGenerator {
     }
 
     startBlogGeneration() {
-        const apiKey = localStorage.getItem('openai_api_key');
+        const apiKey = localStorage.getItem('claude_api_key');
         if (!apiKey) {
-            this.showAlert('OpenAI API 키가 설정되지 않았습니다. 설정에서 API 키를 입력해주세요.', 'error');
+            this.showAlert('Claude API 키가 설정되지 않았습니다. 설정에서 API 키를 입력해주세요.', 'error');
             return;
         }
 
@@ -241,7 +241,7 @@ class BlogGenerator {
         const keyword = keywords[index];
         this.updateProgressItem(index, 'generating');
 
-        const apiKey = localStorage.getItem('openai_api_key');
+        const apiKey = localStorage.getItem('claude_api_key');
         const mainKeyword = document.getElementById('mainKeyword').value.trim();
         const contentStyle = document.getElementById('contentStyle').value;
         const contentLength = document.getElementById('contentLength').value;
@@ -545,21 +545,21 @@ ${keyword}에 대해 자세히 알아보았습니다. 이 정보가 여러분에
     }
 
     saveSettings() {
-        const apiKey = document.getElementById('openaiApiKey').value.trim();
+        const apiKey = document.getElementById('claudeApiKey').value.trim();
         
         if (apiKey) {
-            localStorage.setItem('openai_api_key', apiKey);
-            this.showAlert('설정이 저장되었습니다.', 'success');
+            localStorage.setItem('claude_api_key', apiKey);
+            this.showAlert('Claude API 키가 저장되었습니다.', 'success');
             this.hideSettingsModal();
         } else {
-            this.showAlert('API 키를 입력해주세요.', 'error');
+            this.showAlert('Claude API 키를 입력해주세요.', 'error');
         }
     }
 
     loadSettings() {
-        const apiKey = localStorage.getItem('openai_api_key');
+        const apiKey = localStorage.getItem('claude_api_key');
         if (apiKey) {
-            document.getElementById('openaiApiKey').value = apiKey;
+            document.getElementById('claudeApiKey').value = apiKey;
         }
     }
 
