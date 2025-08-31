@@ -46,6 +46,14 @@ class BlogGenerator {
             this.downloadWord();
         });
 
+        document.getElementById('downloadIndividual').addEventListener('click', () => {
+            this.downloadIndividualFiles();
+        });
+
+        document.getElementById('downloadMarkdown').addEventListener('click', () => {
+            this.downloadMarkdown();
+        });
+
         // 모달 외부 클릭시 닫기
         document.getElementById('settingsModal').addEventListener('click', (e) => {
             if (e.target.id === 'settingsModal') {
@@ -464,48 +472,201 @@ ${keyword}에 대해 자세히 알아보았습니다. 이 정보가 여러분에
 
         try {
             const mainKeyword = document.getElementById('mainKeyword').value.trim();
+            const contentStyle = document.getElementById('contentStyle').value;
+            const contentLength = document.getElementById('contentLength').value;
+            const targetAudience = document.getElementById('targetAudience').value;
             
-            // HTML 문서 생성
+            // 목차 생성
+            let tableOfContents = '<h2>목차</h2><ul>';
+            this.generatedArticles.forEach((article, index) => {
+                tableOfContents += `<li>${index + 1}. ${article.title}</li>`;
+            });
+            tableOfContents += '</ul><div style="page-break-after: always;"></div>';
+
+            // 개선된 HTML 문서 생성
             let htmlContent = `
                 <html>
                 <head>
                     <meta charset="UTF-8">
-                    <title>Blog Articles - ${mainKeyword}</title>
+                    <title>${mainKeyword} - 블로그 콘텐츠 모음집</title>
                     <style>
-                        body { font-family: 'Malgun Gothic', Arial, sans-serif; line-height: 1.6; margin: 40px; }
-                        h1 { color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px; }
-                        h2 { color: #1f2937; margin-top: 30px; }
-                        h3 { color: #4b5563; }
-                        .article { margin-bottom: 50px; page-break-after: always; }
-                        .meta { background-color: #f3f4f6; padding: 10px; border-radius: 5px; margin-bottom: 20px; }
-                        .keyword { background-color: #dbeafe; color: #1d4ed8; padding: 5px 10px; border-radius: 15px; font-size: 12px; }
+                        body { 
+                            font-family: 'Malgun Gothic', '맑은 고딕', Arial, sans-serif; 
+                            line-height: 1.8; 
+                            margin: 0; 
+                            padding: 40px; 
+                            color: #333;
+                        }
+                        .cover { 
+                            text-align: center; 
+                            margin-bottom: 60px; 
+                            page-break-after: always;
+                            border: 2px solid #2563eb;
+                            padding: 60px 40px;
+                            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+                        }
+                        .cover h1 { 
+                            font-size: 28px; 
+                            color: #1e40af; 
+                            margin-bottom: 20px;
+                            font-weight: bold;
+                        }
+                        .cover-info { 
+                            background: white; 
+                            padding: 20px; 
+                            border-radius: 10px; 
+                            margin-top: 30px;
+                            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                        }
+                        h1 { color: #1e40af; border-bottom: 3px solid #2563eb; padding-bottom: 15px; font-size: 24px; }
+                        h2 { color: #1f2937; margin-top: 40px; font-size: 20px; border-left: 4px solid #2563eb; padding-left: 15px; }
+                        h3 { color: #4b5563; font-size: 18px; }
+                        .article { 
+                            margin-bottom: 60px; 
+                            page-break-after: always; 
+                            border: 1px solid #e5e7eb;
+                            padding: 30px;
+                            border-radius: 10px;
+                            background: #fafafa;
+                        }
+                        .article-header {
+                            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+                            color: white;
+                            padding: 20px;
+                            margin: -30px -30px 30px -30px;
+                            border-radius: 10px 10px 0 0;
+                        }
+                        .meta { 
+                            background-color: #f8fafc; 
+                            padding: 15px; 
+                            border-radius: 8px; 
+                            margin-bottom: 25px;
+                            border-left: 4px solid #10b981;
+                        }
+                        .keyword { 
+                            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); 
+                            color: #1d4ed8; 
+                            padding: 8px 16px; 
+                            border-radius: 20px; 
+                            font-size: 14px; 
+                            font-weight: bold;
+                            display: inline-block;
+                            margin-right: 15px;
+                        }
+                        .word-count {
+                            background: #fef3c7;
+                            color: #92400e;
+                            padding: 6px 12px;
+                            border-radius: 15px;
+                            font-size: 12px;
+                            font-weight: bold;
+                        }
+                        .toc {
+                            background: #f9fafb;
+                            border: 1px solid #d1d5db;
+                            border-radius: 10px;
+                            padding: 25px;
+                            margin-bottom: 40px;
+                        }
+                        .toc h2 {
+                            color: #1f2937;
+                            margin-top: 0;
+                            border: none;
+                            text-align: center;
+                        }
+                        .toc ul {
+                            list-style: none;
+                            padding: 0;
+                        }
+                        .toc li {
+                            padding: 8px 0;
+                            border-bottom: 1px dotted #d1d5db;
+                            font-size: 16px;
+                        }
+                        .footer {
+                            text-align: center;
+                            margin-top: 50px;
+                            padding: 20px;
+                            background: #f3f4f6;
+                            border-radius: 10px;
+                            color: #6b7280;
+                        }
+                        p { margin-bottom: 15px; }
+                        strong { color: #1f2937; }
+                        em { color: #4b5563; font-style: italic; }
                     </style>
                 </head>
                 <body>
-                    <h1>AI 블로그 자동 생성 결과</h1>
-                    <div class="meta">
-                        <p><strong>메인 키워드:</strong> ${mainKeyword}</p>
-                        <p><strong>생성 일시:</strong> ${new Date().toLocaleDateString('ko-KR')}</p>
-                        <p><strong>총 글 수:</strong> ${this.generatedArticles.length}개</p>
+                    <!-- 표지 -->
+                    <div class="cover">
+                        <h1>${mainKeyword} 완벽 가이드</h1>
+                        <p style="font-size: 18px; color: #64748b; margin: 20px 0;">AI가 생성한 전문 블로그 콘텐츠 모음집</p>
+                        <div class="cover-info">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <tr>
+                                    <td style="padding: 10px; border: 1px solid #e5e7eb;"><strong>메인 키워드</strong></td>
+                                    <td style="padding: 10px; border: 1px solid #e5e7eb;">${mainKeyword}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 10px; border: 1px solid #e5e7eb;"><strong>글 스타일</strong></td>
+                                    <td style="padding: 10px; border: 1px solid #e5e7eb;">${this.getStyleName(contentStyle)}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 10px; border: 1px solid #e5e7eb;"><strong>대상 독자</strong></td>
+                                    <td style="padding: 10px; border: 1px solid #e5e7eb;">${this.getAudienceName(targetAudience)}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 10px; border: 1px solid #e5e7eb;"><strong>총 글 수</strong></td>
+                                    <td style="padding: 10px; border: 1px solid #e5e7eb;">${this.generatedArticles.length}개</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 10px; border: 1px solid #e5e7eb;"><strong>생성 일시</strong></td>
+                                    <td style="padding: 10px; border: 1px solid #e5e7eb;">${new Date().toLocaleDateString('ko-KR', {year: 'numeric', month: 'long', day: 'numeric'})}</td>
+                                </tr>
+                            </table>
+                        </div>
                     </div>
+
+                    <!-- 목차 -->
+                    <div class="toc">
+                        ${tableOfContents}
+                    </div>
+
+                    <!-- 글 목록 -->
             `;
 
             this.generatedArticles.forEach((article, index) => {
+                const wordCount = article.content.replace(/<[^>]*>/g, '').length;
                 htmlContent += `
                     <div class="article">
-                        <h2>${index + 1}. ${article.title}</h2>
-                        <div class="meta">
-                            <span class="keyword">${article.keyword}</span>
-                            <span style="margin-left: 10px; font-size: 12px; color: #6b7280;">
-                                ${article.wordCount}자 | ${new Date(article.createdAt).toLocaleDateString('ko-KR')}
-                            </span>
+                        <div class="article-header">
+                            <h1 style="margin: 0; border: none; color: white;">${index + 1}. ${article.title}</h1>
                         </div>
-                        <div>${this.markdownToHtml(article.content)}</div>
+                        <div class="meta">
+                            <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 10px;">
+                                <span class="keyword"># ${article.keyword}</span>
+                                <span class="word-count">${wordCount}자</span>
+                                <span style="color: #6b7280; font-size: 14px;">
+                                    생성일: ${new Date(article.createdAt).toLocaleDateString('ko-KR')}
+                                </span>
+                            </div>
+                        </div>
+                        <div style="font-size: 15px; line-height: 1.8;">
+                            ${this.markdownToHtml(article.content)}
+                        </div>
                     </div>
                 `;
             });
 
             htmlContent += `
+                    <!-- 푸터 -->
+                    <div class="footer">
+                        <p><strong>AI 블로그 자동 생성기</strong>로 제작된 콘텐츠입니다.</p>
+                        <p>Claude AI 기반 | 생성일: ${new Date().toLocaleDateString('ko-KR')}</p>
+                        <p style="font-size: 12px; color: #9ca3af;">
+                            이 문서의 내용은 AI가 생성한 것으로, 참고용으로만 사용하시기 바랍니다.
+                        </p>
+                    </div>
                 </body>
                 </html>
             `;
@@ -516,17 +677,242 @@ ${keyword}에 대해 자세히 알아보았습니다. 이 정보가 여러분에
             // 다운로드
             const link = document.createElement('a');
             link.href = URL.createObjectURL(converted);
-            link.download = `blog-articles-${mainKeyword}-${new Date().toISOString().slice(0,10)}.docx`;
+            link.download = `${mainKeyword}-블로그가이드-${new Date().toISOString().slice(0,10)}.docx`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
             
-            this.showAlert('Word 파일이 다운로드되었습니다!', 'success');
+            this.showAlert('전문적인 Word 문서가 다운로드되었습니다! 📄', 'success');
             
         } catch (error) {
             console.error('Word 문서 생성 오류:', error);
             this.showAlert('Word 문서 생성 중 오류가 발생했습니다.', 'error');
         }
+    }
+
+    downloadIndividualFiles() {
+        if (this.generatedArticles.length === 0) {
+            this.showAlert('먼저 블로그 글을 생성해주세요.', 'error');
+            return;
+        }
+
+        try {
+            const zip = new JSZip();
+            const mainKeyword = document.getElementById('mainKeyword').value.trim();
+
+            // 각 글을 개별 파일로 생성
+            this.generatedArticles.forEach((article, index) => {
+                // Word 파일 생성
+                const htmlContent = `
+                    <html>
+                    <head>
+                        <meta charset="UTF-8">
+                        <title>${article.title}</title>
+                        <style>
+                            body { font-family: 'Malgun Gothic', Arial, sans-serif; line-height: 1.8; margin: 40px; }
+                            h1 { color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px; }
+                            h2 { color: #1f2937; margin-top: 30px; }
+                            h3 { color: #4b5563; }
+                            .meta { background-color: #f3f4f6; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+                        </style>
+                    </head>
+                    <body>
+                        <h1>${article.title}</h1>
+                        <div class="meta">
+                            <p><strong>키워드:</strong> ${article.keyword}</p>
+                            <p><strong>글자 수:</strong> ${article.wordCount}자</p>
+                            <p><strong>생성일:</strong> ${new Date(article.createdAt).toLocaleDateString('ko-KR')}</p>
+                        </div>
+                        ${this.markdownToHtml(article.content)}
+                    </body>
+                    </html>
+                `;
+
+                // Word 문서 생성
+                const docBlob = htmlDocx.asBlob(htmlContent);
+                const fileName = `${index + 1}. ${this.sanitizeFilename(article.title)}.docx`;
+                zip.file(fileName, docBlob);
+
+                // 마크다운 파일도 생성
+                const markdownContent = `# ${article.title}
+
+**키워드:** ${article.keyword}  
+**글자 수:** ${article.wordCount}자  
+**생성일:** ${new Date(article.createdAt).toLocaleDateString('ko-KR')}
+
+---
+
+${article.content}
+`;
+                const mdFileName = `${index + 1}. ${this.sanitizeFilename(article.title)}.md`;
+                zip.file(mdFileName, markdownContent);
+            });
+
+            // README 파일 생성
+            const readmeContent = `# ${mainKeyword} 블로그 콘텐츠 모음
+
+## 개요
+- **총 글 수:** ${this.generatedArticles.length}개
+- **생성일:** ${new Date().toLocaleDateString('ko-KR')}
+- **메인 키워드:** ${mainKeyword}
+
+## 파일 목록
+
+### Word 문서 (.docx)
+${this.generatedArticles.map((article, index) => 
+    `${index + 1}. ${article.title}.docx`
+).join('\n')}
+
+### 마크다운 파일 (.md)
+${this.generatedArticles.map((article, index) => 
+    `${index + 1}. ${article.title}.md`
+).join('\n')}
+
+## 사용 방법
+1. Word 문서: Microsoft Word, Google Docs 등에서 열기
+2. 마크다운: 텍스트 에디터, Notion, Obsidian 등에서 열기
+
+---
+AI 블로그 자동 생성기로 제작됨
+`;
+            zip.file('README.md', readmeContent);
+
+            // ZIP 파일 다운로드
+            zip.generateAsync({type: 'blob'}).then((content) => {
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(content);
+                link.download = `${mainKeyword}-블로그콘텐츠-${new Date().toISOString().slice(0,10)}.zip`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+            });
+
+            this.showAlert(`${this.generatedArticles.length}개 파일이 ZIP으로 다운로드됩니다! 📦`, 'success');
+
+        } catch (error) {
+            console.error('개별 파일 생성 오류:', error);
+            this.showAlert('파일 생성 중 오류가 발생했습니다.', 'error');
+        }
+    }
+
+    downloadMarkdown() {
+        if (this.generatedArticles.length === 0) {
+            this.showAlert('먼저 블로그 글을 생성해주세요.', 'error');
+            return;
+        }
+
+        try {
+            const mainKeyword = document.getElementById('mainKeyword').value.trim();
+            
+            let markdownContent = `# ${mainKeyword} 블로그 콘텐츠 모음집
+
+> AI가 생성한 전문 블로그 콘텐츠 ${this.generatedArticles.length}개
+
+## 📋 목차
+
+${this.generatedArticles.map((article, index) => 
+    `${index + 1}. [${article.title}](#${index + 1}-${this.sanitizeAnchor(article.title)})`
+).join('\n')}
+
+---
+
+## 📊 생성 정보
+
+- **메인 키워드:** ${mainKeyword}
+- **총 글 수:** ${this.generatedArticles.length}개  
+- **생성일:** ${new Date().toLocaleDateString('ko-KR')}
+- **AI 모델:** Claude 3.5 Haiku
+
+---
+
+`;
+
+            // 각 글 추가
+            this.generatedArticles.forEach((article, index) => {
+                markdownContent += `
+## ${index + 1}. ${article.title}
+
+> **키워드:** \`${article.keyword}\`  
+> **글자 수:** ${article.content.replace(/<[^>]*>/g, '').length}자  
+> **생성일:** ${new Date(article.createdAt).toLocaleDateString('ko-KR')}
+
+${article.content}
+
+---
+
+`;
+            });
+
+            markdownContent += `
+## 📝 사용 안내
+
+이 문서는 **AI 블로그 자동 생성기**로 제작되었습니다.
+
+### 활용 방법
+- 블로그 포스팅 참고 자료
+- 콘텐츠 아이디어 소스  
+- SEO 키워드 연구 자료
+
+### 추가 편집 권장사항
+- 개인적인 경험 추가
+- 최신 정보 업데이트
+- 이미지 및 미디어 삽입
+- 내부 링크 연결
+
+---
+
+**제작:** AI Blog Generator | **일시:** ${new Date().toLocaleString('ko-KR')}
+`;
+
+            // 다운로드
+            const blob = new Blob([markdownContent], { type: 'text/markdown;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `${mainKeyword}-블로그가이드-${new Date().toISOString().slice(0,10)}.md`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+
+            this.showAlert('마크다운 파일이 다운로드되었습니다! 📝', 'success');
+
+        } catch (error) {
+            console.error('마크다운 생성 오류:', error);
+            this.showAlert('마크다운 생성 중 오류가 발생했습니다.', 'error');
+        }
+    }
+
+    sanitizeFilename(filename) {
+        // 파일명에서 특수문자 제거
+        return filename.replace(/[<>:"/\\|?*]/g, '').replace(/\s+/g, ' ').trim();
+    }
+
+    sanitizeAnchor(text) {
+        // 앵커 링크용 텍스트 정리
+        return text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
+    }
+
+    getStyleName(style) {
+        const styles = {
+            informative: '정보성',
+            review: '리뷰',
+            guide: '가이드',
+            news: '뉴스',
+            tutorial: '튜토리얼'
+        };
+        return styles[style] || '정보성';
+    }
+
+    getAudienceName(audience) {
+        const audiences = {
+            general: '일반인',
+            beginner: '초보자',
+            intermediate: '중급자',
+            expert: '전문가'
+        };
+        return audiences[audience] || '일반인';
     }
 
     htmlToPlainText(html) {

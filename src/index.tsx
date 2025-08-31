@@ -348,12 +348,18 @@ app.get('/', (c) => {
                         <i class="fas fa-eye text-indigo-600 text-xl mr-3"></i>
                         <h2 class="text-2xl font-bold text-gray-800">생성 결과 미리보기</h2>
                     </div>
-                    <div class="flex space-x-2">
+                    <div class="flex flex-wrap gap-2">
                         <button id="downloadPDF" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition">
                             <i class="fas fa-file-pdf mr-2"></i>PDF 다운로드
                         </button>
                         <button id="downloadWord" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition">
-                            <i class="fas fa-file-word mr-2"></i>Word 다운로드
+                            <i class="fas fa-file-word mr-2"></i>전체 Word 문서
+                        </button>
+                        <button id="downloadIndividual" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition">
+                            <i class="fas fa-archive mr-2"></i>개별 파일 (ZIP)
+                        </button>
+                        <button id="downloadMarkdown" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition">
+                            <i class="fas fa-code mr-2"></i>Markdown
                         </button>
                     </div>
                 </div>
@@ -401,6 +407,7 @@ app.get('/', (c) => {
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/html-docx-js@0.4.1/dist/html-docx.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
         <script src="/static/app.js"></script>
     </body>
     </html>
