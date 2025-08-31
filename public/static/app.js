@@ -11,6 +11,7 @@ class BlogGenerator {
     init() {
         this.bindEvents();
         this.loadSettings();
+        this.loadFromLocalStorage();
     }
 
     bindEvents() {
@@ -52,6 +53,19 @@ class BlogGenerator {
 
         document.getElementById('downloadMarkdown').addEventListener('click', () => {
             this.downloadMarkdown();
+        });
+
+        // 추가 기능 버튼들
+        document.getElementById('selectAllArticles').addEventListener('click', () => {
+            this.selectAllArticles();
+        });
+
+        document.getElementById('saveProject').addEventListener('click', () => {
+            this.saveProject();
+        });
+
+        document.getElementById('clearAll').addEventListener('click', () => {
+            this.clearAllArticles();
         });
 
         // 모달 외부 클릭시 닫기
@@ -362,28 +376,121 @@ ${keyword}에 대해 자세히 알아보았습니다. 이 정보가 여러분에
 
         this.generatedArticles.forEach((article, index) => {
             const articleDiv = document.createElement('div');
-            articleDiv.className = 'border border-gray-200 rounded-lg p-4';
+            articleDiv.className = `border border-gray-200 rounded-lg p-4 ${article.modified ? 'article-modified' : ''}`;
+            articleDiv.id = `article-${article.id}`;
+            
+            const wordCount = article.content.replace(/<[^>]*>/g, '').replace(/[#*\-_]/g, '').length;
+            
             articleDiv.innerHTML = `
                 <div class="flex items-center justify-between mb-3">
-                    <h3 class="text-lg font-bold text-gray-800">${article.title}</h3>
+                    <div class="flex items-center gap-2">
+                        <h3 id="title-${article.id}" class="text-lg font-bold text-gray-800">${article.title}</h3>
+                        ${article.modified ? '<span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs"><i class="fas fa-edit mr-1"></i>수정됨</span>' : ''}
+                    </div>
                     <div class="flex items-center text-sm text-gray-500">
                         <i class="fas fa-file-alt mr-1"></i>
-                        <span>${article.wordCount}자</span>
+                        <span id="wordcount-${article.id}">${wordCount}자</span>
                     </div>
                 </div>
                 <div class="text-sm text-gray-600 mb-3">
                     <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
                         ${article.keyword}
                     </span>
+                    <span class="text-xs text-gray-400 ml-2">
+                        생성: ${new Date(article.createdAt).toLocaleDateString('ko-KR')}
+                        ${article.modifiedAt ? ` | 수정: ${new Date(article.modifiedAt).toLocaleDateString('ko-KR')}` : ''}
+                    </span>
                 </div>
-                <div class="prose prose-sm max-w-none">
-                    ${this.markdownToHtml(article.content)}
+                
+                <!-- 읽기 모드 -->
+                <div id="read-mode-${article.id}" class="read-mode">
+                    <div class="prose prose-sm max-w-none" id="content-display-${article.id}">
+                        ${this.markdownToHtml(article.content)}
+                    </div>
                 </div>
-                <div class="mt-4 pt-3 border-t border-gray-100">
-                    <button onclick="blogGenerator.editArticle(${article.id})" 
-                            class="text-blue-600 hover:text-blue-800 text-sm">
-                        <i class="fas fa-edit mr-1"></i>수정
-                    </button>
+                
+                <!-- 편집 모드 -->
+                <div id="edit-mode-${article.id}" class="edit-mode article-editor" style="display: none;">
+                    <div class="edit-toolbar">
+                        <button class="toolbar-btn active" onclick="blogGenerator.switchEditView(${article.id}, 'edit')">
+                            <i class="fas fa-edit"></i> 편집
+                        </button>
+                        <button class="toolbar-btn" onclick="blogGenerator.switchEditView(${article.id}, 'preview')">
+                            <i class="fas fa-eye"></i> 미리보기
+                        </button>
+                        <button class="toolbar-btn" onclick="blogGenerator.switchEditView(${article.id}, 'split')">
+                            <i class="fas fa-columns"></i> 분할
+                        </button>
+                        <div style="margin-left: auto;">
+                            <button class="toolbar-btn" onclick="blogGenerator.insertMarkdown(${article.id}, 'bold')">
+                                <i class="fas fa-bold"></i>
+                            </button>
+                            <button class="toolbar-btn" onclick="blogGenerator.insertMarkdown(${article.id}, 'italic')">
+                                <i class="fas fa-italic"></i>
+                            </button>
+                            <button class="toolbar-btn" onclick="blogGenerator.insertMarkdown(${article.id}, 'heading')">
+                                <i class="fas fa-heading"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <input type="text" id="title-input-${article.id}" value="${article.title}" 
+                               placeholder="제목을 입력하세요"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg font-semibold text-lg"
+                               onchange="blogGenerator.updateTitle(${article.id})">
+                    </div>
+                    
+                    <div id="editor-container-${article.id}">
+                        <!-- 편집 전용 -->
+                        <div id="edit-only-${article.id}">
+                            <textarea id="content-textarea-${article.id}" class="editor-textarea" 
+                                      placeholder="마크다운 형식으로 내용을 작성하세요..."
+                                      oninput="blogGenerator.autoSave(${article.id})">${article.content}</textarea>
+                        </div>
+                        
+                        <!-- 미리보기 전용 -->
+                        <div id="preview-only-${article.id}" style="display: none;">
+                            <div class="editor-preview" id="preview-${article.id}">
+                                ${this.markdownToHtml(article.content)}
+                            </div>
+                        </div>
+                        
+                        <!-- 분할 보기 -->
+                        <div id="split-view-${article.id}" style="display: none;" class="grid grid-cols-2 gap-4">
+                            <div>
+                                <h4 class="text-sm font-medium text-gray-700 mb-2">편집</h4>
+                                <textarea id="content-textarea-split-${article.id}" class="editor-textarea" 
+                                          oninput="blogGenerator.updateSplitPreview(${article.id})">${article.content}</textarea>
+                            </div>
+                            <div>
+                                <h4 class="text-sm font-medium text-gray-700 mb-2">미리보기</h4>
+                                <div class="editor-preview" id="preview-split-${article.id}">
+                                    ${this.markdownToHtml(article.content)}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
+                    <div class="flex gap-2">
+                        <button id="edit-btn-${article.id}" onclick="blogGenerator.toggleEdit(${article.id})" 
+                                class="text-blue-600 hover:text-blue-800 text-sm transition">
+                            <i class="fas fa-edit mr-1"></i>편집
+                        </button>
+                        <button onclick="blogGenerator.duplicateArticle(${article.id})" 
+                                class="text-green-600 hover:text-green-800 text-sm transition">
+                            <i class="fas fa-copy mr-1"></i>복제
+                        </button>
+                        <button onclick="blogGenerator.deleteArticle(${article.id})" 
+                                class="text-red-600 hover:text-red-800 text-sm transition">
+                            <i class="fas fa-trash mr-1"></i>삭제
+                        </button>
+                    </div>
+                    <div class="text-xs text-gray-400">
+                        ID: ${article.id}
+                    </div>
                 </div>
             `;
             container.appendChild(articleDiv);
@@ -392,9 +499,392 @@ ${keyword}에 대해 자세히 알아보았습니다. 이 정보가 여러분에
         this.showAlert('모든 블로그 글 생성이 완료되었습니다!', 'success');
     }
 
-    editArticle(articleId) {
-        // 글 편집 기능 (추후 구현)
-        this.showAlert('글 편집 기능은 곧 추가될 예정입니다.', 'info');
+    toggleEdit(articleId) {
+        const readMode = document.getElementById(`read-mode-${articleId}`);
+        const editMode = document.getElementById(`edit-mode-${articleId}`);
+        const editBtn = document.getElementById(`edit-btn-${articleId}`);
+        
+        if (editMode.style.display === 'none') {
+            // 편집 모드로 전환
+            readMode.style.display = 'none';
+            editMode.style.display = 'block';
+            editBtn.innerHTML = '<i class="fas fa-save mr-1"></i>저장';
+            editBtn.onclick = () => this.saveEdit(articleId);
+            
+            // 현재 편집 뷰 설정 (기본: 분할 보기)
+            this.switchEditView(articleId, 'split');
+        } else {
+            // 읽기 모드로 전환 (저장)
+            this.saveEdit(articleId);
+        }
+    }
+
+    saveEdit(articleId) {
+        const article = this.generatedArticles.find(a => a.id === articleId);
+        if (!article) return;
+
+        const titleInput = document.getElementById(`title-input-${articleId}`);
+        const contentTextarea = document.getElementById(`content-textarea-${articleId}`) || 
+                                document.getElementById(`content-textarea-split-${articleId}`);
+        
+        const newTitle = titleInput.value.trim();
+        const newContent = contentTextarea.value.trim();
+
+        if (!newTitle || !newContent) {
+            this.showAlert('제목과 내용을 모두 입력해주세요.', 'error');
+            return;
+        }
+
+        // 변경사항 확인
+        const titleChanged = article.title !== newTitle;
+        const contentChanged = article.content !== newContent;
+
+        if (titleChanged || contentChanged) {
+            // 변경사항 저장
+            article.title = newTitle;
+            article.content = newContent;
+            article.modified = true;
+            article.modifiedAt = new Date().toISOString();
+            
+            // 글자 수 업데이트
+            article.wordCount = newContent.replace(/<[^>]*>/g, '').replace(/[#*\-_]/g, '').length;
+
+            // 로컬 스토리지에 저장
+            this.saveToLocalStorage();
+
+            this.showAlert('변경사항이 저장되었습니다! ✅', 'success');
+        }
+
+        // UI 업데이트
+        this.updateArticleDisplay(articleId);
+        
+        // 읽기 모드로 전환
+        const readMode = document.getElementById(`read-mode-${articleId}`);
+        const editMode = document.getElementById(`edit-mode-${articleId}`);
+        const editBtn = document.getElementById(`edit-btn-${articleId}`);
+        
+        readMode.style.display = 'block';
+        editMode.style.display = 'none';
+        editBtn.innerHTML = '<i class="fas fa-edit mr-1"></i>편집';
+        editBtn.onclick = () => this.toggleEdit(articleId);
+    }
+
+    updateArticleDisplay(articleId) {
+        const article = this.generatedArticles.find(a => a.id === articleId);
+        if (!article) return;
+
+        // 제목 업데이트
+        const titleElement = document.getElementById(`title-${articleId}`);
+        titleElement.textContent = article.title;
+
+        // 내용 업데이트
+        const contentDisplay = document.getElementById(`content-display-${articleId}`);
+        contentDisplay.innerHTML = this.markdownToHtml(article.content);
+
+        // 글자 수 업데이트
+        const wordCountElement = document.getElementById(`wordcount-${articleId}`);
+        wordCountElement.textContent = `${article.wordCount}자`;
+
+        // 수정됨 표시 업데이트
+        const articleContainer = document.getElementById(`article-${articleId}`);
+        if (article.modified) {
+            articleContainer.classList.add('article-modified');
+        }
+    }
+
+    switchEditView(articleId, viewType) {
+        // 툴바 버튼 상태 업데이트
+        const toolbar = document.querySelector(`#edit-mode-${articleId} .edit-toolbar`);
+        const buttons = toolbar.querySelectorAll('.toolbar-btn');
+        buttons.forEach(btn => btn.classList.remove('active'));
+        
+        // 현재 선택된 뷰 버튼 활성화
+        const targetBtn = Array.from(buttons).find(btn => 
+            btn.textContent.includes(viewType === 'edit' ? '편집' : viewType === 'preview' ? '미리보기' : '분할')
+        );
+        if (targetBtn) targetBtn.classList.add('active');
+
+        // 뷰 전환
+        const editOnly = document.getElementById(`edit-only-${articleId}`);
+        const previewOnly = document.getElementById(`preview-only-${articleId}`);
+        const splitView = document.getElementById(`split-view-${articleId}`);
+
+        // 모든 뷰 숨기기
+        editOnly.style.display = 'none';
+        previewOnly.style.display = 'none';
+        splitView.style.display = 'none';
+
+        // 선택된 뷰만 보이기
+        switch (viewType) {
+            case 'edit':
+                editOnly.style.display = 'block';
+                break;
+            case 'preview':
+                previewOnly.style.display = 'block';
+                this.updatePreview(articleId, 'preview');
+                break;
+            case 'split':
+                splitView.style.display = 'block';
+                this.updatePreview(articleId, 'preview-split');
+                break;
+        }
+    }
+
+    updatePreview(articleId, previewId) {
+        const textarea = document.getElementById(`content-textarea-${articleId}`) ||
+                        document.getElementById(`content-textarea-split-${articleId}`);
+        const preview = document.getElementById(`${previewId}-${articleId}`);
+        
+        if (textarea && preview) {
+            const content = textarea.value;
+            preview.innerHTML = this.markdownToHtml(content);
+        }
+    }
+
+    updateSplitPreview(articleId) {
+        this.updatePreview(articleId, 'preview-split');
+        this.autoSave(articleId);
+    }
+
+    updateTitle(articleId) {
+        // 제목 변경시 자동 저장
+        this.autoSave(articleId);
+    }
+
+    autoSave(articleId) {
+        // 자동 저장 (디바운싱)
+        if (this.autoSaveTimeout) {
+            clearTimeout(this.autoSaveTimeout);
+        }
+        
+        this.autoSaveTimeout = setTimeout(() => {
+            const article = this.generatedArticles.find(a => a.id === articleId);
+            if (!article) return;
+
+            const titleInput = document.getElementById(`title-input-${articleId}`);
+            const contentTextarea = document.getElementById(`content-textarea-${articleId}`) || 
+                                    document.getElementById(`content-textarea-split-${articleId}`);
+            
+            if (titleInput && contentTextarea) {
+                const currentTitle = titleInput.value.trim();
+                const currentContent = contentTextarea.value.trim();
+                
+                // 임시 저장 (로컬 스토리지)
+                const tempData = {
+                    title: currentTitle,
+                    content: currentContent,
+                    lastEdit: new Date().toISOString()
+                };
+                
+                localStorage.setItem(`temp_article_${articleId}`, JSON.stringify(tempData));
+                
+                // 미리보기 업데이트
+                if (document.getElementById(`preview-${articleId}`)) {
+                    this.updatePreview(articleId, 'preview');
+                }
+            }
+        }, 1000); // 1초 지연
+    }
+
+    insertMarkdown(articleId, type) {
+        const textarea = document.getElementById(`content-textarea-${articleId}`) ||
+                        document.getElementById(`content-textarea-split-${articleId}`);
+        
+        if (!textarea) return;
+
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const selectedText = textarea.value.substring(start, end);
+        
+        let insertText = '';
+        let newCursorPos = start;
+
+        switch (type) {
+            case 'bold':
+                insertText = `**${selectedText || '굵은 텍스트'}**`;
+                newCursorPos = selectedText ? end + 4 : start + 2;
+                break;
+            case 'italic':
+                insertText = `*${selectedText || '이탤릭 텍스트'}*`;
+                newCursorPos = selectedText ? end + 2 : start + 1;
+                break;
+            case 'heading':
+                insertText = `## ${selectedText || '제목'}`;
+                newCursorPos = selectedText ? end + 3 : start + 3;
+                break;
+        }
+
+        textarea.value = textarea.value.substring(0, start) + insertText + textarea.value.substring(end);
+        textarea.focus();
+        textarea.setSelectionRange(newCursorPos, newCursorPos);
+        
+        this.autoSave(articleId);
+    }
+
+    duplicateArticle(articleId) {
+        const article = this.generatedArticles.find(a => a.id === articleId);
+        if (!article) return;
+
+        const newArticle = {
+            ...article,
+            id: Date.now(), // 새로운 ID
+            title: `${article.title} (복사본)`,
+            createdAt: new Date().toISOString(),
+            modified: true,
+            modifiedAt: new Date().toISOString()
+        };
+
+        this.generatedArticles.push(newArticle);
+        this.showResults(); // 결과 다시 표시
+        this.saveToLocalStorage();
+        
+        this.showAlert('글이 복제되었습니다! 📋', 'success');
+    }
+
+    deleteArticle(articleId) {
+        if (confirm('정말로 이 글을 삭제하시겠습니까?')) {
+            this.generatedArticles = this.generatedArticles.filter(a => a.id !== articleId);
+            this.showResults(); // 결과 다시 표시
+            this.saveToLocalStorage();
+            
+            this.showAlert('글이 삭제되었습니다.', 'info');
+        }
+    }
+
+    saveToLocalStorage() {
+        try {
+            const saveData = {
+                articles: this.generatedArticles,
+                mainKeyword: document.getElementById('mainKeyword').value,
+                settings: {
+                    contentStyle: document.getElementById('contentStyle').value,
+                    contentLength: document.getElementById('contentLength').value,
+                    targetAudience: document.getElementById('targetAudience').value
+                },
+                lastSaved: new Date().toISOString()
+            };
+            
+            localStorage.setItem('blog_generator_data', JSON.stringify(saveData));
+        } catch (error) {
+            console.error('로컬 저장 실패:', error);
+        }
+    }
+
+    loadFromLocalStorage() {
+        try {
+            const savedData = localStorage.getItem('blog_generator_data');
+            if (savedData) {
+                const data = JSON.parse(savedData);
+                
+                if (data.articles && data.articles.length > 0) {
+                    this.generatedArticles = data.articles;
+                    
+                    // 설정 복원
+                    if (data.settings) {
+                        document.getElementById('contentStyle').value = data.settings.contentStyle || 'informative';
+                        document.getElementById('contentLength').value = data.settings.contentLength || '2000';
+                        document.getElementById('targetAudience').value = data.settings.targetAudience || 'general';
+                    }
+                    
+                    if (data.mainKeyword) {
+                        document.getElementById('mainKeyword').value = data.mainKeyword;
+                    }
+                    
+                    // 결과 표시
+                    document.getElementById('resultsSection').style.display = 'block';
+                    this.showResults();
+                    
+                    this.showAlert(`이전 작업이 복원되었습니다. (${data.articles.length}개 글)`, 'info');
+                }
+            }
+        } catch (error) {
+            console.error('로컬 데이터 로드 실패:', error);
+        }
+    }
+
+    selectAllArticles() {
+        // 전체 선택/해제 토글
+        const checkboxes = document.querySelectorAll('input[type="checkbox"][id^="select-"]');
+        const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+        
+        checkboxes.forEach(cb => {
+            cb.checked = !allChecked;
+        });
+
+        const action = allChecked ? '해제' : '선택';
+        this.showAlert(`모든 글이 ${action}되었습니다.`, 'info');
+    }
+
+    saveProject() {
+        const mainKeyword = document.getElementById('mainKeyword').value.trim();
+        if (!mainKeyword) {
+            this.showAlert('프로젝트를 저장하려면 메인 키워드가 필요합니다.', 'error');
+            return;
+        }
+
+        if (this.generatedArticles.length === 0) {
+            this.showAlert('저장할 글이 없습니다.', 'error');
+            return;
+        }
+
+        try {
+            const projectData = {
+                projectName: `${mainKeyword} 프로젝트`,
+                mainKeyword: mainKeyword,
+                articles: this.generatedArticles,
+                settings: {
+                    contentStyle: document.getElementById('contentStyle').value,
+                    contentLength: document.getElementById('contentLength').value,
+                    targetAudience: document.getElementById('targetAudience').value
+                },
+                createdAt: new Date().toISOString(),
+                totalArticles: this.generatedArticles.length,
+                modifiedArticles: this.generatedArticles.filter(a => a.modified).length
+            };
+
+            // JSON 파일로 다운로드
+            const dataStr = JSON.stringify(projectData, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = `${mainKeyword}-프로젝트-${new Date().toISOString().slice(0,10)}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+
+            this.showAlert('프로젝트가 JSON 파일로 저장되었습니다! 💾', 'success');
+            
+        } catch (error) {
+            console.error('프로젝트 저장 오류:', error);
+            this.showAlert('프로젝트 저장 중 오류가 발생했습니다.', 'error');
+        }
+    }
+
+    clearAllArticles() {
+        if (confirm('⚠️ 모든 글과 진행사항이 삭제됩니다. 정말 계속하시겠습니까?\\n\\n삭제된 데이터는 복구할 수 없습니다.')) {
+            // 모든 데이터 초기화
+            this.generatedArticles = [];
+            this.currentProgress = 0;
+            
+            // UI 초기화
+            document.getElementById('resultsSection').style.display = 'none';
+            document.getElementById('progressSection').style.display = 'none';
+            document.getElementById('subKeywordsSection').style.display = 'none';
+            document.getElementById('mainKeyword').value = '';
+            
+            // 로컬 스토리지 정리
+            localStorage.removeItem('blog_generator_data');
+            
+            // 임시 저장 데이터도 정리
+            Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('temp_article_')) {
+                    localStorage.removeItem(key);
+                }
+            });
+
+            this.showAlert('모든 데이터가 삭제되었습니다.', 'info');
+        }
     }
 
     downloadPDF() {
@@ -950,22 +1440,51 @@ ${article.content}
     }
 
     markdownToHtml(markdown) {
-        // 간단한 마크다운 HTML 변환
-        let html = markdown
-            .replace(/### (.*?)\n/g, '<h3 class="text-lg font-semibold mt-6 mb-3">$1</h3>')
-            .replace(/## (.*?)\n/g, '<h2 class="text-xl font-bold mt-8 mb-4">$1</h2>')
-            .replace(/# (.*?)\n/g, '<h1 class="text-2xl font-bold mt-8 mb-4">$1</h1>')
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*(.*?)\*/g, '<em>$1</em>')
-            .replace(/\n\n/g, '</p><p class="mb-4">')
-            .replace(/\n/g, '<br>');
-        
-        // 문단으로 감싸기
-        if (!html.startsWith('<h1>') && !html.startsWith('<h2>') && !html.startsWith('<h3>')) {
-            html = '<p class="mb-4">' + html + '</p>';
+        if (typeof marked !== 'undefined') {
+            // Marked.js 사용 (더 정확한 마크다운 파싱)
+            marked.setOptions({
+                breaks: true,
+                gfm: true,
+                headerIds: false,
+                mangle: false
+            });
+            
+            let html = marked.parse(markdown);
+            
+            // Tailwind CSS 클래스 추가
+            html = html
+                .replace(/<h1>/g, '<h1 class="text-2xl font-bold mt-8 mb-4 text-gray-900">')
+                .replace(/<h2>/g, '<h2 class="text-xl font-bold mt-6 mb-3 text-gray-800">')
+                .replace(/<h3>/g, '<h3 class="text-lg font-semibold mt-4 mb-2 text-gray-700">')
+                .replace(/<p>/g, '<p class="mb-4 text-gray-700 leading-relaxed">')
+                .replace(/<ul>/g, '<ul class="list-disc list-inside mb-4 text-gray-700">')
+                .replace(/<ol>/g, '<ol class="list-decimal list-inside mb-4 text-gray-700">')
+                .replace(/<li>/g, '<li class="mb-1">')
+                .replace(/<strong>/g, '<strong class="font-semibold text-gray-900">')
+                .replace(/<em>/g, '<em class="italic text-gray-600">')
+                .replace(/<blockquote>/g, '<blockquote class="border-l-4 border-blue-500 pl-4 italic my-4 text-gray-600">')
+                .replace(/<code>/g, '<code class="bg-gray-100 px-2 py-1 rounded text-sm font-mono">')
+                .replace(/<pre><code/g, '<pre class="bg-gray-100 p-4 rounded-lg overflow-x-auto mb-4"><code');
+            
+            return html;
+        } else {
+            // 폴백: 간단한 마크다운 변환
+            let html = markdown
+                .replace(/### (.*?)(\n|$)/g, '<h3 class="text-lg font-semibold mt-4 mb-2 text-gray-700">$1</h3>')
+                .replace(/## (.*?)(\n|$)/g, '<h2 class="text-xl font-bold mt-6 mb-3 text-gray-800">$1</h2>')
+                .replace(/# (.*?)(\n|$)/g, '<h1 class="text-2xl font-bold mt-8 mb-4 text-gray-900">$1</h1>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-gray-900">$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em class="italic text-gray-600">$1</em>')
+                .replace(/\n\n/g, '</p><p class="mb-4 text-gray-700 leading-relaxed">')
+                .replace(/\n/g, '<br>');
+            
+            // 문단으로 감싸기
+            if (!html.includes('<h1>') && !html.includes('<h2>') && !html.includes('<h3>')) {
+                html = '<p class="mb-4 text-gray-700 leading-relaxed">' + html + '</p>';
+            }
+            
+            return html;
         }
-        
-        return html;
     }
 
     showAlert(message, type = 'info') {

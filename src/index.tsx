@@ -221,6 +221,61 @@ app.get('/', (c) => {
           .loading.active {
             display: flex;
           }
+          .article-editor {
+            border: 2px solid #3b82f6;
+            border-radius: 8px;
+            background: #f8fafc;
+          }
+          .editor-textarea {
+            width: 100%;
+            min-height: 300px;
+            padding: 15px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            resize: vertical;
+            background: white;
+          }
+          .editor-preview {
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 15px;
+            min-height: 300px;
+            overflow-y: auto;
+          }
+          .article-modified {
+            border-left: 4px solid #f59e0b;
+            background: linear-gradient(90deg, #fef3c7 0%, #ffffff 10%);
+          }
+          .edit-toolbar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            padding: 8px;
+            background: #f1f5f9;
+            border-radius: 6px;
+          }
+          .toolbar-btn {
+            background: white;
+            border: 1px solid #d1d5db;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+          }
+          .toolbar-btn:hover {
+            background: #f3f4f6;
+            border-color: #9ca3af;
+          }
+          .toolbar-btn.active {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+          }
         </style>
     </head>
     <body class="bg-gray-50 min-h-screen">
@@ -348,19 +403,42 @@ app.get('/', (c) => {
                         <i class="fas fa-eye text-indigo-600 text-xl mr-3"></i>
                         <h2 class="text-2xl font-bold text-gray-800">생성 결과 미리보기</h2>
                     </div>
-                    <div class="flex flex-wrap gap-2">
-                        <button id="downloadPDF" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition">
-                            <i class="fas fa-file-pdf mr-2"></i>PDF 다운로드
-                        </button>
-                        <button id="downloadWord" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition">
-                            <i class="fas fa-file-word mr-2"></i>전체 Word 문서
-                        </button>
-                        <button id="downloadIndividual" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition">
-                            <i class="fas fa-archive mr-2"></i>개별 파일 (ZIP)
-                        </button>
-                        <button id="downloadMarkdown" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition">
-                            <i class="fas fa-code mr-2"></i>Markdown
-                        </button>
+                    <div class="flex flex-wrap gap-2 mb-4">
+                        <div class="flex gap-2">
+                            <button id="downloadPDF" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition">
+                                <i class="fas fa-file-pdf mr-2"></i>PDF
+                            </button>
+                            <button id="downloadWord" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition">
+                                <i class="fas fa-file-word mr-2"></i>Word
+                            </button>
+                            <button id="downloadIndividual" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition">
+                                <i class="fas fa-archive mr-2"></i>ZIP
+                            </button>
+                            <button id="downloadMarkdown" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition">
+                                <i class="fas fa-code mr-2"></i>Markdown
+                            </button>
+                        </div>
+                        <div class="border-l border-gray-300 mx-2"></div>
+                        <div class="flex gap-2">
+                            <button id="selectAllArticles" class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-lg transition text-sm">
+                                <i class="fas fa-check-square mr-1"></i>전체선택
+                            </button>
+                            <button id="saveProject" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-lg transition text-sm">
+                                <i class="fas fa-save mr-1"></i>프로젝트 저장
+                            </button>
+                            <button id="clearAll" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg transition text-sm">
+                                <i class="fas fa-trash mr-1"></i>전체삭제
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-4 rounded">
+                        <div class="flex items-center">
+                            <i class="fas fa-info-circle text-blue-600 mr-2"></i>
+                            <span class="text-sm text-blue-800">
+                                각 글을 클릭하여 <strong>실시간 편집</strong>이 가능합니다. 변경사항은 자동으로 저장됩니다.
+                            </span>
+                        </div>
                     </div>
                 </div>
                 
@@ -408,6 +486,7 @@ app.get('/', (c) => {
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/html-docx-js@0.4.1/dist/html-docx.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
         <script src="/static/app.js"></script>
     </body>
     </html>
