@@ -68,6 +68,11 @@ class BlogGenerator {
             this.clearAllArticles();
         });
 
+        // SEO 분석 버튼
+        document.getElementById('refreshSeoAnalysis').addEventListener('click', () => {
+            this.analyzeSEO();
+        });
+
         // 모달 외부 클릭시 닫기
         document.getElementById('settingsModal').addEventListener('click', (e) => {
             if (e.target.id === 'settingsModal') {
@@ -257,6 +262,13 @@ class BlogGenerator {
         if (index >= keywords.length) {
             // 모든 글 생성 완료
             this.showResults();
+            
+            // SEO 분석 실행
+            setTimeout(() => {
+                this.analyzeSEO();
+            }, 1000);
+            
+            this.showAlert('모든 블로그 글 생성이 완료되었습니다!', 'success');
             return;
         }
 
@@ -567,6 +579,11 @@ ${keyword}에 대해 자세히 알아보았습니다. 이 정보가 여러분에
         editMode.style.display = 'none';
         editBtn.innerHTML = '<i class="fas fa-edit mr-1"></i>편집';
         editBtn.onclick = () => this.toggleEdit(articleId);
+        
+        // SEO 분석 업데이트 (편집 완료 후)
+        if (document.getElementById('seoAnalysisSection').style.display !== 'none') {
+            setTimeout(() => this.analyzeSEO(), 500);
+        }
     }
 
     updateArticleDisplay(articleId) {
@@ -885,6 +902,589 @@ ${keyword}에 대해 자세히 알아보았습니다. 이 정보가 여러분에
 
             this.showAlert('모든 데이터가 삭제되었습니다.', 'info');
         }
+    }
+
+    analyzeSEO() {
+        if (this.generatedArticles.length === 0) {
+            return;
+        }
+
+        const mainKeyword = document.getElementById('mainKeyword').value.trim().toLowerCase();
+        const subKeywords = this.getSubKeywords().map(k => k.toLowerCase());
+        
+        let totalScores = {
+            keyword: 0,
+            readability: 0,
+            structure: 0,
+            title: 0
+        };
+
+        let analyses = [];
+
+        // 각 글 분석
+        this.generatedArticles.forEach(article => {
+            const analysis = this.analyzeSingleArticle(article, mainKeyword, subKeywords);
+            analyses.push(analysis);
+            
+            totalScores.keyword += analysis.keywordScore;
+            totalScores.readability += analysis.readabilityScore;
+            totalScores.structure += analysis.structureScore;
+            totalScores.title += analysis.titleScore;
+        });
+
+        // 평균 점수 계산
+        const articleCount = this.generatedArticles.length;
+        const avgScores = {
+            keyword: Math.round(totalScores.keyword / articleCount),
+            readability: Math.round(totalScores.readability / articleCount),
+            structure: Math.round(totalScores.structure / articleCount),
+            title: Math.round(totalScores.title / articleCount)
+        };
+
+        // 종합 점수 (가중 평균)
+        const totalSeoScore = Math.round(
+            (avgScores.keyword * 0.3) + 
+            (avgScores.readability * 0.25) + 
+            (avgScores.structure * 0.25) + 
+            (avgScores.title * 0.2)
+        );
+
+        // UI 업데이트
+        this.updateSEODisplay(totalSeoScore, avgScores, analyses, mainKeyword, subKeywords);
+        
+        // SEO 섹션 표시
+        document.getElementById('seoAnalysisSection').style.display = 'block';
+        document.getElementById('seoAnalysisSection').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    analyzeSingleArticle(article, mainKeyword, subKeywords) {
+        const title = article.title.toLowerCase();
+        const content = this.stripMarkdown(article.content).toLowerCase();
+        const wordCount = content.split(/\s+/).length;
+
+        // 1. 키워드 분석
+        const keywordAnalysis = this.analyzeKeywords(title, content, mainKeyword, subKeywords);
+        
+        // 2. 제목 분석  
+        const titleAnalysis = this.analyzeTitle(article.title, mainKeyword);
+        
+        // 3. 가독성 분석
+        const readabilityAnalysis = this.analyzeReadability(content, wordCount);
+        
+        // 4. 구조 분석
+        const structureAnalysis = this.analyzeStructure(article.content);
+
+        return {
+            articleId: article.id,
+            title: article.title,
+            keywordScore: keywordAnalysis.score,
+            titleScore: titleAnalysis.score,
+            readabilityScore: readabilityAnalysis.score,
+            structureScore: structureAnalysis.score,
+            details: {
+                keywords: keywordAnalysis,
+                title: titleAnalysis,
+                readability: readabilityAnalysis,
+                structure: structureAnalysis
+            }
+        };
+    }
+
+    analyzeKeywords(title, content, mainKeyword, subKeywords) {
+        const titleWords = title.split(/\s+/).length;
+        const contentWords = content.split(/\s+/).length;
+        
+        // 메인 키워드 밀도
+        const mainKeywordCount = (title.match(new RegExp(mainKeyword, 'g')) || []).length + 
+                                (content.match(new RegExp(mainKeyword, 'g')) || []).length;
+        const mainKeywordDensity = (mainKeywordCount / (titleWords + contentWords)) * 100;
+        
+        // 서브 키워드 사용
+        let subKeywordCount = 0;
+        subKeywords.forEach(keyword => {
+            const matches = (title.match(new RegExp(keyword, 'g')) || []).length + 
+                           (content.match(new RegExp(keyword, 'g')) || []).length;
+            subKeywordCount += matches;
+        });
+        
+        const subKeywordDensity = (subKeywordCount / (titleWords + contentWords)) * 100;
+        
+        // 점수 계산 (키워드 밀도 1-3% 권장)
+        let score = 0;
+        
+        if (mainKeywordDensity >= 1 && mainKeywordDensity <= 3) {
+            score += 40; // 최적 밀도
+        } else if (mainKeywordDensity < 1) {
+            score += Math.max(0, mainKeywordDensity * 30); // 부족
+        } else {
+            score += Math.max(10, 40 - (mainKeywordDensity - 3) * 5); // 과도
+        }
+        
+        // 서브키워드 보너스
+        if (subKeywordDensity > 0) {
+            score += Math.min(30, subKeywordDensity * 10);
+        }
+        
+        // 제목에 메인 키워드 포함 여부
+        if (title.includes(mainKeyword)) {
+            score += 30;
+        }
+        
+        return {
+            score: Math.min(100, score),
+            mainKeywordCount,
+            mainKeywordDensity: Number(mainKeywordDensity.toFixed(2)),
+            subKeywordCount,
+            subKeywordDensity: Number(subKeywordDensity.toFixed(2)),
+            titleHasKeyword: title.includes(mainKeyword)
+        };
+    }
+
+    analyzeTitle(title, mainKeyword) {
+        const length = title.length;
+        const wordCount = title.split(/\s+/).length;
+        const hasKeyword = title.toLowerCase().includes(mainKeyword);
+        
+        let score = 0;
+        
+        // 길이 점수 (50-60자 권장)
+        if (length >= 30 && length <= 60) {
+            score += 40;
+        } else if (length >= 20 && length <= 80) {
+            score += 25;
+        } else {
+            score += 10;
+        }
+        
+        // 키워드 포함 점수
+        if (hasKeyword) {
+            score += 35;
+        }
+        
+        // 단어 수 점수 (5-12 단어 권장)
+        if (wordCount >= 5 && wordCount <= 12) {
+            score += 25;
+        } else {
+            score += 10;
+        }
+        
+        return {
+            score,
+            length,
+            wordCount,
+            hasKeyword,
+            optimal: length >= 30 && length <= 60 && hasKeyword && wordCount >= 5 && wordCount <= 12
+        };
+    }
+
+    analyzeReadability(content, wordCount) {
+        const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 0).length;
+        const avgSentenceLength = wordCount / sentences;
+        
+        // 복잡한 단어 수 (5글자 이상)
+        const complexWords = content.split(/\s+/).filter(word => word.length > 5).length;
+        const complexWordRatio = (complexWords / wordCount) * 100;
+        
+        let score = 0;
+        
+        // 문장 길이 점수 (15-25 단어 권장)
+        if (avgSentenceLength >= 10 && avgSentenceLength <= 25) {
+            score += 40;
+        } else {
+            score += Math.max(10, 40 - Math.abs(avgSentenceLength - 17) * 2);
+        }
+        
+        // 복잡도 점수 (복잡한 단어 30% 이하 권장)
+        if (complexWordRatio <= 30) {
+            score += 35;
+        } else {
+            score += Math.max(10, 35 - (complexWordRatio - 30));
+        }
+        
+        // 문단 수 점수 (적절한 문단 분리)
+        const paragraphs = content.split(/\n\s*\n/).length;
+        const avgWordsPerParagraph = wordCount / paragraphs;
+        if (avgWordsPerParagraph >= 50 && avgWordsPerParagraph <= 150) {
+            score += 25;
+        } else {
+            score += 10;
+        }
+        
+        return {
+            score: Math.min(100, score),
+            avgSentenceLength: Number(avgSentenceLength.toFixed(1)),
+            complexWordRatio: Number(complexWordRatio.toFixed(1)),
+            sentences,
+            paragraphs,
+            fleschScore: this.calculateFleschScore(avgSentenceLength, complexWordRatio)
+        };
+    }
+
+    analyzeStructure(content) {
+        const h1Count = (content.match(/^# /gm) || []).length;
+        const h2Count = (content.match(/^## /gm) || []).length;  
+        const h3Count = (content.match(/^### /gm) || []).length;
+        const listCount = (content.match(/^[\s]*[-*+]/gm) || []).length;
+        const boldCount = (content.match(/\*\*.*?\*\*/g) || []).length;
+        
+        let score = 0;
+        
+        // 헤딩 구조 점수
+        if (h1Count >= 1) score += 20;
+        if (h2Count >= 2) score += 25;
+        if (h3Count >= 1) score += 15;
+        
+        // 목록 사용 점수
+        if (listCount >= 3) score += 20;
+        
+        // 강조 표시 점수
+        if (boldCount >= 2) score += 10;
+        
+        // 구조적 균형 점수
+        const totalHeadings = h1Count + h2Count + h3Count;
+        if (totalHeadings >= 3 && totalHeadings <= 10) {
+            score += 10;
+        }
+        
+        return {
+            score: Math.min(100, score),
+            h1Count,
+            h2Count, 
+            h3Count,
+            listCount,
+            boldCount,
+            totalHeadings
+        };
+    }
+
+    calculateFleschScore(avgSentenceLength, complexWordRatio) {
+        // 간단한 한국어 가독성 점수 (Flesch 기반 수정)
+        const score = 100 - (avgSentenceLength * 1.2) - (complexWordRatio * 0.8);
+        return Math.max(0, Math.min(100, score));
+    }
+
+    stripMarkdown(text) {
+        return text
+            .replace(/#{1,6}\s/g, '')
+            .replace(/\*\*(.*?)\*\*/g, '$1')
+            .replace(/\*(.*?)\*/g, '$1')
+            .replace(/`(.*?)`/g, '$1')
+            .replace(/\[.*?\]\(.*?\)/g, '')
+            .replace(/^\s*[-*+]\s/gm, '')
+            .trim();
+    }
+
+    updateSEODisplay(totalScore, avgScores, analyses, mainKeyword, subKeywords) {
+        // 종합 점수 업데이트
+        document.getElementById('totalSeoScore').textContent = totalScore;
+        document.getElementById('keywordScore').textContent = avgScores.keyword;
+        document.getElementById('readabilityScore').textContent = avgScores.readability;
+        document.getElementById('structureScore').textContent = avgScores.structure;
+
+        // 키워드 분석 표시
+        this.displayKeywordAnalysis(analyses, mainKeyword, subKeywords);
+        
+        // 제목 분석 표시
+        this.displayTitleAnalysis(analyses);
+        
+        // 가독성 분석 표시
+        this.displayReadabilityAnalysis(analyses);
+        
+        // 구조 분석 표시
+        this.displayStructureAnalysis(analyses);
+        
+        // 개선 제안 표시
+        this.displaySEOSuggestions(totalScore, avgScores, analyses);
+    }
+
+    displayKeywordAnalysis(analyses, mainKeyword, subKeywords) {
+        const container = document.getElementById('keywordAnalysis');
+        
+        // 전체 평균 계산
+        const totalArticles = analyses.length;
+        const avgMainDensity = analyses.reduce((sum, a) => sum + a.details.keywords.mainKeywordDensity, 0) / totalArticles;
+        const avgSubDensity = analyses.reduce((sum, a) => sum + a.details.keywords.subKeywordDensity, 0) / totalArticles;
+        const titlesWithKeyword = analyses.filter(a => a.details.keywords.titleHasKeyword).length;
+        
+        container.innerHTML = `
+            <div class="space-y-3">
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-600">메인 키워드 밀도</span>
+                    <div class="flex items-center gap-2">
+                        <span class="font-mono text-sm">${avgMainDensity.toFixed(2)}%</span>
+                        <span class="seo-badge ${this.getKeywordDensityBadge(avgMainDensity)}">${this.getKeywordDensityText(avgMainDensity)}</span>
+                    </div>
+                </div>
+                <div class="seo-progress-bar">
+                    <div class="seo-progress-fill bg-blue-500" style="width: ${Math.min(100, avgMainDensity * 33)}%"></div>
+                </div>
+                
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-600">서브 키워드 사용</span>
+                    <span class="font-mono text-sm">${avgSubDensity.toFixed(2)}%</span>
+                </div>
+                
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-600">제목에 키워드 포함</span>
+                    <span class="font-semibold ${titlesWithKeyword === totalArticles ? 'text-green-600' : 'text-orange-600'}">
+                        ${titlesWithKeyword}/${totalArticles}
+                    </span>
+                </div>
+                
+                <div class="mt-3 p-2 bg-blue-50 rounded text-sm">
+                    <strong>타겟 키워드:</strong> 
+                    <span class="keyword-highlight">${mainKeyword}</span>
+                </div>
+            </div>
+        `;
+    }
+
+    displayTitleAnalysis(analyses) {
+        const container = document.getElementById('titleAnalysis');
+        
+        const avgLength = analyses.reduce((sum, a) => sum + a.details.title.length, 0) / analyses.length;
+        const optimalTitles = analyses.filter(a => a.details.title.optimal).length;
+        const shortTitles = analyses.filter(a => a.details.title.length < 30).length;
+        const longTitles = analyses.filter(a => a.details.title.length > 60).length;
+        
+        container.innerHTML = `
+            <div class="space-y-3">
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-600">평균 제목 길이</span>
+                    <div class="flex items-center gap-2">
+                        <span class="font-mono text-sm">${Math.round(avgLength)}자</span>
+                        <span class="seo-badge ${this.getTitleLengthBadge(avgLength)}">${this.getTitleLengthText(avgLength)}</span>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-3 gap-2 text-xs">
+                    <div class="text-center p-2 bg-green-50 rounded">
+                        <div class="font-bold text-green-600">${optimalTitles}</div>
+                        <div class="text-green-600">최적</div>
+                    </div>
+                    <div class="text-center p-2 bg-yellow-50 rounded">
+                        <div class="font-bold text-yellow-600">${shortTitles}</div>
+                        <div class="text-yellow-600">짧음</div>
+                    </div>
+                    <div class="text-center p-2 bg-red-50 rounded">
+                        <div class="font-bold text-red-600">${longTitles}</div>
+                        <div class="text-red-600">긴편</div>
+                    </div>
+                </div>
+                
+                <div class="mt-2 p-2 bg-purple-50 rounded text-sm text-purple-700">
+                    <strong>권장:</strong> 30-60자, 키워드 포함
+                </div>
+            </div>
+        `;
+    }
+
+    displayReadabilityAnalysis(analyses) {
+        const container = document.getElementById('readabilityAnalysis');
+        
+        const avgSentenceLength = analyses.reduce((sum, a) => sum + a.details.readability.avgSentenceLength, 0) / analyses.length;
+        const avgComplexity = analyses.reduce((sum, a) => sum + a.details.readability.complexWordRatio, 0) / analyses.length;
+        const avgFlesch = analyses.reduce((sum, a) => sum + a.details.readability.fleschScore, 0) / analyses.length;
+        
+        container.innerHTML = `
+            <div class="space-y-3">
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-600">평균 문장 길이</span>
+                    <span class="font-mono text-sm">${avgSentenceLength.toFixed(1)}단어</span>
+                </div>
+                
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-600">복잡한 단어 비율</span>
+                    <div class="flex items-center gap-2">
+                        <span class="font-mono text-sm">${avgComplexity.toFixed(1)}%</span>
+                        <span class="seo-badge ${this.getComplexityBadge(avgComplexity)}">${this.getComplexityText(avgComplexity)}</span>
+                    </div>
+                </div>
+                
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-600">가독성 점수</span>
+                    <div class="flex items-center gap-2">
+                        <span class="font-mono text-sm">${Math.round(avgFlesch)}</span>
+                        <span class="seo-badge ${this.getFleschBadge(avgFlesch)}">${this.getFleschText(avgFlesch)}</span>
+                    </div>
+                </div>
+                
+                <div class="mt-2 p-2 bg-green-50 rounded text-sm text-green-700">
+                    <strong>권장:</strong> 문장 10-25단어, 복잡한 단어 30% 이하
+                </div>
+            </div>
+        `;
+    }
+
+    displayStructureAnalysis(analyses) {
+        const container = document.getElementById('structureAnalysis');
+        
+        const totalH1 = analyses.reduce((sum, a) => sum + a.details.structure.h1Count, 0);
+        const totalH2 = analyses.reduce((sum, a) => sum + a.details.structure.h2Count, 0);
+        const totalH3 = analyses.reduce((sum, a) => sum + a.details.structure.h3Count, 0);
+        const totalLists = analyses.reduce((sum, a) => sum + a.details.structure.listCount, 0);
+        
+        container.innerHTML = `
+            <div class="space-y-3">
+                <div class="grid grid-cols-2 gap-3 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">H1 제목</span>
+                        <span class="font-semibold">${totalH1}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">H2 소제목</span>
+                        <span class="font-semibold">${totalH2}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">H3 제목</span>
+                        <span class="font-semibold">${totalH3}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">목록 항목</span>
+                        <span class="font-semibold">${totalLists}</span>
+                    </div>
+                </div>
+                
+                <div class="mt-3 space-y-2">
+                    <div class="flex items-center justify-between text-sm">
+                        <span>구조적 완성도</span>
+                        <span class="seo-badge ${this.getStructureBadge(totalH1, totalH2, totalH3)}">
+                            ${this.getStructureText(totalH1, totalH2, totalH3)}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="mt-2 p-2 bg-orange-50 rounded text-sm text-orange-700">
+                    <strong>권장:</strong> H1(1개), H2(2-5개), 목록 활용
+                </div>
+            </div>
+        `;
+    }
+
+    displaySEOSuggestions(totalScore, avgScores, analyses) {
+        const suggestions = [];
+        
+        // 키워드 관련 제안
+        if (avgScores.keyword < 70) {
+            const avgDensity = analyses.reduce((sum, a) => sum + a.details.keywords.mainKeywordDensity, 0) / analyses.length;
+            if (avgDensity < 1) {
+                suggestions.push('💡 메인 키워드를 더 자주 사용하세요. (현재: ' + avgDensity.toFixed(2) + '%, 권장: 1-3%)');
+            } else if (avgDensity > 3) {
+                suggestions.push('⚠️ 키워드 사용을 줄여주세요. 과도한 키워드 사용은 페널티를 받을 수 있습니다.');
+            }
+        }
+        
+        // 제목 관련 제안
+        if (avgScores.title < 70) {
+            const shortTitles = analyses.filter(a => a.details.title.length < 30).length;
+            const longTitles = analyses.filter(a => a.details.title.length > 60).length;
+            
+            if (shortTitles > 0) {
+                suggestions.push(`📏 ${shortTitles}개 글의 제목이 너무 짧습니다. 30-60자로 늘려보세요.`);
+            }
+            if (longTitles > 0) {
+                suggestions.push(`📏 ${longTitles}개 글의 제목이 너무 깁니다. 60자 이하로 줄여보세요.`);
+            }
+        }
+        
+        // 가독성 관련 제안
+        if (avgScores.readability < 70) {
+            suggestions.push('📖 문장을 더 짧고 간단하게 작성해보세요. 평균 15-20단어가 적당합니다.');
+            suggestions.push('✂️ 긴 문단을 더 작은 문단으로 나누어 주세요.');
+        }
+        
+        // 구조 관련 제안
+        if (avgScores.structure < 70) {
+            suggestions.push('🏗️ 더 많은 소제목(H2, H3)을 사용하여 내용을 구조화해주세요.');
+            suggestions.push('📋 목록(-, *)을 활용하여 정보를 정리해주세요.');
+            suggestions.push('**굵은 글씨**로 중요한 내용을 강조해보세요.');
+        }
+        
+        // 전체적인 제안
+        if (totalScore >= 80) {
+            suggestions.unshift('🎉 훌륭한 SEO 최적화 상태입니다! 이 수준을 유지하세요.');
+        } else if (totalScore >= 60) {
+            suggestions.unshift('👍 좋은 SEO 상태입니다. 몇 가지 개선으로 더 나아질 수 있습니다.');
+        } else {
+            suggestions.unshift('🔧 SEO 최적화가 필요합니다. 아래 제안사항을 참고해주세요.');
+        }
+        
+        const container = document.getElementById('seoSuggestions');
+        container.innerHTML = `
+            <ul class="space-y-2">
+                ${suggestions.map(suggestion => `<li class="flex items-start"><span class="mr-2">•</span><span>${suggestion}</span></li>`).join('')}
+            </ul>
+        `;
+    }
+
+    // 유틸리티 함수들
+    getKeywordDensityBadge(density) {
+        if (density >= 1 && density <= 3) return 'excellent';
+        if (density >= 0.5 && density <= 4) return 'good';
+        if (density >= 0.2 && density <= 5) return 'average';
+        return 'poor';
+    }
+
+    getKeywordDensityText(density) {
+        if (density >= 1 && density <= 3) return '최적';
+        if (density < 1) return '부족';
+        return '과도';
+    }
+
+    getTitleLengthBadge(length) {
+        if (length >= 30 && length <= 60) return 'excellent';
+        if (length >= 20 && length <= 80) return 'good';
+        return 'average';
+    }
+
+    getTitleLengthText(length) {
+        if (length >= 30 && length <= 60) return '최적';
+        if (length < 30) return '짧음';
+        return '긴편';
+    }
+
+    getComplexityBadge(ratio) {
+        if (ratio <= 25) return 'excellent';
+        if (ratio <= 35) return 'good';
+        if (ratio <= 45) return 'average';
+        return 'poor';
+    }
+
+    getComplexityText(ratio) {
+        if (ratio <= 25) return '쉬움';
+        if (ratio <= 35) return '보통';
+        if (ratio <= 45) return '어려움';
+        return '매우어려움';
+    }
+
+    getFleschBadge(score) {
+        if (score >= 70) return 'excellent';
+        if (score >= 50) return 'good';
+        if (score >= 30) return 'average';
+        return 'poor';
+    }
+
+    getFleschText(score) {
+        if (score >= 70) return '매우쉬움';
+        if (score >= 50) return '쉬움';
+        if (score >= 30) return '보통';
+        return '어려움';
+    }
+
+    getStructureBadge(h1, h2, h3) {
+        const score = (h1 >= 1 ? 25 : 0) + (h2 >= 2 ? 50 : h2 * 25) + (h3 >= 1 ? 25 : 0);
+        if (score >= 75) return 'excellent';
+        if (score >= 50) return 'good';
+        if (score >= 25) return 'average';
+        return 'poor';
+    }
+
+    getStructureText(h1, h2, h3) {
+        const score = (h1 >= 1 ? 25 : 0) + (h2 >= 2 ? 50 : h2 * 25) + (h3 >= 1 ? 25 : 0);
+        if (score >= 75) return '우수';
+        if (score >= 50) return '좋음';
+        if (score >= 25) return '보통';
+        return '부족';
     }
 
     downloadPDF() {

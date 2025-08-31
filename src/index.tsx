@@ -276,6 +276,39 @@ app.get('/', (c) => {
             color: white;
             border-color: #3b82f6;
           }
+          .seo-score-excellent { color: #059669; }
+          .seo-score-good { color: #0891b2; }
+          .seo-score-average { color: #d97706; }
+          .seo-score-poor { color: #dc2626; }
+          .seo-progress-bar {
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+          }
+          .seo-progress-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+          }
+          .seo-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+          }
+          .seo-badge.excellent { background: #d1fae5; color: #065f46; }
+          .seo-badge.good { background: #dbeafe; color: #1e40af; }
+          .seo-badge.average { background: #fed7aa; color: #9a3412; }
+          .seo-badge.poor { background: #fecaca; color: #991b1b; }
+          .keyword-highlight {
+            background: linear-gradient(120deg, #fef08a 0%, #fef08a 100%);
+            background-repeat: no-repeat;
+            background-size: 100% 0.3em;
+            background-position: 0 88%;
+            font-weight: 600;
+          }
         </style>
     </head>
     <body class="bg-gray-50 min-h-screen">
@@ -393,6 +426,92 @@ app.get('/', (c) => {
                 
                 <div id="progressList" class="mt-6 space-y-2">
                     <!-- 동적으로 생성됨 -->
+                </div>
+            </div>
+
+            <!-- SEO 분석 섹션 -->
+            <div id="seoAnalysisSection" class="bg-white rounded-lg card-shadow p-6 mb-8" style="display: none;">
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center">
+                        <i class="fas fa-search text-green-600 text-xl mr-3"></i>
+                        <h2 class="text-2xl font-bold text-gray-800">SEO 분석 결과</h2>
+                    </div>
+                    <button id="refreshSeoAnalysis" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition">
+                        <i class="fas fa-sync-alt mr-2"></i>다시 분석
+                    </button>
+                </div>
+
+                <!-- SEO 종합 점수 -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 rounded-lg text-center">
+                        <div class="text-3xl font-bold" id="totalSeoScore">0</div>
+                        <div class="text-sm opacity-90">종합 SEO 점수</div>
+                    </div>
+                    <div class="bg-gradient-to-r from-green-500 to-green-600 text-white p-4 rounded-lg text-center">
+                        <div class="text-2xl font-bold" id="keywordScore">0</div>
+                        <div class="text-sm opacity-90">키워드 점수</div>
+                    </div>
+                    <div class="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-4 rounded-lg text-center">
+                        <div class="text-2xl font-bold" id="readabilityScore">0</div>
+                        <div class="text-sm opacity-90">가독성 점수</div>
+                    </div>
+                    <div class="bg-gradient-to-r from-orange-500 to-orange-600 text-white p-4 rounded-lg text-center">
+                        <div class="text-2xl font-bold" id="structureScore">0</div>
+                        <div class="text-sm opacity-90">구조 점수</div>
+                    </div>
+                </div>
+
+                <!-- 상세 분석 결과 -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- 키워드 분석 -->
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <h3 class="text-lg font-semibold mb-3 flex items-center">
+                            <i class="fas fa-key text-blue-600 mr-2"></i>키워드 분석
+                        </h3>
+                        <div id="keywordAnalysis">
+                            <!-- 동적으로 생성 -->
+                        </div>
+                    </div>
+
+                    <!-- 제목 분석 -->
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <h3 class="text-lg font-semibold mb-3 flex items-center">
+                            <i class="fas fa-heading text-purple-600 mr-2"></i>제목 분석
+                        </h3>
+                        <div id="titleAnalysis">
+                            <!-- 동적으로 생성 -->
+                        </div>
+                    </div>
+
+                    <!-- 가독성 분석 -->
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <h3 class="text-lg font-semibold mb-3 flex items-center">
+                            <i class="fas fa-book-reader text-green-600 mr-2"></i>가독성 분석
+                        </h3>
+                        <div id="readabilityAnalysis">
+                            <!-- 동적으로 생성 -->
+                        </div>
+                    </div>
+
+                    <!-- 구조 분석 -->
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <h3 class="text-lg font-semibold mb-3 flex items-center">
+                            <i class="fas fa-sitemap text-orange-600 mr-2"></i>구조 분석
+                        </h3>
+                        <div id="structureAnalysis">
+                            <!-- 동적으로 생성 -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SEO 개선 제안 -->
+                <div class="mt-6 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+                    <h3 class="text-lg font-semibold mb-3 flex items-center text-yellow-800">
+                        <i class="fas fa-lightbulb mr-2"></i>SEO 개선 제안
+                    </h3>
+                    <div id="seoSuggestions" class="text-yellow-700">
+                        <!-- 동적으로 생성 -->
+                    </div>
                 </div>
             </div>
 
