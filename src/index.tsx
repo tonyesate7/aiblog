@@ -197,6 +197,125 @@ app.post('/api/generate-article', async (c) => {
   }
 })
 
+// 이미지 생성 API (Gemini 2.5 Flash nano-banana)
+app.post('/api/generate-image', async (c) => {
+  try {
+    const { keyword, title, articleContent } = await c.req.json()
+    
+    if (!keyword) {
+      return c.json({ error: 'keyword가 필요합니다' }, 400)
+    }
+
+    // 키워드와 제목을 기반으로 영문 이미지 프롬프트 생성
+    const imagePrompt = generateImagePrompt(keyword, title, articleContent)
+    
+    // 실제 API 키가 있는 경우 fal.ai 호출
+    const falApiKey = c.env?.FAL_API_KEY
+    
+    if (falApiKey && falApiKey !== 'fal_demo_key') {
+      // 실제 fal.ai API 호출
+      const response = await fetch('https://fal.run/fal-ai/nano-banana', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Key ${falApiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          prompt: imagePrompt,
+          num_images: 1,
+          output_format: 'jpeg'
+        })
+      })
+
+      if (!response.ok) {
+        console.error('Image generation failed:', await response.text())
+        return c.json({ error: '이미지 생성에 실패했습니다' }, 500)
+      }
+
+      const imageData = await response.json()
+      
+      return c.json({ 
+        success: true, 
+        image: {
+          url: imageData.images?.[0]?.url,
+          prompt: imagePrompt,
+          keyword: keyword,
+          createdAt: new Date().toISOString()
+        }
+      })
+    } else {
+      // 개발/데모 모드: 플레이스홀더 이미지 반환
+      const mockImageUrl = `https://picsum.photos/800/450?random=${Date.now()}&t=${encodeURIComponent(keyword)}`
+      
+      return c.json({ 
+        success: true, 
+        image: {
+          url: mockImageUrl,
+          prompt: imagePrompt,
+          keyword: keyword,
+          createdAt: new Date().toISOString(),
+          isDemoImage: true // 데모 이미지임을 표시
+        }
+      })
+    }
+
+  } catch (error) {
+    console.error('이미지 생성 오류:', error)
+    return c.json({ error: '서버 오류가 발생했습니다' }, 500)
+  }
+})
+
+// 키워드 기반 이미지 프롬프트 생성 함수
+function generateImagePrompt(keyword: string, title?: string, content?: string) {
+  // 한국어 키워드를 영어 이미지 프롬프트로 변환
+  const keywordMappings: { [key: string]: string } = {
+    // 여행 관련
+    '여행': 'travel destination, beautiful landscape, scenic view',
+    '제주도': 'Jeju Island Korea, volcanic landscape, coastal scenery',
+    '부산': 'Busan Korea, beach city, modern skyline',
+    '서울': 'Seoul Korea, city skyline, urban landscape',
+    
+    // 음식 관련
+    '음식': 'delicious food, Korean cuisine, beautiful meal presentation',
+    '맛집': 'restaurant food, gourmet dining, food photography',
+    '카페': 'coffee shop interior, cozy cafe atmosphere, coffee art',
+    '디저트': 'dessert photography, sweet treats, pastry art',
+    
+    // 기술 관련
+    '프로그래밍': 'programming setup, code on screen, developer workspace',
+    '인공지능': 'AI technology, futuristic digital interface, tech innovation',
+    '웹개발': 'web development, coding environment, modern workspace',
+    
+    // 비즈니스 관련
+    '마케팅': 'marketing strategy, business growth, digital marketing',
+    '창업': 'startup office, entrepreneurs working, business meeting',
+    '투자': 'financial growth, investment charts, business success',
+    
+    // 라이프스타일
+    '건강': 'healthy lifestyle, wellness, exercise and nutrition',
+    '요리': 'cooking process, kitchen scene, food preparation',
+    '독서': 'reading books, cozy reading corner, knowledge learning',
+    '운동': 'fitness exercise, gym workout, healthy activity'
+  }
+
+  // 기본 프롬프트 구조
+  let basePrompt = keywordMappings[keyword] || `${keyword} related theme, professional photography`
+  
+  // 블로그 스타일에 맞는 추가 지시사항
+  const styleInstructions = `
+    high quality photography style, 
+    bright natural lighting, 
+    professional composition, 
+    clean and modern aesthetic, 
+    suitable for blog illustration,
+    16:9 aspect ratio,
+    vibrant colors,
+    sharp focus
+  `.trim().replace(/\s+/g, ' ')
+
+  return `${basePrompt}, ${styleInstructions}`
+}
+
 // Main page
 app.get('/', (c) => {
   return c.html(`
@@ -573,6 +692,12 @@ app.get('/', (c) => {
                             </button>
                             <button id="downloadMarkdown" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition">
                                 <i class="fas fa-code mr-2"></i>Markdown
+                            </button>
+                        </div>
+                        <div class="border-l border-gray-300 mx-2"></div>
+                        <div class="flex gap-2">
+                            <button onclick="blogGenerator.generateImagesForAllArticles()" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg transition text-sm">
+                                <i class="fas fa-images mr-1"></i>전체 이미지 생성
                             </button>
                         </div>
                         <div class="border-l border-gray-300 mx-2"></div>

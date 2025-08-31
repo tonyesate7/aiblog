@@ -394,6 +394,99 @@ class BlogGenerator {
         document.getElementById('progressText').textContent = `${this.currentProgress}/${this.totalArticles}`;
     }
 
+    // 🎨 이미지 생성 관련 메서드들
+    async generateImageForArticle(articleId, keyword, title, content) {
+        try {
+            this.showAlert('이미지 생성 중...', 'info');
+            
+            const response = await axios.post('/api/generate-image', {
+                keyword: keyword,
+                title: title,
+                articleContent: content
+            });
+
+            if (response.data.success) {
+                const imageUrl = response.data.image.url;
+                this.insertImageIntoArticle(articleId, imageUrl, keyword);
+                this.showAlert('이미지가 생성되어 글에 추가되었습니다! 🎨', 'success');
+                return imageUrl;
+            } else {
+                this.showAlert('이미지 생성에 실패했습니다.', 'error');
+                return null;
+            }
+        } catch (error) {
+            console.error('이미지 생성 오류:', error);
+            this.showAlert('이미지 생성 중 오류가 발생했습니다.', 'error');
+            return null;
+        }
+    }
+
+    insertImageIntoArticle(articleId, imageUrl, altText) {
+        // 해당 글의 내용에 이미지 마크다운 추가
+        const article = this.generatedArticles.find(a => a.id === articleId);
+        if (article) {
+            const imageMarkdown = `\n\n![${altText}](${imageUrl})\n*${altText} 관련 이미지*\n\n`;
+            
+            // 첫 번째 헤딩 다음에 이미지 삽입
+            const lines = article.content.split('\n');
+            let insertIndex = 1;
+            
+            // 첫 번째 ## 헤딩을 찾아서 그 다음에 삽입
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i].startsWith('## ')) {
+                    insertIndex = i + 1;
+                    break;
+                }
+            }
+            
+            lines.splice(insertIndex, 0, imageMarkdown);
+            article.content = lines.join('\n');
+            article.modified = true;
+            article.hasImage = true;
+            article.imageUrl = imageUrl;
+            
+            // UI 업데이트
+            this.showResults();
+            this.saveToLocalStorage();
+        }
+    }
+
+    // 전체 프로젝트에 대해 일괄 이미지 생성
+    async generateImagesForAllArticles() {
+        if (this.generatedArticles.length === 0) {
+            this.showAlert('먼저 블로그 글을 생성해주세요.', 'error');
+            return;
+        }
+
+        const confirm = window.confirm(`${this.generatedArticles.length}개의 글에 모두 이미지를 생성하시겠습니까?\n\n이 작업은 시간이 걸릴 수 있습니다.`);
+        if (!confirm) return;
+
+        this.showAlert('전체 글에 대한 이미지 생성을 시작합니다...', 'info');
+
+        for (let i = 0; i < this.generatedArticles.length; i++) {
+            const article = this.generatedArticles[i];
+            
+            // 이미 이미지가 있는 글은 건너뛰기
+            if (article.hasImage) {
+                continue;
+            }
+
+            this.showAlert(`${i + 1}/${this.generatedArticles.length} 이미지 생성 중...`, 'info');
+            
+            await this.generateImageForArticle(
+                article.id, 
+                article.keyword, 
+                article.title, 
+                article.content
+            );
+            
+            // 요청 간격 조절 (1초 대기)
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
+        this.showAlert('모든 글에 이미지 생성이 완료되었습니다! 🎉', 'success');
+    }
+
     generateDummyArticle(keyword, index) {
         const contentStyle = document.getElementById('contentStyle').value;
         const contentLength = document.getElementById('contentLength').value;
@@ -539,6 +632,11 @@ ${keyword}에 대해 자세히 알아보았습니다. 이 정보가 여러분에
                                 class="text-blue-600 hover:text-blue-800 text-sm transition">
                             <i class="fas fa-edit mr-1"></i>편집
                         </button>
+                        <button onclick="blogGenerator.generateImageForArticle(${article.id}, '${article.keyword}', '${article.title.replace(/'/g, "\\'")}', \`${article.content.replace(/`/g, '\\`').replace(/\$/g, '\\$')}\`)" 
+                                class="text-purple-600 hover:text-purple-800 text-sm transition ${article.hasImage ? 'opacity-50' : ''}"
+                                ${article.hasImage ? 'title="이미 이미지가 있습니다"' : ''}>
+                            <i class="fas fa-image mr-1"></i>이미지 생성
+                        </button>
                         <button onclick="blogGenerator.duplicateArticle(${article.id})" 
                                 class="text-green-600 hover:text-green-800 text-sm transition">
                             <i class="fas fa-copy mr-1"></i>복제
@@ -548,8 +646,9 @@ ${keyword}에 대해 자세히 알아보았습니다. 이 정보가 여러분에
                             <i class="fas fa-trash mr-1"></i>삭제
                         </button>
                     </div>
-                    <div class="text-xs text-gray-400">
-                        ID: ${article.id}
+                    <div class="text-xs text-gray-400 flex items-center gap-2">
+                        ${article.hasImage ? '<i class="fas fa-image text-purple-500" title="이미지 포함"></i>' : ''}
+                        <span>ID: ${article.id}</span>
                     </div>
                 </div>
             `;
