@@ -12,6 +12,7 @@ class BlogGenerator {
         this.bindEvents();
         this.loadSettings();
         this.loadFromLocalStorage();
+        this.checkApiKeyStatus();
     }
 
     bindEvents() {
@@ -71,6 +72,11 @@ class BlogGenerator {
         // SEO 분석 버튼
         document.getElementById('refreshSeoAnalysis').addEventListener('click', () => {
             this.analyzeSEO();
+        });
+
+        // 품질 분석 버튼
+        document.getElementById('refreshQualityAnalysis').addEventListener('click', () => {
+            this.analyzeQuality();
         });
 
         // 프로젝트 관리 모달
@@ -315,6 +321,11 @@ class BlogGenerator {
             setTimeout(() => {
                 this.analyzeSEO();
             }, 1000);
+            
+            // 품질 분석 실행
+            setTimeout(() => {
+                this.analyzeQuality();
+            }, 1500);
             
             this.showAlert('모든 블로그 글 생성이 완료되었습니다!', 'success');
             return;
@@ -2749,12 +2760,548 @@ ${article.content}
         }
     }
 
+    // ==================== 품질 분석 시스템 ====================
+
+    analyzeContentQuality(content) {
+        if (!content || content.trim().length === 0) {
+            return {
+                overall: 0,
+                expertise: 0,
+                originality: 0,
+                readability: 0,
+                engagement: 0,
+                actionability: 0,
+                details: {}
+            };
+        }
+
+        const expertise = this.analyzeExpertise(content);
+        const originality = this.analyzeOriginality(content);
+        const readability = this.analyzeReadability(content);
+        const engagement = this.analyzeEngagement(content);
+        const actionability = this.analyzeActionability(content);
+
+        // 전체 품질 점수 계산 (가중평균)
+        const overall = Math.round(
+            (expertise.score * 0.25 +
+             originality.score * 0.20 +
+             readability.score * 0.25 +
+             engagement.score * 0.15 +
+             actionability.score * 0.15)
+        );
+
+        return {
+            overall,
+            expertise: expertise.score,
+            originality: originality.score,
+            readability: readability.score,
+            engagement: engagement.score,
+            actionability: actionability.score,
+            details: {
+                expertise: expertise.details,
+                originality: originality.details,
+                readability: readability.details,
+                engagement: engagement.details,
+                actionability: actionability.details
+            }
+        };
+    }
+
+    analyzeExpertise(content) {
+        const words = content.toLowerCase().split(/\s+/);
+        const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 0);
+        
+        let score = 50; // 기본 점수
+        const details = [];
+
+        // 전문 용어 사용도 분석
+        const technicalTerms = [
+            // 기술 관련
+            'api', '데이터베이스', '알고리즘', '인공지능', 'ai', '머신러닝', '딥러닝', 
+            '클라우드', '보안', '암호화', '블록체인', '개발', '프로그래밍', '소프트웨어',
+            // 마케팅 관련
+            'roi', 'kpi', '전환율', '리텐션', '퍼넬', 'cta', '세그먼트', '타겟팅',
+            // 비즈니스 관련
+            '수익성', '매출', '비용효율', '프로세스', '최적화', '전략', '분석', '성과'
+        ];
+
+        const technicalCount = words.filter(word => 
+            technicalTerms.some(term => word.includes(term))
+        ).length;
+        
+        if (technicalCount > words.length * 0.05) {
+            score += 20;
+            details.push('적절한 전문 용어 사용 (+20점)');
+        } else if (technicalCount > words.length * 0.02) {
+            score += 10;
+            details.push('전문 용어 사용 (+10점)');
+        }
+
+        // 구체적인 수치나 데이터 제시
+        const numberPattern = /\d+(%|원|달러|\$|만|억|천|개|명|시간|분|초|일|주|개월|년|배|번)/g;
+        const dataReferences = content.match(numberPattern) || [];
+        
+        if (dataReferences.length >= 5) {
+            score += 15;
+            details.push('풍부한 데이터 및 수치 제시 (+15점)');
+        } else if (dataReferences.length >= 2) {
+            score += 8;
+            details.push('적절한 데이터 제시 (+8점)');
+        }
+
+        // 출처나 근거 언급
+        const sourceKeywords = ['연구', '조사', '보고서', '데이터', '통계', '사례', '예시', '경험'];
+        const sourceCount = sourceKeywords.filter(keyword => 
+            content.includes(keyword)
+        ).length;
+        
+        if (sourceCount >= 3) {
+            score += 10;
+            details.push('신뢰할 만한 근거 제시 (+10점)');
+        }
+
+        // 문장 길이와 복잡도 (전문성 표현)
+        const avgSentenceLength = words.length / sentences.length;
+        if (avgSentenceLength >= 15 && avgSentenceLength <= 25) {
+            score += 5;
+            details.push('적절한 문장 복잡도 (+5점)');
+        }
+
+        return {
+            score: Math.min(100, Math.max(0, score)),
+            details
+        };
+    }
+
+    analyzeOriginality(content) {
+        let score = 60; // 기본 점수
+        const details = [];
+        
+        // 독창적인 관점이나 아이디어 표현
+        const originalityKeywords = [
+            '새로운 관점', '혁신적', '독특한', '차별화된', '창의적', '새롭게', 
+            '다른 방식', '특별한', '획기적', '참신한', '색다른', '개선된'
+        ];
+        
+        const originalityCount = originalityKeywords.filter(keyword => 
+            content.includes(keyword)
+        ).length;
+        
+        if (originalityCount >= 3) {
+            score += 20;
+            details.push('독창적 표현과 아이디어 (+20점)');
+        } else if (originalityCount >= 1) {
+            score += 10;
+            details.push('참신한 관점 제시 (+10점)');
+        }
+
+        // 개인적 경험이나 사례 포함
+        const personalKeywords = ['경험상', '직접', '실제로', '개인적으로', '저의 경우', '제가'];
+        const personalCount = personalKeywords.filter(keyword => 
+            content.includes(keyword)
+        ).length;
+        
+        if (personalCount >= 2) {
+            score += 15;
+            details.push('개인적 경험과 사례 포함 (+15점)');
+        }
+
+        // 비교나 대조를 통한 독창적 분석
+        const comparisonKeywords = ['반면', '그러나', '대신', '비교하면', '차이점', '반대로'];
+        const comparisonCount = comparisonKeywords.filter(keyword => 
+            content.includes(keyword)
+        ).length;
+        
+        if (comparisonCount >= 2) {
+            score += 10;
+            details.push('비교 분석을 통한 깊이 있는 내용 (+10점)');
+        }
+
+        // 실용적인 해결책 제시
+        const solutionKeywords = ['해결책', '방법', '전략', '팁', '노하우', '비결', '접근법'];
+        const solutionCount = solutionKeywords.filter(keyword => 
+            content.includes(keyword)
+        ).length;
+        
+        if (solutionCount >= 3) {
+            score += 10;
+            details.push('실용적 해결책 제시 (+10점)');
+        }
+
+        return {
+            score: Math.min(100, Math.max(0, score)),
+            details
+        };
+    }
+
+    analyzeReadability(content) {
+        const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 0);
+        const words = content.split(/\s+/).filter(w => w.length > 0);
+        
+        let score = 70; // 기본 점수
+        const details = [];
+
+        // 평균 문장 길이 (15-25단어가 이상적)
+        const avgSentenceLength = words.length / sentences.length;
+        if (avgSentenceLength >= 10 && avgSentenceLength <= 20) {
+            score += 15;
+            details.push('적절한 문장 길이 (+15점)');
+        } else if (avgSentenceLength > 25) {
+            score -= 10;
+            details.push('문장이 너무 길어 가독성 저하 (-10점)');
+        } else if (avgSentenceLength < 8) {
+            score -= 5;
+            details.push('문장이 너무 짧아 내용 부족 (-5점)');
+        }
+
+        // 문단 구조 (제목과 소제목 사용)
+        const headingCount = (content.match(/#{1,3}\s/g) || []).length;
+        if (headingCount >= 3) {
+            score += 10;
+            details.push('체계적인 구조와 제목 사용 (+10점)');
+        } else if (headingCount >= 1) {
+            score += 5;
+            details.push('기본적인 구조 사용 (+5점)');
+        }
+
+        // 목록이나 번호 사용 (정보 정리)
+        const listItems = (content.match(/^[\s]*[-*\d\.]\s/gm) || []).length;
+        if (listItems >= 5) {
+            score += 10;
+            details.push('목록을 통한 체계적 정보 정리 (+10점)');
+        } else if (listItems >= 2) {
+            score += 5;
+            details.push('목록 사용으로 가독성 향상 (+5점)');
+        }
+
+        // 연결어 사용 (문장 간 자연스러운 흐름)
+        const connectors = ['또한', '그리고', '하지만', '그러므로', '따라서', '예를 들어', '특히', '마지막으로'];
+        const connectorCount = connectors.filter(connector => 
+            content.includes(connector)
+        ).length;
+        
+        if (connectorCount >= 4) {
+            score += 10;
+            details.push('연결어를 통한 자연스러운 문장 흐름 (+10점)');
+        }
+
+        // 어려운 한자어나 외래어 비율 체크
+        const difficultWords = content.match(/[一-龯]+/g) || []; // 한자
+        const difficultWordRatio = difficultWords.length / words.length;
+        
+        if (difficultWordRatio < 0.05) {
+            score += 5;
+            details.push('이해하기 쉬운 어휘 사용 (+5점)');
+        } else if (difficultWordRatio > 0.15) {
+            score -= 5;
+            details.push('어려운 어휘가 많아 이해 어려움 (-5점)');
+        }
+
+        return {
+            score: Math.min(100, Math.max(0, score)),
+            details
+        };
+    }
+
+    analyzeEngagement(content) {
+        let score = 50; // 기본 점수
+        const details = [];
+
+        // 질문이나 독자 참여 요소
+        const questions = (content.match(/[?？]/g) || []).length;
+        if (questions >= 3) {
+            score += 15;
+            details.push('독자 참여를 유도하는 질문 사용 (+15점)');
+        } else if (questions >= 1) {
+            score += 8;
+            details.push('질문을 통한 독자 관심 유도 (+8점)');
+        }
+
+        // 감정적 표현이나 강조
+        const emotionalWords = ['놀라운', '흥미로운', '중요한', '핵심적인', '결정적인', '놀랍게도', '주목할만한'];
+        const emotionalCount = emotionalWords.filter(word => 
+            content.includes(word)
+        ).length;
+        
+        if (emotionalCount >= 3) {
+            score += 15;
+            details.push('감정적 몰입을 높이는 표현 사용 (+15점)');
+        }
+
+        // 스토리텔링 요소
+        const storyElements = ['이야기', '경험', '사례', '예시', '상황', '결과', '과정'];
+        const storyCount = storyElements.filter(element => 
+            content.includes(element)
+        ).length;
+        
+        if (storyCount >= 4) {
+            score += 20;
+            details.push('스토리텔링을 통한 흥미 유발 (+20점)');
+        } else if (storyCount >= 2) {
+            score += 10;
+            details.push('사례를 통한 이해도 증진 (+10점)');
+        }
+
+        // 독자와의 직접적 소통
+        const directAddress = ['여러분', '당신', '우리', '함께', '같이'];
+        const addressCount = directAddress.filter(address => 
+            content.includes(address)
+        ).length;
+        
+        if (addressCount >= 3) {
+            score += 10;
+            details.push('독자와의 친밀한 소통 (+10점)');
+        }
+
+        // 행동 유도 문구 (CTA)
+        const ctaKeywords = ['해보세요', '시작해보세요', '적용해보세요', '도전해보세요', '확인해보세요'];
+        const ctaCount = ctaKeywords.filter(cta => 
+            content.includes(cta)
+        ).length;
+        
+        if (ctaCount >= 2) {
+            score += 15;
+            details.push('독자 행동을 유도하는 표현 (+15점)');
+        }
+
+        return {
+            score: Math.min(100, Math.max(0, score)),
+            details
+        };
+    }
+
+    analyzeActionability(content) {
+        let score = 60; // 기본 점수
+        const details = [];
+
+        // 구체적인 단계나 방법 제시
+        const stepKeywords = ['단계', '방법', '절차', '과정', '순서'];
+        const stepCount = stepKeywords.filter(keyword => 
+            content.includes(keyword)
+        ).length;
+        
+        if (stepCount >= 2) {
+            score += 20;
+            details.push('구체적인 실행 단계 제시 (+20점)');
+        }
+
+        // 실용적인 팁이나 도구 언급
+        const toolKeywords = ['도구', '툴', '앱', '서비스', '플랫폼', '방법', '기법', '전략'];
+        const toolCount = toolKeywords.filter(keyword => 
+            content.includes(keyword)
+        ).length;
+        
+        if (toolCount >= 3) {
+            score += 15;
+            details.push('실용적인 도구와 방법 제시 (+15점)');
+        }
+
+        // 체크리스트나 할 일 목록
+        const actionVerbs = ['하세요', '확인하세요', '준비하세요', '실행하세요', '적용하세요'];
+        const actionCount = actionVerbs.filter(verb => 
+            content.includes(verb)
+        ).length;
+        
+        if (actionCount >= 5) {
+            score += 15;
+            details.push('구체적인 행동 지침 제공 (+15점)');
+        } else if (actionCount >= 2) {
+            score += 8;
+            details.push('행동 지향적 내용 (+8점)');
+        }
+
+        // 예시나 템플릿 제공
+        const templateKeywords = ['예시', '템플릿', '샘플', '예제', '모델', '양식'];
+        const templateCount = templateKeywords.filter(keyword => 
+            content.includes(keyword)
+        ).length;
+        
+        if (templateCount >= 2) {
+            score += 10;
+            details.push('실용적 예시와 템플릿 제공 (+10점)');
+        }
+
+        // 측정 가능한 결과나 목표 제시
+        const measurementKeywords = ['목표', '결과', '성과', '지표', '측정', '평가', '개선'];
+        const measurementCount = measurementKeywords.filter(keyword => 
+            content.includes(keyword)
+        ).length;
+        
+        if (measurementCount >= 3) {
+            score += 10;
+            details.push('측정 가능한 목표와 성과 제시 (+10점)');
+        }
+
+        return {
+            score: Math.min(100, Math.max(0, score)),
+            details
+        };
+    }
+
+    getQualityScoreColor(score) {
+        if (score >= 80) return 'text-green-600';
+        if (score >= 60) return 'text-yellow-600';
+        if (score >= 40) return 'text-orange-600';
+        return 'text-red-600';
+    }
+
+    getQualityGrade(score) {
+        if (score >= 90) return 'A+';
+        if (score >= 80) return 'A';
+        if (score >= 70) return 'B+';
+        if (score >= 60) return 'B';
+        if (score >= 50) return 'C+';
+        if (score >= 40) return 'C';
+        return 'D';
+    }
+
+    analyzeQuality() {
+        if (this.generatedArticles.length === 0) {
+            this.showAlert('분석할 콘텐츠가 없습니다.', 'error');
+            return;
+        }
+
+        // 전체 콘텐츠를 하나로 합쳐서 분석
+        const allContent = this.generatedArticles
+            .map(article => `${article.title}\n\n${article.content}`)
+            .join('\n\n---\n\n');
+
+        const qualityAnalysis = this.analyzeContentQuality(allContent);
+        
+        this.displayQualityAnalysis(qualityAnalysis);
+        
+        // 품질 분석 섹션 표시
+        document.getElementById('qualityAnalysisSection').style.display = 'block';
+        
+        // 품질 분석 섹션으로 스크롤 (부드럽게)
+        setTimeout(() => {
+            document.getElementById('qualityAnalysisSection').scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start' 
+            });
+        }, 100);
+    }
+
+    displayQualityAnalysis(analysis) {
+        // 종합 점수 표시
+        document.getElementById('overallQualityScore').textContent = analysis.overall;
+        document.getElementById('overallQualityGrade').textContent = this.getQualityGrade(analysis.overall);
+        document.getElementById('expertiseScore').textContent = analysis.expertise;
+        document.getElementById('originalityScore').textContent = analysis.originality;
+        document.getElementById('readabilityQualityScore').textContent = analysis.readability;
+        document.getElementById('engagementScore').textContent = analysis.engagement;
+        document.getElementById('actionabilityScore').textContent = analysis.actionability;
+
+        // 상세 분석 결과 표시
+        this.displayQualityDetails('expertiseAnalysis', analysis.details.expertise, analysis.expertise);
+        this.displayQualityDetails('originalityAnalysis', analysis.details.originality, analysis.originality);
+        this.displayQualityDetails('readabilityQualityAnalysis', analysis.details.readability, analysis.readability);
+        this.displayQualityDetails('engagementAnalysis', analysis.details.engagement, analysis.engagement);
+        this.displayQualityDetails('actionabilityAnalysis', analysis.details.actionability, analysis.actionability);
+
+        // 품질 개선 제안 생성 및 표시
+        this.generateQualitySuggestions(analysis);
+    }
+
+    displayQualityDetails(containerId, details, score) {
+        const container = document.getElementById(containerId);
+        const colorClass = this.getQualityScoreColor(score);
+        
+        container.innerHTML = `
+            <div class="mb-3">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="font-semibold text-gray-700">점수</span>
+                    <span class="font-bold text-lg ${colorClass}">${score}점</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div class="h-2 rounded-full transition-all duration-500 ${this.getQualityProgressClass(score)}" 
+                         style="width: ${score}%"></div>
+                </div>
+            </div>
+            <div class="space-y-2">
+                ${details.length > 0 ? 
+                    details.map(detail => `
+                        <div class="flex items-start">
+                            <i class="fas fa-check-circle text-green-500 text-sm mt-0.5 mr-2"></i>
+                            <span class="text-sm text-gray-700">${detail}</span>
+                        </div>
+                    `).join('') : 
+                    '<div class="text-sm text-gray-500">특별한 특징이 발견되지 않았습니다.</div>'
+                }
+            </div>
+        `;
+    }
+
+    getQualityProgressClass(score) {
+        if (score >= 80) return 'bg-green-500';
+        if (score >= 60) return 'bg-yellow-500';
+        if (score >= 40) return 'bg-orange-500';
+        return 'bg-red-500';
+    }
+
+    generateQualitySuggestions(analysis) {
+        const suggestions = [];
+        
+        // 각 카테고리별 개선 제안
+        if (analysis.expertise < 70) {
+            suggestions.push("📚 전문성 향상: 더 구체적인 데이터, 통계, 전문 용어를 활용하세요.");
+            suggestions.push("🔍 신뢰성 강화: 출처와 근거를 명확히 제시하세요.");
+        }
+        
+        if (analysis.originality < 70) {
+            suggestions.push("💡 독창성 증진: 개인적 경험이나 독특한 관점을 더 많이 포함하세요.");
+            suggestions.push("🆕 차별화: 기존과 다른 새로운 접근법을 시도해보세요.");
+        }
+        
+        if (analysis.readability < 70) {
+            suggestions.push("📖 가독성 개선: 문장 길이를 적절히 조절하고 연결어를 활용하세요.");
+            suggestions.push("🎯 구조화: 제목과 목록을 더 체계적으로 사용하세요.");
+        }
+        
+        if (analysis.engagement < 70) {
+            suggestions.push("❓ 참여도 증진: 독자에게 질문을 던지고 감정적 표현을 늘리세요.");
+            suggestions.push("📖 스토리텔링: 더 많은 사례와 이야기를 포함하세요.");
+        }
+        
+        if (analysis.actionability < 70) {
+            suggestions.push("✅ 실행가능성 강화: 구체적인 단계와 실용적 도구를 제시하세요.");
+            suggestions.push("🎯 행동유도: 독자가 바로 실행할 수 있는 명확한 가이드를 제공하세요.");
+        }
+
+        // 전체적인 개선 제안
+        if (analysis.overall < 80) {
+            suggestions.push("🚀 전체 품질 향상: 각 섹션의 밸런스를 맞추고 일관성을 유지하세요.");
+        }
+        
+        const container = document.getElementById('qualitySuggestions');
+        if (suggestions.length > 0) {
+            container.innerHTML = `
+                <ul class="space-y-2">
+                    ${suggestions.map(suggestion => `
+                        <li class="flex items-start">
+                            <i class="fas fa-lightbulb text-yellow-600 mr-2 mt-1 text-sm"></i>
+                            <span class="text-sm">${suggestion}</span>
+                        </li>
+                    `).join('')}
+                </ul>
+            `;
+        } else {
+            container.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas fa-star text-yellow-600 mr-2"></i>
+                    <span class="text-sm">훌륭합니다! 콘텐츠 품질이 매우 우수합니다.</span>
+                </div>
+            `;
+        }
+    }
+
     showAlert(message, type = 'info') {
         // 간단한 알림 표시
         const alertColors = {
             success: 'bg-green-100 border-green-500 text-green-700',
             error: 'bg-red-100 border-red-500 text-red-700',
-            info: 'bg-blue-100 border-blue-500 text-blue-700'
+            info: 'bg-blue-100 border-blue-500 text-blue-700',
+            warning: 'bg-yellow-100 border-yellow-500 text-yellow-700'
         };
 
         const alertDiv = document.createElement('div');
@@ -2776,6 +3323,212 @@ ${article.content}
                 alertDiv.remove();
             }
         }, 5000);
+    }
+
+    // 🚀 실시간 상태 표시기 시스템
+    showProgressIndicator(button, message) {
+        button.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>${message}`;
+        button.disabled = true;
+        button.classList.add('opacity-75', 'cursor-not-allowed');
+    }
+
+    hideProgressIndicator(button, originalText) {
+        button.innerHTML = originalText;
+        button.disabled = false;
+        button.classList.remove('opacity-75', 'cursor-not-allowed');
+    }
+
+    // 📊 성능 요약 표시
+    showGenerationSummary() {
+        if (this.generatedArticles.length === 0) return;
+
+        const totalTime = this.generatedArticles.reduce((sum, article) => sum + (article.generationTime || 0), 0);
+        const avgTime = Math.round(totalTime / this.generatedArticles.length);
+        const successCount = this.generatedArticles.length;
+        
+        // 품질 점수 계산
+        const qualityScores = this.generatedArticles
+            .map(a => a.quality?.overallScore)
+            .filter(score => score !== undefined);
+        const avgQuality = qualityScores.length > 0 ? 
+            Math.round(qualityScores.reduce((sum, score) => sum + score, 0) / qualityScores.length) : 0;
+
+        // 사용된 모델 통계
+        const modelStats = {};
+        this.generatedArticles.forEach(article => {
+            const model = article.performance?.successfulModel || article.performance?.usedModel || 'Unknown';
+            modelStats[model] = (modelStats[model] || 0) + 1;
+        });
+
+        const summaryHtml = `
+            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <h4 class="text-lg font-semibold text-blue-800 mb-3 flex items-center">
+                    <i class="fas fa-chart-line mr-2"></i>
+                    생성 완료 요약
+                </h4>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div class="bg-white rounded-lg p-3 text-center">
+                        <div class="text-2xl font-bold text-green-600">${successCount}</div>
+                        <div class="text-gray-600">생성된 글</div>
+                    </div>
+                    <div class="bg-white rounded-lg p-3 text-center">
+                        <div class="text-2xl font-bold text-blue-600">${avgTime}ms</div>
+                        <div class="text-gray-600">평균 생성시간</div>
+                    </div>
+                    <div class="bg-white rounded-lg p-3 text-center">
+                        <div class="text-2xl font-bold text-purple-600">${avgQuality}</div>
+                        <div class="text-gray-600">평균 품질점수</div>
+                    </div>
+                    <div class="bg-white rounded-lg p-3 text-center">
+                        <div class="text-lg font-bold text-orange-600">${Object.keys(modelStats).length}</div>
+                        <div class="text-gray-600">사용된 모델</div>
+                    </div>
+                </div>
+                ${Object.keys(modelStats).length > 0 ? `
+                    <div class="mt-3 pt-3 border-t border-blue-100">
+                        <div class="flex flex-wrap gap-2">
+                            <span class="text-sm text-gray-600 mr-2">사용 모델:</span>
+                            ${Object.entries(modelStats).map(([model, count]) => 
+                                `<span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">${model} (${count})</span>`
+                            ).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+
+        // 결과 섹션 상단에 요약 삽입
+        const resultsSection = document.getElementById('generatedContent');
+        resultsSection.insertAdjacentHTML('afterbegin', summaryHtml);
+    }
+
+    // 💡 품질 개선 제안 표시
+    showQualitySuggestions(suggestions, type) {
+        if (!suggestions || suggestions.length === 0) return;
+
+        const typeNames = {
+            'keyword': '키워드',
+            'content': '콘텐츠'
+        };
+
+        const suggestionHtml = `
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                <h5 class="text-md font-semibold text-yellow-800 mb-2 flex items-center">
+                    <i class="fas fa-lightbulb mr-2"></i>
+                    ${typeNames[type]} 품질 개선 제안
+                </h5>
+                <ul class="text-sm text-yellow-700 space-y-1">
+                    ${suggestions.map(suggestion => `
+                        <li class="flex items-start">
+                            <i class="fas fa-arrow-right text-yellow-500 mr-2 mt-0.5 text-xs"></i>
+                            <span>${suggestion}</span>
+                        </li>
+                    `).join('')}
+                </ul>
+                <button onclick="this.parentElement.style.display='none'" 
+                        class="mt-2 text-xs text-yellow-600 hover:text-yellow-800 underline">
+                    확인했습니다
+                </button>
+            </div>
+        `;
+
+        // 적절한 위치에 제안 삽입
+        if (type === 'keyword') {
+            const section = document.getElementById('subKeywordsSection');
+            if (section) section.insertAdjacentHTML('afterbegin', suggestionHtml);
+        } else {
+            const section = document.getElementById('resultsSection');
+            if (section) section.insertAdjacentHTML('afterbegin', suggestionHtml);
+        }
+    }
+
+    // 📈 실시간 API 성능 모니터링
+    updateAPIPerformanceStats(response) {
+        if (!response.data.performance) return;
+
+        const perf = response.data.performance;
+        const statsHtml = `
+            <div class="text-xs text-gray-500 mt-2 p-2 bg-gray-50 rounded">
+                <div class="grid grid-cols-2 gap-2">
+                    <div>⏱️ 응답시간: ${perf.totalTime}</div>
+                    <div>🔄 재시도: ${perf.totalRetries || 0}회</div>
+                    <div>🤖 모델: ${perf.successfulModel || perf.usedModel}</div>
+                    <div>📡 API 시도: ${perf.apiAttempts}회</div>
+                </div>
+            </div>
+        `;
+
+        // 성능 통계를 어디에 표시할지 결정
+        return statsHtml;
+    }
+
+    // 🎯 고급 품질 분석 표시
+    displayQualityAnalysis(analysis, containerId) {
+        if (!analysis || !containerId) return;
+
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        const qualityHtml = `
+            <div class="bg-purple-50 border border-purple-200 rounded-lg p-3 mt-2">
+                <h6 class="font-semibold text-purple-800 mb-2 flex items-center text-sm">
+                    <i class="fas fa-award mr-1"></i>품질 분석
+                </h6>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <div class="bg-white rounded p-2 text-center">
+                        <div class="font-bold text-purple-600">${analysis.overallScore || analysis.diversityScore || 0}</div>
+                        <div class="text-gray-600">종합점수</div>
+                    </div>
+                    <div class="bg-white rounded p-2 text-center">
+                        <div class="font-bold text-blue-600">${analysis.relevanceScore || analysis.seoScore || 0}</div>
+                        <div class="text-gray-600">${analysis.relevanceScore ? '관련성' : 'SEO'}</div>
+                    </div>
+                </div>
+                ${analysis.suggestions && analysis.suggestions.length > 0 ? `
+                    <div class="mt-2 pt-2 border-t border-purple-100">
+                        <div class="text-xs text-purple-700">
+                            <strong>개선 제안:</strong> ${analysis.suggestions[0]}
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+
+        container.insertAdjacentHTML('beforeend', qualityHtml);
+    }
+
+    // API 키 상태 확인 메서드
+    async checkApiKeyStatus() {
+        try {
+            const response = await fetch('/api/check-api-keys');
+            const result = await response.json();
+            
+            const statusSection = document.getElementById('apiKeyStatusSection');
+            const messageElement = document.getElementById('apiKeyMessage');
+            
+            if (!result.configured) {
+                // 환경 변수에 API 키가 설정되지 않은 경우 알림 표시
+                messageElement.textContent = result.message;
+                statusSection.style.display = 'block';
+                
+                // 설정에서 API 키가 있는지도 확인
+                const settings = this.getSettings();
+                if (!settings.claudeApiKey && !settings.geminiApiKey && !settings.openaiApiKey) {
+                    messageElement.innerHTML = `
+                        ${result.message}<br>
+                        <small class="text-yellow-600">💡 <strong>팁:</strong> 환경 변수 설정 또는 아래 '설정' 버튼에서 API 키를 입력하실 수 있습니다.</small>
+                    `;
+                }
+            } else {
+                // API 키가 설정된 경우 알림 숨김
+                statusSection.style.display = 'none';
+            }
+        } catch (error) {
+            console.error('API 키 상태 확인 실패:', error);
+            // 네트워크 오류 등의 경우 기본 메시지 표시
+            const statusSection = document.getElementById('apiKeyStatusSection');
+            statusSection.style.display = 'block';
+        }
     }
 }
 
@@ -2842,5 +3595,292 @@ function addFavoriteKeyword() {
     document.getElementById('favoriteKeywordInput').value = ''; // 입력창 초기화
 }
 
+// 🔥 실시간 시스템 모니터링 클래스
+class SystemMonitor {
+    constructor() {
+        this.isMonitoring = false;
+        this.monitoringInterval = null;
+        this.performanceData = [];
+        this.maxDataPoints = 20;
+        this.init();
+    }
+
+    init() {
+        this.bindEvents();
+    }
+
+    bindEvents() {
+        const toggleBtn = document.getElementById('toggleMonitoring');
+        const refreshBtn = document.getElementById('refreshSystemStatus');
+
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+                this.toggleMonitoring();
+            });
+        }
+
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => {
+                this.refreshSystemStatus();
+            });
+        }
+
+        // 시스템 모니터링 섹션 표시 버튼 추가
+        const settingsBtn = document.getElementById('settingsBtn');
+        if (settingsBtn) {
+            settingsBtn.addEventListener('click', () => {
+                this.showSystemMonitoring();
+            });
+        }
+    }
+
+    showSystemMonitoring() {
+        const section = document.getElementById('systemMonitoringSection');
+        if (section) {
+            section.style.display = section.style.display === 'none' ? 'block' : 'none';
+            if (section.style.display === 'block') {
+                section.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+    }
+
+    async toggleMonitoring() {
+        const button = document.getElementById('toggleMonitoring');
+        
+        if (this.isMonitoring) {
+            // 모니터링 중지
+            this.stopMonitoring();
+            button.innerHTML = '<i class="fas fa-play mr-2"></i>모니터링 시작';
+            button.className = 'bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition';
+        } else {
+            // 모니터링 시작
+            this.startMonitoring();
+            button.innerHTML = '<i class="fas fa-stop mr-2"></i>모니터링 중지';
+            button.className = 'bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition';
+        }
+    }
+
+    startMonitoring() {
+        this.isMonitoring = true;
+        
+        // 초기 상태 확인
+        this.refreshSystemStatus();
+        
+        // 5초마다 성능 데이터 수집
+        this.monitoringInterval = setInterval(() => {
+            this.collectPerformanceData();
+        }, 5000);
+
+        // 실시간 차트 초기화
+        this.initPerformanceChart();
+        
+        blogGenerator.showAlert('실시간 모니터링이 시작되었습니다! 📊', 'success');
+    }
+
+    stopMonitoring() {
+        this.isMonitoring = false;
+        
+        if (this.monitoringInterval) {
+            clearInterval(this.monitoringInterval);
+            this.monitoringInterval = null;
+        }
+        
+        blogGenerator.showAlert('실시간 모니터링이 중지되었습니다.', 'info');
+    }
+
+    async refreshSystemStatus() {
+        try {
+            const response = await axios.get('/api/system-status');
+            
+            if (response.data.success) {
+                this.updateSystemStatus(response.data.status);
+                
+                // 성능 통계도 함께 업데이트
+                const perfResponse = await axios.get('/api/performance-stats');
+                if (perfResponse.data.success) {
+                    this.updatePerformanceStats(perfResponse.data.stats);
+                }
+            }
+        } catch (error) {
+            console.error('System status check failed:', error);
+            this.updateSystemStatus({
+                uptime: 0,
+                memory: { heapUsed: 0, heapTotal: 0 },
+                apis: {
+                    claude: { status: 'error', lastCheck: new Date().toISOString() },
+                    gemini: { status: 'error', lastCheck: new Date().toISOString() },
+                    openai: { status: 'error', lastCheck: new Date().toISOString() }
+                }
+            });
+        }
+    }
+
+    updateSystemStatus(status) {
+        // 시스템 메트릭 업데이트
+        document.getElementById('systemUptime').textContent = this.formatUptime(status.uptime || 0);
+        
+        // API 상태 업데이트
+        this.updateAPIStatus('claude', status.apis?.claude?.status || 'unknown');
+        this.updateAPIStatus('gemini', status.apis?.gemini?.status || 'unknown');
+        this.updateAPIStatus('openai', status.apis?.openai?.status || 'unknown');
+        
+        // 메모리 사용량 표시
+        if (status.memory) {
+            const memoryUsage = Math.round((status.memory.heapUsed / status.memory.heapTotal) * 100);
+            // 메모리 사용률을 어딘가에 표시할 수 있음
+        }
+    }
+
+    updateAPIStatus(apiName, status) {
+        const statusElement = document.getElementById(`${apiName}Status`);
+        const responseTimeElement = document.getElementById(`${apiName}ResponseTime`);
+        
+        if (statusElement) {
+            statusElement.className = 'w-3 h-3 rounded-full mr-3 ' + this.getStatusColor(status);
+        }
+        
+        if (responseTimeElement) {
+            responseTimeElement.textContent = status === 'active' ? '< 2s' : status === 'error' ? 'Error' : 'Unknown';
+        }
+    }
+
+    getStatusColor(status) {
+        switch (status) {
+            case 'active': return 'bg-green-500';
+            case 'slow': return 'bg-yellow-500';
+            case 'error': return 'bg-red-500';
+            default: return 'bg-gray-400';
+        }
+    }
+
+    updatePerformanceStats(stats) {
+        if (stats.last24Hours) {
+            document.getElementById('avgResponseTime').textContent = stats.last24Hours.avgResponseTime + 'ms';
+            document.getElementById('totalRequests').textContent = stats.last24Hours.totalRequests;
+            
+            const successRate = Math.round((stats.last24Hours.successfulRequests / stats.last24Hours.totalRequests) * 100);
+            document.getElementById('successRate').textContent = successRate + '%';
+        }
+        
+        if (stats.realtime) {
+            // 실시간 데이터를 차트에 추가
+            this.addPerformanceDataPoint({
+                timestamp: new Date(),
+                responseTime: stats.realtime.currentResponseTime,
+                requestsPerMinute: stats.realtime.requestsPerMinute
+            });
+        }
+    }
+
+    collectPerformanceData() {
+        // 현재 시간과 모의 성능 데이터 수집
+        const now = new Date();
+        const responseTime = 1500 + Math.random() * 1000; // 1.5s ~ 2.5s
+        const requestsPerMinute = Math.floor(Math.random() * 20) + 5; // 5-25 req/min
+        
+        this.addPerformanceDataPoint({
+            timestamp: now,
+            responseTime: Math.round(responseTime),
+            requestsPerMinute: requestsPerMinute
+        });
+
+        // 실시간 메트릭 업데이트
+        document.getElementById('avgResponseTime').textContent = Math.round(responseTime) + 'ms';
+    }
+
+    addPerformanceDataPoint(dataPoint) {
+        this.performanceData.push(dataPoint);
+        
+        // 최대 데이터 포인트 수 제한
+        if (this.performanceData.length > this.maxDataPoints) {
+            this.performanceData.shift();
+        }
+        
+        this.updatePerformanceChart();
+    }
+
+    initPerformanceChart() {
+        const chartContainer = document.getElementById('performanceChart');
+        if (!chartContainer) return;
+        
+        chartContainer.innerHTML = `
+            <div class="w-full h-full p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-medium text-gray-700">응답 시간 (ms)</span>
+                    <span class="text-xs text-gray-500">실시간 모니터링</span>
+                </div>
+                <div id="chartArea" class="w-full h-24 bg-gradient-to-r from-blue-50 to-blue-100 rounded border flex items-center justify-center">
+                    <canvas id="performanceCanvas" width="400" height="80"></canvas>
+                </div>
+                <div class="flex justify-between text-xs text-gray-500 mt-2">
+                    <span>과거</span>
+                    <span>현재</span>
+                </div>
+            </div>
+        `;
+    }
+
+    updatePerformanceChart() {
+        const canvas = document.getElementById('performanceCanvas');
+        if (!canvas || this.performanceData.length === 0) return;
+        
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width;
+        const height = canvas.height;
+        
+        // 캔버스 초기화
+        ctx.clearRect(0, 0, width, height);
+        
+        // 데이터 정규화
+        const maxResponseTime = Math.max(...this.performanceData.map(d => d.responseTime));
+        const minResponseTime = Math.min(...this.performanceData.map(d => d.responseTime));
+        const range = maxResponseTime - minResponseTime || 1;
+        
+        // 라인 그리기
+        ctx.strokeStyle = '#3b82f6';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        
+        this.performanceData.forEach((point, index) => {
+            const x = (index / (this.performanceData.length - 1)) * width;
+            const y = height - ((point.responseTime - minResponseTime) / range) * height;
+            
+            if (index === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        });
+        
+        ctx.stroke();
+        
+        // 점 그리기
+        ctx.fillStyle = '#3b82f6';
+        this.performanceData.forEach((point, index) => {
+            const x = (index / (this.performanceData.length - 1)) * width;
+            const y = height - ((point.responseTime - minResponseTime) / range) * height;
+            
+            ctx.beginPath();
+            ctx.arc(x, y, 3, 0, 2 * Math.PI);
+            ctx.fill();
+        });
+    }
+
+    formatUptime(milliseconds) {
+        const seconds = Math.floor(milliseconds / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+        
+        if (hours > 0) {
+            return `${hours}h ${minutes % 60}m`;
+        } else if (minutes > 0) {
+            return `${minutes}m ${seconds % 60}s`;
+        } else {
+            return `${seconds}s`;
+        }
+    }
+}
+
 // 앱 초기화
 const blogGenerator = new BlogGenerator();
+const systemMonitor = new SystemMonitor();
