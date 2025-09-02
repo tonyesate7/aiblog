@@ -1,7 +1,8 @@
 {
-  "name": "blog-generator",
+  "name": "ai-blog-generator-v2",
+  "version": "2.0.0",
   "type": "module",
-  "description": "AI-powered blog content generator with PDF/Word export",
+  "description": "AI-powered blog content generator with complete blog management system - Version 2.0",
   "scripts": {
     "dev": "vite",
     "dev:sandbox": "wrangler pages dev dist --ip 0.0.0.0 --port 3000",

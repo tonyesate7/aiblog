@@ -18,122 +18,314 @@ class BlogGenerator {
 
     bindEvents() {
         // 서브 키워드 생성
-        document.getElementById('generateSubKeywords').addEventListener('click', () => {
-            this.generateSubKeywords();
-        });
+        const generateSubKeywordsBtn = document.getElementById('generateSubKeywords');
+        if (generateSubKeywordsBtn) {
+            generateSubKeywordsBtn.addEventListener('click', () => {
+                this.generateSubKeywords();
+            });
+        }
 
         // 블로그 글 생성 시작
-        document.getElementById('startGeneration').addEventListener('click', () => {
-            this.startBlogGeneration();
-        });
-
-        // 설정 모달
-        document.getElementById('settingsBtn').addEventListener('click', () => {
-            this.showSettingsModal();
-        });
-
-        document.getElementById('closeSettings').addEventListener('click', () => {
-            this.hideSettingsModal();
-        });
-
-        document.getElementById('saveSettings').addEventListener('click', () => {
-            this.saveSettings();
-        });
+        const startGenerationBtn = document.getElementById('startGeneration');
+        if (startGenerationBtn) {
+            startGenerationBtn.addEventListener('click', () => {
+                this.startBlogGeneration();
+            });
+        }
 
         // 파일 다운로드
-        document.getElementById('downloadPDF').addEventListener('click', () => {
-            this.downloadPDF();
-        });
+        const downloadPDFBtn = document.getElementById('downloadPDF');
+        if (downloadPDFBtn) {
+            downloadPDFBtn.addEventListener('click', () => {
+                this.downloadPDF();
+            });
+        }
 
-        document.getElementById('downloadWord').addEventListener('click', () => {
-            this.downloadWord();
-        });
+        const downloadWordBtn = document.getElementById('downloadWord');
+        if (downloadWordBtn) {
+            downloadWordBtn.addEventListener('click', () => {
+                this.downloadWord();
+            });
+        }
 
-        document.getElementById('downloadIndividual').addEventListener('click', () => {
-            this.downloadIndividualFiles();
-        });
+        const downloadIndividualBtn = document.getElementById('downloadIndividual');
+        if (downloadIndividualBtn) {
+            downloadIndividualBtn.addEventListener('click', () => {
+                this.downloadIndividualFiles();
+            });
+        }
 
-        document.getElementById('downloadMarkdown').addEventListener('click', () => {
-            this.downloadMarkdown();
-        });
+        const downloadMarkdownBtn = document.getElementById('downloadMarkdown');
+        if (downloadMarkdownBtn) {
+            downloadMarkdownBtn.addEventListener('click', () => {
+                this.downloadMarkdown();
+            });
+        }
 
         // 추가 기능 버튼들
-        document.getElementById('selectAllArticles').addEventListener('click', () => {
-            this.selectAllArticles();
-        });
+        const selectAllBtn = document.getElementById('selectAllArticles');
+        if (selectAllBtn) {
+            selectAllBtn.addEventListener('click', () => {
+                this.selectAllArticles();
+            });
+        }
 
-        document.getElementById('saveProject').addEventListener('click', () => {
-            this.saveProject();
-        });
+        const saveProjectBtn = document.getElementById('saveProject');
+        if (saveProjectBtn) {
+            saveProjectBtn.addEventListener('click', () => {
+                this.saveProject();
+            });
+        }
 
-        document.getElementById('clearAll').addEventListener('click', () => {
-            this.clearAllArticles();
-        });
+        const clearAllBtn = document.getElementById('clearAll');
+        if (clearAllBtn) {
+            clearAllBtn.addEventListener('click', () => {
+                this.clearAllArticles();
+            });
+        }
 
         // SEO 분석 버튼
-        document.getElementById('refreshSeoAnalysis').addEventListener('click', () => {
-            this.analyzeSEO();
-        });
+        const refreshSeoBtn = document.getElementById('refreshSeoAnalysis');
+        if (refreshSeoBtn) {
+            refreshSeoBtn.addEventListener('click', () => {
+                this.analyzeSEO();
+            });
+        }
 
         // 품질 분석 버튼
-        document.getElementById('refreshQualityAnalysis').addEventListener('click', () => {
-            this.analyzeQuality();
-        });
+        const refreshQualityBtn = document.getElementById('refreshQualityAnalysis');
+        if (refreshQualityBtn) {
+            refreshQualityBtn.addEventListener('click', () => {
+                this.analyzeQuality();
+            });
+        }
+
+        // =========================== 새로운 3가지 우선 기능 이벤트 핸들러 ===========================
+        
+        // 1. 스마트 키워드 추천 기능
+        const showSmartSuggestionsBtn = document.getElementById('showSmartSuggestions');
+        if (showSmartSuggestionsBtn) {
+            showSmartSuggestionsBtn.addEventListener('click', () => {
+                this.toggleSmartKeywordSuggestions();
+            });
+        }
+        
+        const closeSmartSuggestionsBtn = document.getElementById('closeSmartSuggestions');
+        if (closeSmartSuggestionsBtn) {
+            closeSmartSuggestionsBtn.addEventListener('click', () => {
+                document.getElementById('smartSuggestionsPanel').style.display = 'none';
+            });
+        }
+        
+        // 스마트 키워드 추천 타입별 버튼
+        const getTrendingBtn = document.getElementById('getTrendingKeywords');
+        if (getTrendingBtn) {
+            getTrendingBtn.addEventListener('click', () => {
+                this.getSmartKeywordSuggestions('trending');
+            });
+        }
+        
+        const getRelatedBtn = document.getElementById('getRelatedKeywords');
+        if (getRelatedBtn) {
+            getRelatedBtn.addEventListener('click', () => {
+                this.getSmartKeywordSuggestions('related');
+            });
+        }
+        
+        const getQuestionBtn = document.getElementById('getQuestionKeywords');
+        if (getQuestionBtn) {
+            getQuestionBtn.addEventListener('click', () => {
+                this.getSmartKeywordSuggestions('questions');
+            });
+        }
+        
+        const getLongtailBtn = document.getElementById('getLongtailKeywords');
+        if (getLongtailBtn) {
+            getLongtailBtn.addEventListener('click', () => {
+                this.getSmartKeywordSuggestions('longtail');
+            });
+        }
+        
+        // 2. 배치 생성 기능
+        const startBatchBtn = document.getElementById('startBatchGeneration');
+        if (startBatchBtn) {
+            startBatchBtn.addEventListener('click', () => {
+                this.showBatchGenerationModal();
+            });
+        }
+        
+        const closeBatchBtn = document.getElementById('closeBatchModal');
+        if (closeBatchBtn) {
+            closeBatchBtn.addEventListener('click', () => {
+                document.getElementById('batchGeneratorModal').style.display = 'none';
+            });
+        }
+        
+        const confirmBatchBtn = document.getElementById('confirmBatchGeneration');
+        if (confirmBatchBtn) {
+            confirmBatchBtn.addEventListener('click', () => {
+                this.confirmBatchGeneration();
+            });
+        }
+        
+        // 3. 콘텐츠 자동 개선 기능
+        const startContentBtn = document.getElementById('startContentImprovement');
+        if (startContentBtn) {
+            startContentBtn.addEventListener('click', () => {
+                this.showContentImprovementModal();
+            });
+        }
+        
+        const closeImprovementBtn = document.getElementById('closeImprovementModal');
+        if (closeImprovementBtn) {
+            closeImprovementBtn.addEventListener('click', () => {
+                document.getElementById('contentImprovementModal').style.display = 'none';
+            });
+        }
+        
+        const confirmContentBtn = document.getElementById('confirmContentImprovement');
+        if (confirmContentBtn) {
+            confirmContentBtn.addEventListener('click', () => {
+                this.confirmContentImprovement();
+            });
+        }
 
         // 프로젝트 관리 모달
-        document.getElementById('showProjectModal').addEventListener('click', () => {
-            this.showProjectModal();
-        });
+        const showProjectBtn = document.getElementById('showProjectModal');
+        if (showProjectBtn) {
+            showProjectBtn.addEventListener('click', () => {
+                this.showProjectModal();
+            });
+        }
 
-        document.getElementById('closeProject').addEventListener('click', () => {
-            this.hideProjectModal();
-        });
+        const closeProjectBtn = document.getElementById('closeProject');
+        if (closeProjectBtn) {
+            closeProjectBtn.addEventListener('click', () => {
+                this.hideProjectModal();
+            });
+        }
 
         // 탭 전환
-        document.getElementById('saveTab').addEventListener('click', () => this.switchTab('save'));
-        document.getElementById('loadTab').addEventListener('click', () => this.switchTab('load'));
-        document.getElementById('presetsTab').addEventListener('click', () => this.switchTab('presets'));
-        document.getElementById('keywordsTab').addEventListener('click', () => this.switchTab('keywords'));
+        const saveTabBtn = document.getElementById('saveTab');
+        if (saveTabBtn) {
+            saveTabBtn.addEventListener('click', () => this.switchTab('save'));
+        }
+        
+        const loadTabBtn = document.getElementById('loadTab');
+        if (loadTabBtn) {
+            loadTabBtn.addEventListener('click', () => this.switchTab('load'));
+        }
+        
+        const presetsTabBtn = document.getElementById('presetsTab');
+        if (presetsTabBtn) {
+            presetsTabBtn.addEventListener('click', () => this.switchTab('presets'));
+        }
+        
+        const keywordsTabBtn = document.getElementById('keywordsTab');
+        if (keywordsTabBtn) {
+            keywordsTabBtn.addEventListener('click', () => this.switchTab('keywords'));
+        }
 
         // 프로젝트 저장/불러오기
-        document.getElementById('saveProjectBtn').addEventListener('click', () => {
-            this.saveCurrentProject();
-        });
+        const saveProjectBtnModal = document.getElementById('saveProjectBtn');
+        if (saveProjectBtnModal) {
+            saveProjectBtnModal.addEventListener('click', () => {
+                this.saveCurrentProject();
+            });
+        }
 
-        document.getElementById('exportProject').addEventListener('click', () => {
-            this.exportProjectAsJSON();
-        });
+        const exportProjectBtn = document.getElementById('exportProject');
+        if (exportProjectBtn) {
+            exportProjectBtn.addEventListener('click', () => {
+                this.exportProjectAsJSON();
+            });
+        }
 
-        document.getElementById('importProject').addEventListener('click', () => {
-            document.getElementById('importFile').click();
-        });
+        const importProjectBtn = document.getElementById('importProject');
+        if (importProjectBtn) {
+            importProjectBtn.addEventListener('click', () => {
+                const importFile = document.getElementById('importFile');
+                if (importFile) {
+                    importFile.click();
+                }
+            });
+        }
 
-        document.getElementById('importFile').addEventListener('change', (e) => {
-            this.importProjectFromFile(e);
-        });
+        const importFileInput = document.getElementById('importFile');
+        if (importFileInput) {
+            importFileInput.addEventListener('change', (e) => {
+                this.importProjectFromFile(e);
+            });
+        }
 
         // 프리셋 관리
-        document.getElementById('savePreset').addEventListener('click', () => {
-            this.saveCurrentPreset();
-        });
+        const savePresetBtn = document.getElementById('savePreset');
+        if (savePresetBtn) {
+            savePresetBtn.addEventListener('click', () => {
+                this.saveCurrentPreset();
+            });
+        }
 
         // 즐겨찾기 키워드
-        document.getElementById('addFavoriteKeyword').addEventListener('click', () => {
-            this.addFavoriteKeyword();
-        });
-
-        document.getElementById('newFavoriteKeyword').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
+        const addFavoriteBtn = document.getElementById('addFavoriteKeyword');
+        if (addFavoriteBtn) {
+            addFavoriteBtn.addEventListener('click', () => {
                 this.addFavoriteKeyword();
-            }
-        });
+            });
+        }
 
-        // 모달 외부 클릭시 닫기
-        document.getElementById('settingsModal').addEventListener('click', (e) => {
-            if (e.target.id === 'settingsModal') {
-                this.hideSettingsModal();
-            }
-        });
+        const newFavoriteInput = document.getElementById('newFavoriteKeyword');
+        if (newFavoriteInput) {
+            newFavoriteInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.addFavoriteKeyword();
+                }
+            });
+        }
+
+
+        
+        // 배치 생성 모달 외부 클릭시 닫기
+        const batchModal = document.getElementById('batchGeneratorModal');
+        if (batchModal) {
+            batchModal.addEventListener('click', (e) => {
+                if (e.target.id === 'batchGeneratorModal') {
+                    document.getElementById('batchGeneratorModal').style.display = 'none';
+                }
+            });
+        }
+        
+        // 콘텐츠 개선 모달 외부 클릭시 닫기
+        const contentModal = document.getElementById('contentImprovementModal');
+        if (contentModal) {
+            contentModal.addEventListener('click', (e) => {
+                if (e.target.id === 'contentImprovementModal') {
+                    document.getElementById('contentImprovementModal').style.display = 'none';
+                }
+            });
+        }
+        
+        // 배치 설정 변경 시 예상 시간 업데이트
+        const batchCountInput = document.getElementById('batchArticleCount');
+        if (batchCountInput) {
+            batchCountInput.addEventListener('input', () => {
+                this.updateBatchTimeEstimate();
+            });
+        }
+        
+        const batchConcurrencyInput = document.getElementById('batchConcurrency');
+        if (batchConcurrencyInput) {
+            batchConcurrencyInput.addEventListener('input', () => {
+                this.updateBatchTimeEstimate();
+            });
+        }
+        
+        const batchDelayInput = document.getElementById('batchDelay');
+        if (batchDelayInput) {
+            batchDelayInput.addEventListener('input', () => {
+                this.updateBatchTimeEstimate();
+            });
+        }
     }
 
     async generateSubKeywords() {
@@ -141,12 +333,6 @@ class BlogGenerator {
         
         if (!mainKeyword) {
             this.showAlert('메인 키워드를 입력해주세요.', 'error');
-            return;
-        }
-
-        const settings = this.getSettings();
-        if (!settings.claudeApiKey && !settings.geminiApiKey && !settings.openaiApiKey) {
-            this.showAlert('API 키가 설정되지 않았습니다. 설정에서 최소 하나의 API 키를 입력해주세요.', 'error');
             return;
         }
 
@@ -158,9 +344,6 @@ class BlogGenerator {
         try {
             const response = await axios.post('/api/generate-subkeywords', {
                 mainKeyword: mainKeyword,
-                apiKey: settings.claudeApiKey,
-                geminiKey: settings.geminiApiKey,
-                openaiKey: settings.openaiApiKey,
                 contentStyle: document.getElementById('contentStyle').value,
                 targetAudience: document.getElementById('targetAudience').value
             });
@@ -269,11 +452,6 @@ class BlogGenerator {
     }
 
     startBlogGeneration() {
-        const settings = this.getSettings();
-        if (!settings.claudeApiKey && !settings.geminiApiKey && !settings.openaiApiKey) {
-            this.showAlert('API 키가 설정되지 않았습니다. 설정에서 최소 하나의 API 키를 입력해주세요.', 'error');
-            return;
-        }
 
         const keywords = this.getSubKeywords();
         if (keywords.length === 0) {
@@ -286,6 +464,7 @@ class BlogGenerator {
         
         this.currentProgress = 0;
         this.generatedArticles = [];
+        this.startTime = Date.now(); // 시작 시간 기록
         this.updateProgress();
         this.initProgressList(keywords);
 
@@ -320,7 +499,12 @@ class BlogGenerator {
     async generateArticlesSequentially(keywords, index) {
         if (index >= keywords.length) {
             // 모든 글 생성 완료
+            console.log(`🎉 전체 생성 완료! 성공: ${this.generatedArticles.length}/${keywords.length}개`);
+            
             this.showResults();
+            
+            // 진행 상태 숨기고 결과 표시
+            document.getElementById('progressSection').style.display = 'none';
             
             // SEO 분석 실행
             setTimeout(() => {
@@ -332,29 +516,34 @@ class BlogGenerator {
                 this.analyzeQuality();
             }, 1500);
             
-            this.showAlert('모든 블로그 글 생성이 완료되었습니다!', 'success');
+            // 완료 메시지를 더 눈에 띄게 표시
+            const successMessage = `🎉 블로그 글 생성이 완료되었습니다!\n\n✅ 성공: ${this.generatedArticles.length}/${keywords.length}개\n⏱️ 소요시간: ${Math.round((Date.now() - this.startTime) / 1000)}초\n\n이제 아래 생성된 글들의 관리 버튼을 사용할 수 있습니다.`;
+            
+            alert(successMessage); // 알럿 대화상자
+            this.showAlert(`블로그 글 생성이 완료되었습니다! (${this.generatedArticles.length}/${keywords.length}개 성공)`, 'success');
             return;
         }
 
         const keyword = keywords[index];
         this.updateProgressItem(index, 'generating');
 
-        const settings = this.getSettings();
         const mainKeyword = document.getElementById('mainKeyword').value.trim();
         const contentStyle = document.getElementById('contentStyle').value;
         const contentLength = document.getElementById('contentLength').value;
         const targetAudience = document.getElementById('targetAudience').value;
 
         try {
+            console.log(`📝 글 생성 시작: "${keyword}" (${index + 1}/${keywords.length})`);
+            
+            // 타임아웃 설정 (30초)
             const response = await axios.post('/api/generate-article', {
                 keyword: keyword,
                 mainKeyword: mainKeyword,
                 contentStyle: contentStyle,
                 contentLength: contentLength,
-                targetAudience: targetAudience,
-                apiKey: settings.claudeApiKey,
-                geminiKey: settings.geminiApiKey,
-                openaiKey: settings.openaiApiKey
+                targetAudience: targetAudience
+            }, {
+                timeout: 30000 // 30초 타임아웃
             });
 
             if (response.data.success) {
@@ -364,22 +553,30 @@ class BlogGenerator {
                 };
                 this.generatedArticles.push(article);
                 this.updateProgressItem(index, 'completed');
+                console.log(`✅ 글 생성 완료: "${keyword}" (${this.generatedArticles.length}/${keywords.length})`);
             } else {
                 this.updateProgressItem(index, 'error');
-                console.error('글 생성 실패:', response.data.error);
+                console.error(`❌ 글 생성 실패: "${keyword}" -`, response.data.error);
+                // 실패한 경우에도 계속 진행
             }
         } catch (error) {
-            console.error('글 생성 오류:', error);
+            console.error(`❌ 글 생성 오류: "${keyword}" -`, error.message);
             this.updateProgressItem(index, 'error');
+            
+            // 타임아웃이나 네트워크 오류 시 사용자에게 알림
+            if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+                this.showAlert(`"${keyword}" 글 생성 시간이 초과되었습니다. 계속 진행합니다.`, 'warning');
+            }
         }
 
         this.currentProgress++;
         this.updateProgress();
 
-        // 다음 글 생성 (500ms 지연)
+        // 다음 글 생성 (1초 지연으로 API 부하 감소)
         setTimeout(() => {
+            console.log(`⏭️ 다음 글 생성 준비: ${index + 2}/${keywords.length}`);
             this.generateArticlesSequentially(keywords, index + 1);
-        }, 500);
+        }, 1000);
     }
 
     updateProgressItem(index, status) {
@@ -407,102 +604,18 @@ class BlogGenerator {
     }
 
     updateProgress() {
-        const percentage = (this.currentProgress / this.totalArticles) * 100;
+        const totalKeywords = this.getSubKeywords().length || this.totalArticles;
+        const percentage = (this.currentProgress / totalKeywords) * 100;
         document.getElementById('progressBar').style.width = `${percentage}%`;
-        document.getElementById('progressText').textContent = `${this.currentProgress}/${this.totalArticles}`;
+        document.getElementById('progressText').textContent = `${this.currentProgress}/${totalKeywords}`;
+        
+        console.log(`📊 진행률: ${this.currentProgress}/${totalKeywords} (${Math.round(percentage)}%)`);
     }
 
-    // 🎨 이미지 생성 관련 메서드들
+    // 🎨 레거시 이미지 생성 함수 (호환성 유지)
     async generateImageForArticle(articleId, keyword, title, content) {
-        try {
-            this.showAlert('이미지 생성 중...', 'info');
-            
-            const response = await axios.post('/api/generate-image', {
-                keyword: keyword,
-                title: title,
-                articleContent: content
-            });
-
-            if (response.data.success) {
-                const imageUrl = response.data.image.url;
-                this.insertImageIntoArticle(articleId, imageUrl, keyword);
-                this.showAlert('이미지가 생성되어 글에 추가되었습니다! 🎨', 'success');
-                return imageUrl;
-            } else {
-                this.showAlert('이미지 생성에 실패했습니다.', 'error');
-                return null;
-            }
-        } catch (error) {
-            console.error('이미지 생성 오류:', error);
-            this.showAlert('이미지 생성 중 오류가 발생했습니다.', 'error');
-            return null;
-        }
-    }
-
-    insertImageIntoArticle(articleId, imageUrl, altText) {
-        // 해당 글의 내용에 이미지 마크다운 추가
-        const article = this.generatedArticles.find(a => a.id === articleId);
-        if (article) {
-            const imageMarkdown = `\n\n![${altText}](${imageUrl})\n*${altText} 관련 이미지*\n\n`;
-            
-            // 첫 번째 헤딩 다음에 이미지 삽입
-            const lines = article.content.split('\n');
-            let insertIndex = 1;
-            
-            // 첫 번째 ## 헤딩을 찾아서 그 다음에 삽입
-            for (let i = 0; i < lines.length; i++) {
-                if (lines[i].startsWith('## ')) {
-                    insertIndex = i + 1;
-                    break;
-                }
-            }
-            
-            lines.splice(insertIndex, 0, imageMarkdown);
-            article.content = lines.join('\n');
-            article.modified = true;
-            article.hasImage = true;
-            article.imageUrl = imageUrl;
-            
-            // UI 업데이트
-            this.showResults();
-            this.saveToLocalStorage();
-        }
-    }
-
-    // 전체 프로젝트에 대해 일괄 이미지 생성
-    async generateImagesForAllArticles() {
-        if (this.generatedArticles.length === 0) {
-            this.showAlert('먼저 블로그 글을 생성해주세요.', 'error');
-            return;
-        }
-
-        const confirm = window.confirm(`${this.generatedArticles.length}개의 글에 모두 이미지를 생성하시겠습니까?\n\n이 작업은 시간이 걸릴 수 있습니다.`);
-        if (!confirm) return;
-
-        this.showAlert('전체 글에 대한 이미지 생성을 시작합니다...', 'info');
-
-        for (let i = 0; i < this.generatedArticles.length; i++) {
-            const article = this.generatedArticles[i];
-            
-            // 이미 이미지가 있는 글은 건너뛰기
-            if (article.hasImage) {
-                continue;
-            }
-
-            this.showAlert(`${i + 1}/${this.generatedArticles.length} 이미지 생성 중...`, 'info');
-            
-            await this.generateImageForArticle(
-                article.id, 
-                article.keyword, 
-                article.title, 
-                article.content
-            );
-            
-            // 요청 간격 조절 (1초 대기)
-            await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-
-        this.showAlert('모든 글에 이미지 생성이 완료되었습니다! 🎉', 'success');
+        // 새로운 API 기반 함수로 리디렉션
+        return await this.generateArticleImage(articleId);
     }
 
     generateDummyArticle(keyword, index) {
@@ -539,6 +652,7 @@ ${keyword}에 대해 자세히 알아보았습니다. 이 정보가 여러분에
     }
 
     showResults() {
+        console.log('📋 showResults() 호출됨, 글 개수:', this.generatedArticles.length);
         document.getElementById('resultsSection').style.display = 'block';
         document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth' });
         
@@ -575,6 +689,19 @@ ${keyword}에 대해 자세히 알아보았습니다. 이 정보가 여러분에
                 
                 <!-- 읽기 모드 -->
                 <div id="read-mode-${article.id}" class="read-mode">
+                    <!-- 이미지 표시 (이미지가 있는 경우) -->
+                    ${article.image ? `
+                        <div class="mb-4">
+                            <img src="${article.image.url}" alt="${article.image.keyword || article.keyword}" 
+                                 class="w-full max-w-md mx-auto rounded-lg shadow-sm"
+                                 loading="lazy">
+                            <div class="text-xs text-gray-500 text-center mt-2">
+                                <i class="fas fa-robot mr-1"></i>AI 생성 이미지: ${article.image.keyword}
+                                ${article.image.source ? ` | ${article.image.source}` : ''}
+                            </div>
+                        </div>
+                    ` : ''}
+                    
                     <div class="prose prose-sm max-w-none" id="content-display-${article.id}">
                         ${this.markdownToHtml(article.content)}
                     </div>
@@ -650,22 +777,24 @@ ${keyword}에 대해 자세히 알아보았습니다. 이 정보가 여러분에
                                 class="text-blue-600 hover:text-blue-800 text-sm transition">
                             <i class="fas fa-edit mr-1"></i>편집
                         </button>
-                        <button onclick="blogGenerator.generateImageForArticle(${article.id}, '${article.keyword}', '${article.title.replace(/'/g, "\\'")}', \`${article.content.replace(/`/g, '\\`').replace(/\$/g, '\\$')}\`)" 
-                                class="text-purple-600 hover:text-purple-800 text-sm transition ${article.hasImage ? 'opacity-50' : ''}"
-                                ${article.hasImage ? 'title="이미 이미지가 있습니다"' : ''}>
+                        <button onclick="blogGenerator.generateArticleImage('${article.id}')" 
+                                class="text-purple-600 hover:text-purple-800 text-sm transition ${article.image ? 'opacity-50' : ''}"
+                                ${article.image ? 'title="이미 이미지가 있습니다"' : ''}>
                             <i class="fas fa-image mr-1"></i>이미지 생성
                         </button>
-                        <button onclick="blogGenerator.duplicateArticle(${article.id})" 
+                        <button onclick="blogGenerator.duplicateArticle('${article.id}')" 
                                 class="text-green-600 hover:text-green-800 text-sm transition">
                             <i class="fas fa-copy mr-1"></i>복제
                         </button>
-                        <button onclick="blogGenerator.deleteArticle(${article.id})" 
+                        <button onclick="blogGenerator.deleteArticle('${article.id}')" 
                                 class="text-red-600 hover:text-red-800 text-sm transition">
                             <i class="fas fa-trash mr-1"></i>삭제
                         </button>
                     </div>
                     <div class="text-xs text-gray-400 flex items-center gap-2">
-                        ${article.hasImage ? '<i class="fas fa-image text-purple-500" title="이미지 포함"></i>' : ''}
+                        ${article.image ? '<i class="fas fa-image text-purple-500" title="이미지 포함"></i>' : ''}
+                        ${article.modified ? '<i class="fas fa-edit text-yellow-500" title="수정됨"></i>' : ''}
+                        ${article.isDuplicate ? '<i class="fas fa-copy text-green-500" title="복사본"></i>' : ''}
                         <span>ID: ${article.id}</span>
                     </div>
                 </div>
@@ -673,13 +802,22 @@ ${keyword}에 대해 자세히 알아보았습니다. 이 정보가 여러분에
             container.appendChild(articleDiv);
         });
 
+        console.log('✅ showResults() 완료, HTML 생성된 글 개수:', this.generatedArticles.length);
         this.showAlert('모든 블로그 글 생성이 완료되었습니다!', 'success');
     }
 
     toggleEdit(articleId) {
+        console.log('✏️ toggleEdit() 호출됨, articleId:', articleId);
+        
         const readMode = document.getElementById(`read-mode-${articleId}`);
         const editMode = document.getElementById(`edit-mode-${articleId}`);
         const editBtn = document.getElementById(`edit-btn-${articleId}`);
+        
+        console.log('📊 DOM 요소 확인:', { 
+            readMode: !!readMode, 
+            editMode: !!editMode, 
+            editBtn: !!editBtn 
+        });
         
         if (editMode.style.display === 'none') {
             // 편집 모드로 전환
@@ -903,35 +1041,7 @@ ${keyword}에 대해 자세히 알아보았습니다. 이 정보가 여러분에
         this.autoSave(articleId);
     }
 
-    duplicateArticle(articleId) {
-        const article = this.generatedArticles.find(a => a.id === articleId);
-        if (!article) return;
-
-        const newArticle = {
-            ...article,
-            id: Date.now(), // 새로운 ID
-            title: `${article.title} (복사본)`,
-            createdAt: new Date().toISOString(),
-            modified: true,
-            modifiedAt: new Date().toISOString()
-        };
-
-        this.generatedArticles.push(newArticle);
-        this.showResults(); // 결과 다시 표시
-        this.saveToLocalStorage();
-        
-        this.showAlert('글이 복제되었습니다! 📋', 'success');
-    }
-
-    deleteArticle(articleId) {
-        if (confirm('정말로 이 글을 삭제하시겠습니까?')) {
-            this.generatedArticles = this.generatedArticles.filter(a => a.id !== articleId);
-            this.showResults(); // 결과 다시 표시
-            this.saveToLocalStorage();
-            
-            this.showAlert('글이 삭제되었습니다.', 'info');
-        }
-    }
+    // 중복 메서드 제거됨 - 고급 버전은 4474번 줄 이후에 구현됨
 
     saveToLocalStorage() {
         try {
@@ -2885,6 +2995,532 @@ ${article.content}
         }
     }
 
+    // =========================== 스마트 키워드 추천 시스템 ===========================
+    
+    toggleSmartKeywordSuggestions() {
+        const panel = document.getElementById('smartSuggestionsPanel');
+        const isVisible = panel.style.display === 'block';
+        
+        if (isVisible) {
+            panel.style.display = 'none';
+        } else {
+            panel.style.display = 'block';
+            panel.scrollIntoView({ behavior: 'smooth' });
+            
+            // 패널이 열릴 때 기본적으로 관련 키워드 추천 실행
+            const mainKeyword = document.getElementById('mainKeyword').value.trim();
+            if (mainKeyword) {
+                this.getSmartKeywordSuggestions('related');
+            } else {
+                this.showAlert('먼저 메인 키워드를 입력해주세요.', 'error');
+                panel.style.display = 'none';
+            }
+        }
+    }
+    
+    async getSmartKeywordSuggestions(type) {
+        const mainKeyword = document.getElementById('mainKeyword').value.trim();
+        
+        if (!mainKeyword) {
+            this.showAlert('메인 키워드를 먼저 입력해주세요.', 'error');
+            return;
+        }
+        
+        // 버튼 상태 업데이트
+        const buttons = {
+            trending: document.getElementById('getTrendingKeywords'),
+            related: document.getElementById('getRelatedKeywords'),
+            questions: document.getElementById('getQuestionKeywords'),
+            longtail: document.getElementById('getLongtailKeywords')
+        };
+        
+        const targetButton = buttons[type];
+        const originalText = targetButton.innerHTML;
+        targetButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>분석 중...';
+        targetButton.disabled = true;
+        
+        try {
+            const response = await axios.post('/api/smart-keyword-suggestions', {
+                mainKeyword: mainKeyword,
+                type: type
+            });
+            
+            if (response.data.success) {
+                this.displaySmartSuggestions(response.data.keywords, type, response.data.description);
+                this.showAlert(`${response.data.description} ${response.data.keywords.length}개가 생성되었습니다! 🎯`, 'success');
+            } else {
+                this.showAlert('키워드 분석에 실패했습니다: ' + response.data.error, 'error');
+            }
+        } catch (error) {
+            console.error('스마트 키워드 추천 오류:', error);
+            this.showAlert('키워드 추천 중 오류가 발생했습니다.', 'error');
+        } finally {
+            targetButton.innerHTML = originalText;
+            targetButton.disabled = false;
+        }
+    }
+    
+    displaySmartSuggestions(keywords, type, description) {
+        const container = document.getElementById('smartSuggestionsList');
+        
+        if (!container) {
+            console.error('smartSuggestionsList 컨테이너를 찾을 수 없습니다');
+            return;
+        }
+        
+        const typeTitle = description || this.getSuggestionTypeName(type);
+        
+        // 기존 내용을 추가하는 방식으로 변경
+        const existingContent = container.innerHTML;
+        const keywordItems = keywords.map((keywordObj, index) => {
+            const keyword = keywordObj.keyword || keywordObj;
+            return `
+                <div class="smart-suggestion-item bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg p-2 cursor-pointer transition group"
+                     onclick="blogGenerator.useSmartSuggestion('${keyword.replace(/'/g, "\\'")}')"> 
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-purple-800">${keyword}</span>
+                        <div class="flex items-center gap-1">
+                            <span class="text-xs text-purple-600 opacity-0 group-hover:opacity-100 transition-opacity">${type}</span>
+                            <i class="fas fa-plus text-purple-600 text-xs"></i>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // 결과 표시 영역에 새로운 키워드들 추가
+        container.innerHTML = `
+            <div class="mb-3">
+                <div class="flex items-center justify-between mb-2">
+                    <h5 class="text-sm font-semibold text-purple-800 flex items-center">
+                        <i class="fas fa-brain mr-1"></i>
+                        ${typeTitle} (${keywords.length}개)
+                    </h5>
+                    <button onclick="blogGenerator.addAllSmartSuggestions(${JSON.stringify(keywords.map(k => k.keyword || k))})"
+                            class="text-xs bg-purple-100 hover:bg-purple-200 text-purple-800 px-2 py-1 rounded transition">
+                        <i class="fas fa-plus mr-1"></i>전체 추가
+                    </button>
+                </div>
+                <div class="grid grid-cols-1 gap-1">
+                    ${keywordItems}
+                </div>
+            </div>
+        ` + existingContent;
+    }
+    
+    getSuggestionTypeName(type) {
+        const names = {
+            trending: '트렌드',
+            related: '관련',
+            questions: '질문형',
+            longtail: '롱테일'
+        };
+        return names[type] || '추천';
+    }
+    
+    useSmartSuggestion(keyword) {
+        // 현재 서브키워드 목록에 추가
+        const container = document.getElementById('subKeywordsList');
+        if (!container) {
+            this.showAlert('먼저 서브 키워드를 생성해주세요.', 'error');
+            return;
+        }
+        
+        // 중복 확인
+        const existingKeywords = this.getSubKeywords();
+        if (existingKeywords.includes(keyword)) {
+            this.showAlert('이미 추가된 키워드입니다.', 'warning');
+            return;
+        }
+        
+        // 새 키워드 항목 생성
+        const keywordDiv = document.createElement('div');
+        keywordDiv.className = 'bg-gray-100 hover:bg-gray-200 p-3 rounded-lg cursor-pointer transition';
+        keywordDiv.innerHTML = `
+            <div class="flex items-center justify-between">
+                <span class="text-sm font-medium">${keyword}</span>
+                <i class="fas fa-edit text-gray-400 text-xs"></i>
+            </div>
+        `;
+        
+        // 편집 이벤트 추가
+        keywordDiv.addEventListener('click', () => {
+            this.editKeyword(keywordDiv, { keyword });
+        });
+        
+        container.appendChild(keywordDiv);
+        
+        this.showAlert(`"${keyword}"가 키워드 목록에 추가되었습니다! ✨`, 'success');
+    }
+    
+    addAllSmartSuggestions(keywords) {
+        const container = document.getElementById('subKeywordsList');
+        if (!container) {
+            this.showAlert('먼저 서브 키워드를 생성해주세요.', 'error');
+            return;
+        }
+        
+        const existingKeywords = this.getSubKeywords();
+        let addedCount = 0;
+        
+        keywords.forEach(keyword => {
+            if (!existingKeywords.includes(keyword)) {
+                this.useSmartSuggestion(keyword);
+                addedCount++;
+            }
+        });
+        
+        if (addedCount > 0) {
+            this.showAlert(`${addedCount}개의 새로운 키워드가 추가되었습니다! 🎉`, 'success');
+        } else {
+            this.showAlert('추가할 새로운 키워드가 없습니다.', 'info');
+        }
+    }
+    
+    // =========================== 배치 생성 시스템 ===========================
+    
+    updateBatchTimeEstimate() {
+        const articleCount = parseInt(document.getElementById('batchArticleCount').value) || 0;
+        const concurrency = parseInt(document.getElementById('batchConcurrency').value) || 1;
+        const delay = parseInt(document.getElementById('batchDelay').value) || 1000;
+        
+        const avgGenerationTime = 15; // 평균 15초 가정
+        const totalTime = Math.ceil(articleCount / concurrency) * (avgGenerationTime + delay / 1000);
+        
+        document.getElementById('batchTimeEstimate').textContent = this.formatDuration(totalTime);
+    }
+    
+    formatDuration(seconds) {
+        if (seconds < 60) {
+            return `약 ${seconds}초`;
+        } else if (seconds < 3600) {
+            return `약 ${Math.ceil(seconds / 60)}분`;
+        } else {
+            return `약 ${Math.ceil(seconds / 3600)}시간`;
+        }
+    }
+    
+    showBatchGenerationModal() {
+        const modal = document.getElementById('batchGeneratorModal');
+        modal.style.display = 'flex';
+        
+        // 현재 설정값으로 초기화
+        const keywords = this.getSubKeywords();
+        document.getElementById('batchKeywordCount').textContent = keywords.length;
+        document.getElementById('batchArticleCount').value = Math.min(keywords.length, 10);
+        document.getElementById('batchConcurrency').value = 3;
+        document.getElementById('batchDelay').value = 1000;
+        
+        // 예상 소요 시간 계산
+        this.updateBatchTimeEstimate();
+    }
+    
+    async confirmBatchGeneration() {
+        const keywords = this.getSubKeywords();
+        const articleCount = parseInt(document.getElementById('batchArticleCount').value) || keywords.length;
+        const concurrency = parseInt(document.getElementById('batchConcurrency').value) || 3;
+        const delay = parseInt(document.getElementById('batchDelay').value) || 1000;
+        
+        if (keywords.length === 0) {
+            this.showAlert('생성할 키워드가 없습니다.', 'error');
+            return;
+        }
+        
+        // 모달 닫기
+        document.getElementById('batchGeneratorModal').style.display = 'none';
+        
+        try {
+            // 배치 작업 생성 요청
+            const response = await axios.post('/api/create-batch-job', {
+                keywords: keywords.slice(0, articleCount),
+                mainKeyword: document.getElementById('mainKeyword').value.trim(),
+                settings: {
+                    contentStyle: document.getElementById('contentStyle').value,
+                    contentLength: document.getElementById('contentLength').value,
+                    targetAudience: document.getElementById('targetAudience').value,
+                    concurrency: concurrency,
+                    delay: delay
+                }
+            });
+            
+            if (response.data.success) {
+                const batchId = response.data.batchId;
+                this.showAlert(`배치 작업이 시작되었습니다! (ID: ${batchId}) 🚀`, 'success');
+                
+                // 배치 진행 상황 모니터링 시작
+                this.startBatchProgressMonitoring(batchId, keywords.slice(0, articleCount));
+            } else {
+                this.showAlert('배치 작업 생성에 실패했습니다: ' + response.data.error, 'error');
+            }
+        } catch (error) {
+            console.error('배치 생성 오류:', error);
+            this.showAlert('배치 작업 생성 중 오류가 발생했습니다.', 'error');
+        }
+    }
+    
+    async startBatchProgressMonitoring(batchId, keywords) {
+        // 진행 상황 섹션 표시
+        document.getElementById('progressSection').style.display = 'block';
+        document.getElementById('progressSection').scrollIntoView({ behavior: 'smooth' });
+        
+        this.currentProgress = 0;
+        this.totalArticles = keywords.length;
+        this.generatedArticles = [];
+        
+        // 배치 진행 상황 UI 초기화
+        this.initBatchProgressList(keywords, batchId);
+        
+        // 주기적으로 배치 상태 확인 (2초마다)
+        const monitoringInterval = setInterval(async () => {
+            try {
+                const response = await axios.get(`/api/batch-status/${batchId}`);
+                
+                if (response.data.success) {
+                    const status = response.data.status;
+                    
+                    // 진행 상황 업데이트
+                    this.updateBatchProgress(status);
+                    
+                    // 완료된 작업들 결과 수집
+                    if (status.completed && status.completed.length > 0) {
+                        status.completed.forEach(result => {
+                            if (result.success && !this.generatedArticles.find(a => a.keyword === result.keyword)) {
+                                this.generatedArticles.push({
+                                    ...result.article,
+                                    id: this.generatedArticles.length + 1
+                                });
+                            }
+                        });
+                    }
+                    
+                    // 배치 작업 완료 확인
+                    if (status.status === 'completed' || status.status === 'failed') {
+                        clearInterval(monitoringInterval);
+                        
+                        if (status.status === 'completed') {
+                            this.showAlert('배치 생성이 완료되었습니다! 🎉', 'success');
+                            this.showResults();
+                            
+                            // 분석 실행
+                            setTimeout(() => this.analyzeSEO(), 1000);
+                            setTimeout(() => this.analyzeQuality(), 1500);
+                        } else {
+                            this.showAlert('배치 작업 중 일부 오류가 발생했습니다.', 'warning');
+                        }
+                    }
+                } else {
+                    console.error('배치 상태 확인 실패:', response.data.error);
+                }
+            } catch (error) {
+                console.error('배치 모니터링 오류:', error);
+                clearInterval(monitoringInterval);
+                this.showAlert('배치 모니터링 중 오류가 발생했습니다.', 'error');
+            }
+        }, 2000);
+    }
+    
+    initBatchProgressList(keywords, batchId) {
+        const container = document.getElementById('progressList');
+        container.innerHTML = `
+            <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div class="flex items-center justify-between mb-2">
+                    <h4 class="font-semibold text-blue-800">배치 작업 진행 상황</h4>
+                    <span class="text-sm text-blue-600">ID: ${batchId}</span>
+                </div>
+                <div class="text-sm text-blue-700">
+                    <div>총 작업: ${keywords.length}개</div>
+                    <div id="batchCurrentProgress">진행: 0/${keywords.length}</div>
+                </div>
+            </div>
+        `;
+        
+        keywords.forEach((keyword, index) => {
+            const progressItem = document.createElement('div');
+            progressItem.id = `batch-progress-${index}`;
+            progressItem.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg mb-2';
+            progressItem.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas fa-clock text-gray-400 mr-3"></i>
+                    <span class="text-sm">${keyword}</span>
+                </div>
+                <span class="text-xs text-gray-500">대기중</span>
+            `;
+            container.appendChild(progressItem);
+        });
+    }
+    
+    updateBatchProgress(status) {
+        // 전체 진행 상황 업데이트
+        const progressElement = document.getElementById('batchCurrentProgress');
+        if (progressElement) {
+            const completed = status.completed ? status.completed.length : 0;
+            const inProgress = status.inProgress ? status.inProgress.length : 0;
+            const failed = status.failed ? status.failed.length : 0;
+            
+            progressElement.innerHTML = `
+                진행: ${completed + inProgress + failed}/${status.total} 
+                (완료: ${completed}, 진행중: ${inProgress}, 실패: ${failed})
+            `;
+            
+            // 프로그레스 바 업데이트
+            const percentage = ((completed + failed) / status.total) * 100;
+            document.getElementById('progressBar').style.width = `${percentage}%`;
+            document.getElementById('progressText').textContent = `${completed + failed}/${status.total}`;
+        }
+        
+        // 개별 항목 상태 업데이트
+        status.completed?.forEach((result, index) => {
+            this.updateBatchProgressItem(result.keyword, 'completed', result.success);
+        });
+        
+        status.inProgress?.forEach((item, index) => {
+            this.updateBatchProgressItem(item.keyword, 'generating');
+        });
+        
+        status.failed?.forEach((result, index) => {
+            this.updateBatchProgressItem(result.keyword, 'error');
+        });
+    }
+    
+    updateBatchProgressItem(keyword, status, success = true) {
+        // 키워드로 해당 요소 찾기
+        const progressItems = document.querySelectorAll('[id^="batch-progress-"]');
+        
+        for (let item of progressItems) {
+            const keywordSpan = item.querySelector('span');
+            if (keywordSpan && keywordSpan.textContent === keyword) {
+                const icon = item.querySelector('i');
+                const statusText = item.querySelector('span:last-child');
+                
+                switch (status) {
+                    case 'generating':
+                        icon.className = 'fas fa-spinner fa-spin text-blue-500 mr-3';
+                        statusText.textContent = 'AI 생성중...';
+                        statusText.className = 'text-xs text-blue-500';
+                        break;
+                    case 'completed':
+                        if (success) {
+                            icon.className = 'fas fa-check-circle text-green-500 mr-3';
+                            statusText.textContent = '완료';
+                            statusText.className = 'text-xs text-green-500';
+                        } else {
+                            icon.className = 'fas fa-times-circle text-red-500 mr-3';
+                            statusText.textContent = '실패';
+                            statusText.className = 'text-xs text-red-500';
+                        }
+                        break;
+                    case 'error':
+                        icon.className = 'fas fa-times-circle text-red-500 mr-3';
+                        statusText.textContent = '오류';
+                        statusText.className = 'text-xs text-red-500';
+                        break;
+                }
+                break;
+            }
+        }
+    }
+    
+    // =========================== 콘텐츠 자동 개선 시스템 ===========================
+    
+    showContentImprovementModal() {
+        if (this.generatedArticles.length === 0) {
+            this.showAlert('개선할 콘텐츠가 없습니다. 먼저 블로그 글을 생성해주세요.', 'error');
+            return;
+        }
+        
+        const modal = document.getElementById('contentImprovementModal');
+        modal.style.display = 'flex';
+        
+        // 현재 상태 정보 표시
+        document.getElementById('improvementArticleCount').textContent = this.generatedArticles.length;
+        
+        // 개선 옵션 초기화
+        document.getElementById('improveSEO').checked = true;
+        document.getElementById('improveReadability').checked = true;
+        document.getElementById('improveEngagement').checked = false;
+        document.getElementById('improveLength').checked = false;
+        document.getElementById('improveStructure').checked = true;
+    }
+    
+    async confirmContentImprovement() {
+        
+        // 선택된 개선 옵션들 수집
+        const improvementOptions = {
+            seo: document.getElementById('improveSEO').checked,
+            readability: document.getElementById('improveReadability').checked,
+            engagement: document.getElementById('improveEngagement').checked,
+            length: document.getElementById('improveLength').checked,
+            structure: document.getElementById('improveStructure').checked
+        };
+        
+        const selectedOptions = Object.keys(improvementOptions).filter(key => improvementOptions[key]);
+        
+        if (selectedOptions.length === 0) {
+            this.showAlert('최소 하나의 개선 옵션을 선택해주세요.', 'error');
+            return;
+        }
+        
+        // 모달 닫기
+        document.getElementById('contentImprovementModal').style.display = 'none';
+        
+        this.showAlert(`${selectedOptions.length}개 영역의 콘텐츠 개선을 시작합니다... 🔧`, 'info');
+        
+        // 진행 상황 표시 준비
+        let improved = 0;
+        const total = this.generatedArticles.length;
+        
+        for (let i = 0; i < this.generatedArticles.length; i++) {
+            const article = this.generatedArticles[i];
+            
+            try {
+                const response = await axios.post('/api/auto-improve-content', {
+                    article: {
+                        title: article.title,
+                        content: article.content,
+                        keyword: article.keyword
+                    },
+                    improvementOptions: improvementOptions,
+                    mainKeyword: document.getElementById('mainKeyword').value.trim()
+                });
+                
+                if (response.data.success) {
+                    const improvedContent = response.data.improvedContent;
+                    
+                    // 기존 글 업데이트
+                    article.title = improvedContent.title;
+                    article.content = improvedContent.content;
+                    article.modified = true;
+                    article.modifiedAt = new Date().toISOString();
+                    article.improvedAreas = improvedContent.improvedAreas;
+                    article.wordCount = improvedContent.content.replace(/<[^>]*>/g, '').length;
+                    
+                    improved++;
+                    
+                    this.showAlert(`${improved}/${total} 글 개선 완료... (${article.keyword})`, 'info');
+                } else {
+                    console.error(`글 개선 실패 (${article.keyword}):`, response.data.error);
+                }
+            } catch (error) {
+                console.error(`글 개선 오류 (${article.keyword}):`, error);
+            }
+            
+            // 요청 간 지연 (API 제한 방지)
+            if (i < this.generatedArticles.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, 1500));
+            }
+        }
+        
+        // 개선 완료 후 결과 표시
+        this.showResults();
+        this.saveToLocalStorage();
+        
+        // 분석 재실행
+        setTimeout(() => this.analyzeSEO(), 1000);
+        setTimeout(() => this.analyzeQuality(), 1500);
+        
+        this.showAlert(`콘텐츠 자동 개선이 완료되었습니다! (${improved}/${total}개 개선됨) ✨`, 'success');
+    }
+    
     // ==================== 품질 분석 시스템 ====================
 
     analyzeContentQuality(content) {
@@ -3709,6 +4345,587 @@ ${article.content}
             systemMonitor.updateAPIStatus('gemini', result.details.gemini === '설정됨' ? 'active' : 'not_configured');
             systemMonitor.updateAPIStatus('openai', result.details.openai === '설정됨' ? 'active' : 'not_configured');
         }
+    }
+
+    // ==================== 글 관리 기능들 ====================
+
+    // 글 편집 모드 진입
+    editArticle(articleId) {
+        const article = this.generatedArticles.find(a => a.id == articleId);
+        if (!article) {
+            this.showAlert('글을 찾을 수 없습니다.', 'error');
+            return;
+        }
+
+        const articleElement = document.querySelector(`[data-article-id="${articleId}"]`);
+        if (!articleElement) return;
+
+        // 편집 UI 생성
+        const editContainer = document.createElement('div');
+        editContainer.className = 'article-editor mt-4 p-4';
+        editContainer.innerHTML = `
+            <div class="edit-toolbar">
+                <button class="toolbar-btn" onclick="blogGenerator.previewArticle('${articleId}')">
+                    <i class="fas fa-eye"></i> 미리보기
+                </button>
+                <button class="toolbar-btn" onclick="blogGenerator.saveArticleEdit('${articleId}')">
+                    <i class="fas fa-save"></i> 저장
+                </button>
+                <button class="toolbar-btn" onclick="blogGenerator.cancelArticleEdit('${articleId}')">
+                    <i class="fas fa-times"></i> 취소
+                </button>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">제목</label>
+                    <input type="text" id="edit-title-${articleId}" value="${article.title.replace(/"/g, '&quot;')}" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <label class="block text-sm font-medium text-gray-700 mt-4 mb-2">내용</label>
+                    <textarea id="edit-content-${articleId}" class="editor-textarea">${article.content}</textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">미리보기</label>
+                    <div id="edit-preview-${articleId}" class="editor-preview">
+                        ${this.markdownToHtml(article.content)}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // 기존 콘텐츠 숨기기
+        const contentElement = articleElement.querySelector('.article-content');
+        contentElement.style.display = 'none';
+
+        // 편집 UI 추가
+        articleElement.appendChild(editContainer);
+
+        // 실시간 미리보기
+        const contentTextarea = document.getElementById(`edit-content-${articleId}`);
+        contentTextarea.addEventListener('input', () => {
+            const previewDiv = document.getElementById(`edit-preview-${articleId}`);
+            previewDiv.innerHTML = this.markdownToHtml(contentTextarea.value);
+        });
+
+        this.showAlert('편집 모드로 전환되었습니다. 📝', 'info');
+    }
+
+    // 글 편집 저장
+    async saveArticleEdit(articleId) {
+        const titleInput = document.getElementById(`edit-title-${articleId}`);
+        const contentTextarea = document.getElementById(`edit-content-${articleId}`);
+        
+        if (!titleInput || !contentTextarea) {
+            this.showAlert('편집 데이터를 찾을 수 없습니다.', 'error');
+            return;
+        }
+
+        const newTitle = titleInput.value.trim();
+        const newContent = contentTextarea.value.trim();
+
+        if (!newTitle || !newContent) {
+            this.showAlert('제목과 내용을 모두 입력해주세요.', 'error');
+            return;
+        }
+
+        try {
+            // 서버에 저장 요청
+            const response = await axios.put(`/api/articles/${articleId}/edit`, {
+                title: newTitle,
+                content: newContent
+            });
+
+            if (response.data.success) {
+                // 로컬 데이터 업데이트
+                const article = this.generatedArticles.find(a => a.id == articleId);
+                if (article) {
+                    article.title = newTitle;
+                    article.content = newContent;
+                    article.wordCount = newContent.replace(/<[^>]*>/g, '').length;
+                    article.modified = true;
+                    article.lastModified = new Date().toISOString();
+                }
+
+                // UI 업데이트
+                this.cancelArticleEdit(articleId);
+                this.showResults();
+                this.saveToLocalStorage();
+
+                this.showAlert('글이 성공적으로 저장되었습니다! ✅', 'success');
+            } else {
+                this.showAlert('저장에 실패했습니다: ' + response.data.error, 'error');
+            }
+        } catch (error) {
+            console.error('글 저장 오류:', error);
+            this.showAlert('저장 중 오류가 발생했습니다.', 'error');
+        }
+    }
+
+    // 글 편집 취소
+    cancelArticleEdit(articleId) {
+        const articleElement = document.querySelector(`[data-article-id="${articleId}"]`);
+        if (!articleElement) return;
+
+        // 편집 UI 제거
+        const editContainer = articleElement.querySelector('.article-editor');
+        if (editContainer) {
+            editContainer.remove();
+        }
+
+        // 원래 콘텐츠 표시
+        const contentElement = articleElement.querySelector('.article-content');
+        contentElement.style.display = 'block';
+
+        this.showAlert('편집이 취소되었습니다.', 'info');
+    }
+
+    // 글 이미지 생성
+    async generateArticleImage(articleId) {
+        console.log('🖼️ generateArticleImage() 호출됨, articleId:', articleId);
+        console.log('📊 현재 글 목록:', this.generatedArticles.map(a => ({ id: a.id, title: a.title })));
+        
+        const article = this.generatedArticles.find(a => a.id == articleId);
+        if (!article) {
+            console.error('❌ 글을 찾을 수 없음. 요청 ID:', articleId);
+            this.showAlert('글을 찾을 수 없습니다.', 'error');
+            return;
+        }
+
+        const button = document.querySelector(`[onclick="blogGenerator.generateArticleImage('${articleId}')"]`);
+        if (!button) return;
+        
+        const originalText = button.innerHTML;
+        
+        try {
+            button.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>생성중...';
+            button.disabled = true;
+
+            const response = await axios.post(`/api/articles/${articleId}/generate-image`, {
+                keyword: article.keyword,
+                title: article.title,
+                articleContent: article.content
+            });
+
+            if (response.data.success) {
+                const imageData = response.data.image;
+                
+                // 글에 이미지 정보 추가
+                article.image = imageData;
+                
+                // UI 업데이트
+                this.showResults();
+                this.saveToLocalStorage();
+
+                this.showAlert(`"${article.keyword}" 키워드로 이미지가 생성되었습니다! 🖼️`, 'success');
+            } else {
+                this.showAlert('이미지 생성에 실패했습니다: ' + response.data.error, 'error');
+            }
+        } catch (error) {
+            console.error('이미지 생성 오류:', error);
+            this.showAlert('이미지 생성 중 오류가 발생했습니다.', 'error');
+        } finally {
+            button.innerHTML = originalText;
+            button.disabled = false;
+        }
+    }
+
+    // 글 복제
+    async duplicateArticle(articleId) {
+        console.log('📋 duplicateArticle() 호출됨, articleId:', articleId);
+        console.log('📊 현재 글 목록:', this.generatedArticles.map(a => ({ id: a.id, title: a.title })));
+        
+        const article = this.generatedArticles.find(a => a.id == articleId);
+        if (!article) {
+            console.error('❌ 글을 찾을 수 없음. 요청 ID:', articleId);
+            this.showAlert('글을 찾을 수 없습니다.', 'error');
+            return;
+        }
+
+        try {
+            const response = await axios.post(`/api/articles/${articleId}/duplicate`, {
+                title: article.title,
+                content: article.content,
+                keyword: article.keyword
+            });
+
+            if (response.data.success) {
+                const duplicatedArticle = response.data.article;
+                
+                // 추가 정보 설정
+                duplicatedArticle.wordCount = article.wordCount;
+                duplicatedArticle.generationTime = article.generationTime;
+                duplicatedArticle.performance = { ...article.performance };
+                
+                // 이미지가 있다면 복사
+                if (article.image) {
+                    duplicatedArticle.image = { ...article.image };
+                }
+
+                // 배열에 추가
+                this.generatedArticles.push(duplicatedArticle);
+                
+                // UI 업데이트
+                this.showResults();
+                this.saveToLocalStorage();
+
+                this.showAlert(`"${article.title}"이 복제되었습니다! 📋`, 'success');
+            } else {
+                this.showAlert('복제에 실패했습니다: ' + response.data.error, 'error');
+            }
+        } catch (error) {
+            console.error('글 복제 오류:', error);
+            this.showAlert('복제 중 오류가 발생했습니다.', 'error');
+        }
+    }
+
+    // 글 삭제
+    async deleteArticle(articleId) {
+        console.log('🗑️ deleteArticle() 호출됨, articleId:', articleId);
+        console.log('📊 현재 글 목록:', this.generatedArticles.map(a => ({ id: a.id, title: a.title })));
+        
+        const article = this.generatedArticles.find(a => a.id == articleId);
+        if (!article) {
+            console.error('❌ 글을 찾을 수 없음. 요청 ID:', articleId);
+            this.showAlert('글을 찾을 수 없습니다.', 'error');
+            return;
+        }
+
+        const confirmed = confirm(`"${article.title}"을(를) 정말 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.`);
+        if (!confirmed) return;
+
+        try {
+            const response = await axios.delete(`/api/articles/${articleId}`);
+
+            if (response.data.success) {
+                // 배열에서 제거
+                this.generatedArticles = this.generatedArticles.filter(a => a.id != articleId);
+                
+                // UI 업데이트
+                this.showResults();
+                this.saveToLocalStorage();
+
+                this.showAlert(`"${article.title}"이 삭제되었습니다. 🗑️`, 'info');
+            } else {
+                this.showAlert('삭제에 실패했습니다: ' + response.data.error, 'error');
+            }
+        } catch (error) {
+            console.error('글 삭제 오류:', error);
+            this.showAlert('삭제 중 오류가 발생했습니다.', 'error');
+        }
+    }
+
+    // 글 미리보기 (편집 중)
+    previewArticle(articleId) {
+        const contentTextarea = document.getElementById(`edit-content-${articleId}`);
+        if (!contentTextarea) return;
+
+        const previewDiv = document.getElementById(`edit-preview-${articleId}`);
+        previewDiv.innerHTML = this.markdownToHtml(contentTextarea.value);
+        
+        // 미리보기 영역으로 스크롤
+        previewDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // 편집 뷰 전환 (편집/미리보기/분할)
+    switchEditView(articleId, viewType) {
+        console.log('🔄 switchEditView() 호출됨, articleId:', articleId, 'viewType:', viewType);
+        
+        const editOnly = document.getElementById(`edit-only-${articleId}`);
+        const previewOnly = document.getElementById(`preview-only-${articleId}`);
+        const splitView = document.getElementById(`split-view-${articleId}`);
+        
+        // 모든 뷰 숨기기
+        if (editOnly) editOnly.style.display = 'none';
+        if (previewOnly) previewOnly.style.display = 'none';
+        if (splitView) splitView.style.display = 'none';
+        
+        // 선택된 뷰 표시
+        switch (viewType) {
+            case 'edit':
+                if (editOnly) editOnly.style.display = 'block';
+                break;
+            case 'preview':
+                if (previewOnly) previewOnly.style.display = 'block';
+                // 미리보기 업데이트
+                this.updatePreview(articleId);
+                break;
+            case 'split':
+                if (splitView) splitView.style.display = 'block';
+                // 분할 보기 미리보기 업데이트
+                this.updateSplitPreview(articleId);
+                break;
+        }
+    }
+
+    // 제목 업데이트
+    updateTitle(articleId) {
+        console.log('✏️ updateTitle() 호출됨, articleId:', articleId);
+        const titleInput = document.getElementById(`title-input-${articleId}`);
+        const titleDisplay = document.getElementById(`title-${articleId}`);
+        
+        if (titleInput && titleDisplay) {
+            titleDisplay.textContent = titleInput.value;
+        }
+    }
+
+    // 자동 저장
+    autoSave(articleId) {
+        console.log('💾 autoSave() 호출됨, articleId:', articleId);
+        // 간단한 자동 저장 (로컬 스토리지 업데이트)
+        const article = this.generatedArticles.find(a => a.id == articleId);
+        if (article) {
+            const textarea = document.getElementById(`content-textarea-${articleId}`);
+            if (textarea) {
+                article.content = textarea.value;
+                article.modified = true;
+                article.modifiedAt = new Date().toISOString();
+                this.saveToLocalStorage();
+            }
+        }
+    }
+
+    // 분할 보기 미리보기 업데이트
+    updateSplitPreview(articleId) {
+        console.log('🔄 updateSplitPreview() 호출됨, articleId:', articleId);
+        const textarea = document.getElementById(`content-textarea-split-${articleId}`);
+        const preview = document.getElementById(`preview-split-${articleId}`);
+        
+        if (textarea && preview) {
+            preview.innerHTML = this.markdownToHtml(textarea.value);
+        }
+    }
+
+    // 미리보기 업데이트
+    updatePreview(articleId) {
+        const textarea = document.getElementById(`content-textarea-${articleId}`);
+        const preview = document.getElementById(`preview-${articleId}`);
+        
+        if (textarea && preview) {
+            preview.innerHTML = this.markdownToHtml(textarea.value);
+        }
+    }
+
+    // 마크다운 삽입
+    insertMarkdown(articleId, type) {
+        console.log('📝 insertMarkdown() 호출됨, articleId:', articleId, 'type:', type);
+        const textarea = document.getElementById(`content-textarea-${articleId}`) || 
+                          document.getElementById(`content-textarea-split-${articleId}`);
+        
+        if (!textarea) return;
+
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const selectedText = textarea.value.substring(start, end);
+        let replacement = '';
+
+        switch (type) {
+            case 'bold':
+                replacement = `**${selectedText || '굵은 텍스트'}**`;
+                break;
+            case 'italic':
+                replacement = `*${selectedText || '기울임 텍스트'}*`;
+                break;
+            case 'heading':
+                replacement = `## ${selectedText || '제목'}`;
+                break;
+        }
+
+        textarea.value = textarea.value.substring(0, start) + replacement + textarea.value.substring(end);
+        textarea.focus();
+        
+        // 자동 저장 호출
+        this.autoSave(articleId);
+    }
+
+    // 🧪 테스트용 더미 데이터 생성 함수
+    createTestArticles() {
+        console.log('🧪 테스트용 더미 글 생성 중...');
+        this.generatedArticles = [
+            {
+                id: 1,
+                title: "테스트 글 1: 여행 가이드",
+                keyword: "여행",
+                content: "# 여행 가이드\n\n이것은 테스트용 글입니다.\n\n## 주요 내용\n\n1. 여행 계획 수립\n2. 준비물 체크리스트\n3. 안전 수칙\n\n**테스트 완료!**",
+                wordCount: 150,
+                createdAt: new Date().toISOString(),
+                modified: false
+            },
+            {
+                id: 2,
+                title: "테스트 글 2: 요리 레시피",
+                keyword: "요리",
+                content: "# 요리 레시피\n\n이것은 두 번째 테스트용 글입니다.\n\n## 재료\n\n- 재료 1\n- 재료 2\n- 재료 3\n\n**맛있게 드세요!**",
+                wordCount: 120,
+                createdAt: new Date().toISOString(),
+                modified: false
+            }
+        ];
+        
+        console.log('🧪 더미 글 생성 완료:', this.generatedArticles.length, '개');
+        this.showResults();
+    }
+
+    // ===== 편집 관련 헬퍼 메서드들 =====
+    
+    switchEditView(articleId, viewType) {
+        console.log(`🔀 switchEditView() 호출됨: articleId=${articleId}, viewType=${viewType}`);
+        
+        const editOnly = document.getElementById(`edit-only-${articleId}`);
+        const previewOnly = document.getElementById(`preview-only-${articleId}`);
+        const splitView = document.getElementById(`split-view-${articleId}`);
+        
+        // 모든 뷰 숨기기
+        if (editOnly) editOnly.style.display = 'none';
+        if (previewOnly) previewOnly.style.display = 'none';
+        if (splitView) splitView.style.display = 'none';
+        
+        // 선택한 뷰 표시
+        switch (viewType) {
+            case 'edit':
+                if (editOnly) editOnly.style.display = 'block';
+                break;
+            case 'preview':
+                if (previewOnly) previewOnly.style.display = 'block';
+                this.updatePreview(articleId);
+                break;
+            case 'split':
+                if (splitView) splitView.style.display = 'block';
+                this.updateSplitPreview(articleId);
+                break;
+        }
+        
+        // 툴바 버튼 활성화 상태 업데이트
+        const toolbar = document.querySelector(`#edit-mode-${articleId} .edit-toolbar`);
+        if (toolbar) {
+            toolbar.querySelectorAll('.toolbar-btn').forEach(btn => btn.classList.remove('active'));
+            const activeBtn = toolbar.querySelector(`[onclick*="${viewType}"]`);
+            if (activeBtn) activeBtn.classList.add('active');
+        }
+    }
+    
+    updateTitle(articleId) {
+        console.log(`📝 updateTitle() 호출됨: articleId=${articleId}`);
+        
+        const titleInput = document.getElementById(`title-input-${articleId}`);
+        const titleDisplay = document.getElementById(`title-${articleId}`);
+        
+        if (titleInput && titleDisplay) {
+            const newTitle = titleInput.value.trim();
+            titleDisplay.textContent = newTitle;
+            
+            // 메모리의 글 데이터도 업데이트
+            const article = this.generatedArticles.find(a => a.id === articleId);
+            if (article) {
+                article.title = newTitle;
+                article.modified = true;
+                article.modifiedAt = new Date().toISOString();
+            }
+        }
+    }
+    
+    autoSave(articleId) {
+        console.log(`💾 autoSave() 호출됨: articleId=${articleId}`);
+        
+        const article = this.generatedArticles.find(a => a.id === articleId);
+        if (!article) return;
+        
+        const contentTextarea = document.getElementById(`content-textarea-${articleId}`);
+        if (contentTextarea) {
+            article.content = contentTextarea.value;
+            article.modified = true;
+            article.modifiedAt = new Date().toISOString();
+            
+            // 로컬 저장소에 자동 저장
+            this.saveToLocalStorage();
+            
+            // 분할 뷰가 활성화되어 있다면 미리보기 업데이트
+            const splitView = document.getElementById(`split-view-${articleId}`);
+            if (splitView && splitView.style.display !== 'none') {
+                this.updateSplitPreview(articleId);
+            }
+        }
+    }
+    
+    updateSplitPreview(articleId) {
+        console.log(`🔄 updateSplitPreview() 호출됨: articleId=${articleId}`);
+        
+        const contentTextarea = document.getElementById(`content-textarea-split-${articleId}`);
+        const previewDiv = document.getElementById(`preview-split-${articleId}`);
+        
+        if (contentTextarea && previewDiv) {
+            const content = contentTextarea.value;
+            previewDiv.innerHTML = this.markdownToHtml(content);
+            
+            // 메모리의 글 데이터도 업데이트
+            const article = this.generatedArticles.find(a => a.id === articleId);
+            if (article) {
+                article.content = content;
+                article.modified = true;
+                article.modifiedAt = new Date().toISOString();
+            }
+        }
+    }
+    
+    updatePreview(articleId) {
+        console.log(`👀 updatePreview() 호출됨: articleId=${articleId}`);
+        
+        const contentTextarea = document.getElementById(`content-textarea-${articleId}`);
+        const previewDiv = document.getElementById(`preview-${articleId}`);
+        
+        if (contentTextarea && previewDiv) {
+            const content = contentTextarea.value;
+            previewDiv.innerHTML = this.markdownToHtml(content);
+        }
+    }
+    
+    insertMarkdown(articleId, type) {
+        console.log(`✏️ insertMarkdown() 호출됨: articleId=${articleId}, type=${type}`);
+        
+        // 현재 활성화된 텍스트 영역 찾기
+        let textarea = document.getElementById(`content-textarea-${articleId}`);
+        const splitView = document.getElementById(`split-view-${articleId}`);
+        
+        if (splitView && splitView.style.display !== 'none') {
+            textarea = document.getElementById(`content-textarea-split-${articleId}`);
+        }
+        
+        if (!textarea) return;
+        
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const selectedText = textarea.value.substring(start, end);
+        let replacement = '';
+        
+        switch (type) {
+            case 'bold':
+                replacement = `**${selectedText || '굵은 텍스트'}**`;
+                break;
+            case 'italic':
+                replacement = `*${selectedText || '기울임 텍스트'}*`;
+                break;
+            case 'heading':
+                replacement = `## ${selectedText || '제목'}`;
+                break;
+            case 'link':
+                replacement = `[${selectedText || '링크 텍스트'}](URL)`;
+                break;
+            case 'list':
+                replacement = `- ${selectedText || '목록 항목'}`;
+                break;
+            case 'code':
+                replacement = `\`${selectedText || '코드'}\``;
+                break;
+        }
+        
+        // 텍스트 교체
+        textarea.value = textarea.value.substring(0, start) + replacement + textarea.value.substring(end);
+        
+        // 커서 위치 조정
+        const newCursorPos = start + replacement.length;
+        textarea.setSelectionRange(newCursorPos, newCursorPos);
+        textarea.focus();
+        
+        // 자동 저장 실행
+        this.autoSave(articleId);
     }
 }
 

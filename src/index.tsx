@@ -2,7 +2,13 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { serveStatic } from 'hono/cloudflare-workers'
 
-const app = new Hono()
+type Bindings = {
+  OPENAI_API_KEY?: string
+  CLAUDE_API_KEY?: string
+  GEMINI_API_KEY?: string
+}
+
+const app = new Hono<{ Bindings: Bindings }>()
 
 // ==================== AI 모델 관리 시스템 ====================
 
@@ -432,23 +438,377 @@ app.get('/api/check-api-keys', (c) => {
   })
 })
 
+// ==================== 🚀 스마트 키워드 추천 시스템 ====================
+
+// 키워드 확장 함수
+
+
+// ==================== ⚡ 배치 생성 시스템 ====================
+
+interface BatchJob {
+  id: string
+  keywords: string[]
+  settings: any
+  status: 'queued' | 'processing' | 'completed' | 'failed'
+  progress: number
+  results: any[]
+  createdAt: string
+  completedAt?: string
+  estimatedTime: number
+}
+
+// 배치 작업 저장소 (실제로는 외부 DB 사용 권장)
+const batchJobs = new Map<string, BatchJob>()
+
+// 배치 작업 생성 API
+app.post('/api/create-batch-job', async (c) => {
+  c.header('Content-Type', 'application/json; charset=utf-8')
+  
+  try {
+    const { keywords, settings } = await c.req.json()
+    
+    if (!keywords || !Array.isArray(keywords) || keywords.length === 0) {
+      return c.json({ error: '키워드 배열이 필요합니다' }, 400)
+    }
+    
+    if (keywords.length > 50) {
+      return c.json({ error: '한 번에 최대 50개까지만 처리 가능합니다' }, 400)
+    }
+    
+    const batchId = `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const estimatedTime = keywords.length * 30 // 30초/글 예상
+    
+    const batchJob: BatchJob = {
+      id: batchId,
+      keywords,
+      settings: settings || {},
+      status: 'queued',
+      progress: 0,
+      results: [],
+      createdAt: new Date().toISOString(),
+      estimatedTime
+    }
+    
+    batchJobs.set(batchId, batchJob)
+    
+    // 백그라운드에서 배치 작업 시작
+    processBatchJob(batchId, c.env)
+    
+    return c.json({
+      success: true,
+      batchId,
+      estimatedTime,
+      message: `${keywords.length}개 키워드에 대한 배치 작업이 시작되었습니다`
+    })
+    
+  } catch (error: any) {
+    console.error('배치 작업 생성 오류:', error)
+    return c.json({ 
+      error: '배치 작업 생성 중 오류가 발생했습니다',
+      details: error.message 
+    }, 500)
+  }
+})
+
+// 배치 작업 상태 확인 API
+app.get('/api/batch-status/:batchId', (c) => {
+  c.header('Content-Type', 'application/json; charset=utf-8')
+  
+  const batchId = c.req.param('batchId')
+  const batchJob = batchJobs.get(batchId)
+  
+  if (!batchJob) {
+    return c.json({ error: '배치 작업을 찾을 수 없습니다' }, 404)
+  }
+  
+  return c.json({
+    success: true,
+    batch: {
+      id: batchJob.id,
+      status: batchJob.status,
+      progress: batchJob.progress,
+      totalKeywords: batchJob.keywords.length,
+      completedKeywords: batchJob.results.length,
+      remainingTime: batchJob.status === 'processing' 
+        ? Math.max(0, batchJob.estimatedTime - ((Date.now() - new Date(batchJob.createdAt).getTime()) / 1000))
+        : 0,
+      results: batchJob.results
+    }
+  })
+})
+
+// 배치 작업 처리 함수 (비동기)
+async function processBatchJob(batchId: string, env: any) {
+  const batchJob = batchJobs.get(batchId)
+  if (!batchJob) return
+  
+  try {
+    batchJob.status = 'processing'
+    
+    // API 키 수집
+    const apiKeys = {
+      claude: env?.CLAUDE_API_KEY,
+      gemini: env?.GEMINI_API_KEY,
+      openai: env?.OPENAI_API_KEY
+    }
+    
+    for (let i = 0; i < batchJob.keywords.length; i++) {
+      const keyword = batchJob.keywords[i]
+      
+      try {
+        // 개별 글 생성 (기존 로직 재사용)
+        const article = await generateSingleArticle(keyword, batchJob.settings, apiKeys)
+        
+        batchJob.results.push({
+          keyword,
+          article,
+          status: 'success',
+          generatedAt: new Date().toISOString()
+        })
+        
+      } catch (error: any) {
+        batchJob.results.push({
+          keyword,
+          error: error.message,
+          status: 'failed',
+          generatedAt: new Date().toISOString()
+        })
+      }
+      
+      // 진행률 업데이트
+      batchJob.progress = ((i + 1) / batchJob.keywords.length) * 100
+      
+      // 레이트 리미트 방지를 위한 지연
+      if (i < batchJob.keywords.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 2000))
+      }
+    }
+    
+    batchJob.status = 'completed'
+    batchJob.completedAt = new Date().toISOString()
+    
+  } catch (error: any) {
+    console.error('배치 작업 처리 오류:', error)
+    batchJob.status = 'failed'
+  }
+}
+
+// 단일 글 생성 헬퍼 함수
+async function generateSingleArticle(keyword: string, settings: any, apiKeys: any) {
+  // 고급 프롬프트로 고품질 블로그 글 생성
+  const prompt = `다음 키워드로 전문적이고 SEO 최적화된 블로그 글을 작성해주세요.
+
+**키워드**: "${keyword}"
+**글 스타일**: ${settings.contentStyle || 'informative'}
+**목표 길이**: ${settings.contentLength || '2000'}자
+**타겟 독자**: ${settings.targetAudience || 'general'}
+
+**요구사항**:
+1. SEO 친화적인 제목 (H1 태그 사용)
+2. 논리적인 구조 (소제목 H2, H3 사용)
+3. 키워드 자연스럽게 배치
+4. 실용적이고 유용한 정보 제공
+5. 독자 참여를 유도하는 내용
+6. 메타 디스크립션 포함
+
+**형식**: 마크다운으로 작성해주세요.`
+
+  const performanceMetrics = {
+    startTime: Date.now(),
+    apiAttempts: [],
+    totalRetries: 0
+  }
+  
+  const result = await generateWithFallback(prompt, apiKeys, { maxTokens: 3000 }, performanceMetrics)
+  
+  // 제목 추출
+  const titleMatch = result.content.match(/^#\s*(.+)$/m)
+  const title = titleMatch ? titleMatch[1].trim() : `${keyword}에 대한 완벽 가이드`
+  
+  return {
+    title: title,
+    content: result.content,
+    keyword: keyword,
+    wordCount: result.content.length,
+    createdAt: new Date().toISOString(),
+    usedModel: result.model,
+    performance: performanceMetrics
+  }
+}
+
+// ==================== 🎯 콘텐츠 품질 자동 개선 시스템 ====================
+
+// 콘텐츠 자동 개선 API
+app.post('/api/auto-improve-content', async (c) => {
+  c.header('Content-Type', 'application/json; charset=utf-8')
+  
+  try {
+    const { content, improvementType = 'all' } = await c.req.json()
+    
+    if (!content) {
+      return c.json({ error: 'content가 필요합니다' }, 400)
+    }
+    
+    // 환경 변수에서 API 키들 수집
+    const apiKeys = {
+      claude: c.env?.CLAUDE_API_KEY,
+      gemini: c.env?.GEMINI_API_KEY,
+      openai: c.env?.OPENAI_API_KEY
+    }
+    
+    // 사용 가능한 API 키 검사
+    const validKeys = Object.entries(apiKeys)
+      .filter(([modelName, key]) => key && validateApiKey(modelName, key))
+      .map(([modelName]) => modelName)
+      
+    if (validKeys.length === 0) {
+      return c.json({ error: '사용 가능한 API 키가 없습니다' }, 400)
+    }
+    
+    let improvementPrompt = ''
+    
+    switch (improvementType) {
+      case 'readability':
+        improvementPrompt = `다음 블로그 글의 가독성을 개선해주세요:
+
+${content}
+
+개선 사항:
+1. 문장을 더 간결하고 명확하게 수정
+2. 복잡한 표현을 쉬운 말로 변경
+3. 문단 구조를 더 논리적으로 재구성
+4. 연결어를 추가하여 흐름 개선
+
+개선된 글만 제공해주세요.`
+        break
+        
+      case 'seo':
+        improvementPrompt = `다음 블로그 글을 SEO에 더 최적화하도록 개선해주세요:
+
+${content}
+
+SEO 개선 사항:
+1. 키워드 밀도를 자연스럽게 향상
+2. 제목과 소제목에 키워드 포함
+3. 메타 디스크립션에 적합한 요약 추가
+4. 내부 링크 앵커 텍스트 제안
+5. 관련 키워드 자연스럽게 삽입
+
+개선된 글만 제공해주세요.`
+        break
+        
+      case 'cta':
+        improvementPrompt = `다음 블로그 글에 효과적인 CTA(Call-to-Action)를 추가해주세요:
+
+${content}
+
+CTA 개선 사항:
+1. 글 중간과 끝에 자연스러운 행동 유도 문구 추가
+2. 독자가 다음에 할 수 있는 구체적인 행동 제시
+3. 댓글, 공유, 구독 등을 유도하는 문구
+4. 관련 글이나 서비스 연결
+
+개선된 글만 제공해주세요.`
+        break
+        
+      case 'all':
+      default:
+        improvementPrompt = `다음 블로그 글을 종합적으로 개선해주세요:
+
+${content}
+
+종합 개선 사항:
+1. 가독성: 문장과 문단 구조 개선
+2. SEO: 키워드 최적화 및 제목 개선
+3. 참여도: CTA 및 독자 참여 요소 추가
+4. 구조: 논리적 흐름과 정보 계층 개선
+5. 가치: 실용적 정보와 액션 아이템 강화
+
+대폭 개선된 고품질 블로그 글로 다시 작성해주세요.`
+        break
+    }
+    
+    const performanceMetrics = {
+      startTime: Date.now(),
+      apiAttempts: [],
+      totalRetries: 0
+    }
+    
+    const result = await generateWithFallback(improvementPrompt, apiKeys, { maxTokens: 4000 }, performanceMetrics)
+    
+    // 개선 분석
+    const improvements = analyzeContentImprovements(content, result.content)
+    
+    return c.json({
+      success: true,
+      original: content,
+      improved: result.content,
+      improvementType,
+      analysis: improvements,
+      performance: {
+        totalTime: Date.now() - performanceMetrics.startTime,
+        usedModel: result.model
+      }
+    })
+    
+  } catch (error: any) {
+    console.error('콘텐츠 개선 오류:', error)
+    return c.json({ 
+      error: '콘텐츠 개선 중 오류가 발생했습니다',
+      details: error.message 
+    }, 500)
+  }
+})
+
+// 콘텐츠 개선 분석 함수
+function analyzeContentImprovements(original: string, improved: string) {
+  const originalLength = original.length
+  const improvedLength = improved.length
+  const lengthChange = improvedLength - originalLength
+  
+  // 간단한 품질 지표 계산
+  const originalSentences = original.split(/[.!?]+/).length
+  const improvedSentences = improved.split(/[.!?]+/).length
+  
+  const originalParagraphs = original.split(/\n\s*\n/).length
+  const improvedParagraphs = improved.split(/\n\s*\n/).length
+  
+  return {
+    lengthChange: {
+      original: originalLength,
+      improved: improvedLength,
+      change: lengthChange,
+      changePercent: Math.round((lengthChange / originalLength) * 100)
+    },
+    structure: {
+      sentences: { original: originalSentences, improved: improvedSentences },
+      paragraphs: { original: originalParagraphs, improved: improvedParagraphs }
+    },
+    estimatedImprovements: [
+      lengthChange > 0 ? '내용이 더 상세해졌습니다' : '내용이 더 간결해졌습니다',
+      improvedSentences > originalSentences ? '문장이 더 세분화되었습니다' : '문장이 더 통합되었습니다',
+      improvedParagraphs > originalParagraphs ? '문단 구조가 개선되었습니다' : '문단이 최적화되었습니다'
+    ]
+  }
+}
+
 // 서브키워드 생성 API (Multi AI Models)
 app.post('/api/generate-subkeywords', async (c) => {
   // UTF-8 인코딩 헤더 설정
   c.header('Content-Type', 'application/json; charset=utf-8')
   
   try {
-    const { mainKeyword, apiKey, geminiKey, openaiKey } = await c.req.json()
+    const { mainKeyword } = await c.req.json()
     
     if (!mainKeyword) {
       return c.json({ error: 'mainKeyword가 필요합니다' }, 400)
     }
 
-    // API 키들 수집 및 검증
+    // 환경 변수에서 API 키들 수집 및 검증
     const apiKeys = {
-      claude: apiKey,
-      gemini: geminiKey, 
-      openai: openaiKey
+      claude: c.env?.CLAUDE_API_KEY,
+      gemini: c.env?.GEMINI_API_KEY, 
+      openai: c.env?.OPENAI_API_KEY
     }
 
     // 사용 가능한 API 키 검사
@@ -460,9 +820,9 @@ app.post('/api/generate-subkeywords', async (c) => {
       return c.json({ 
         error: '사용 가능한 API 키가 없습니다',
         details: {
-          claude: apiKey ? '올바른 Claude API 키는 sk-ant-로 시작합니다' : 'API 키가 없습니다',
-          gemini: geminiKey ? '올바른 Gemini API 키를 입력해주세요' : 'API 키가 없습니다',
-          openai: openaiKey ? '올바른 OpenAI API 키는 sk-로 시작합니다' : 'API 키가 없습니다'
+          claude: apiKeys.claude ? '올바른 Claude API 키는 sk-ant-로 시작합니다' : 'API 키가 없습니다',
+          gemini: apiKeys.gemini ? '올바른 Gemini API 키를 입력해주세요' : 'API 키가 없습니다',
+          openai: apiKeys.openai ? '올바른 OpenAI API 키는 sk-로 시작합니다' : 'API 키가 없습니다'
         },
         suggestion: '설정에서 올바른 형식의 API 키를 입력해주세요'
       }, 400)
@@ -573,22 +933,22 @@ app.post('/api/generate-subkeywords', async (c) => {
   }
 })
 
-// 블로그 글 생성 API (Multi AI Models)
-app.post('/api/generate-article', async (c) => {
-  // UTF-8 인코딩 헤더 설정
+// 🧠 스마트 키워드 추천 API (4가지 타입)
+app.post('/api/smart-keyword-suggestions', async (c) => {
   c.header('Content-Type', 'application/json; charset=utf-8')
+  
   try {
-    const { keyword, mainKeyword, contentStyle, contentLength, targetAudience, apiKey, geminiKey, openaiKey } = await c.req.json()
+    const { mainKeyword, type = 'related' } = await c.req.json()
     
-    if (!keyword) {
-      return c.json({ error: 'keyword가 필요합니다' }, 400)
+    if (!mainKeyword) {
+      return c.json({ error: 'mainKeyword가 필요합니다' }, 400)
     }
 
-    // API 키들 수집 및 검증
+    // 환경 변수에서 API 키들 수집
     const apiKeys = {
-      claude: apiKey,
-      gemini: geminiKey, 
-      openai: openaiKey
+      claude: c.env?.CLAUDE_API_KEY,
+      gemini: c.env?.GEMINI_API_KEY, 
+      openai: c.env?.OPENAI_API_KEY
     }
 
     // 사용 가능한 API 키 검사
@@ -600,9 +960,192 @@ app.post('/api/generate-article', async (c) => {
       return c.json({ 
         error: '사용 가능한 API 키가 없습니다',
         details: {
-          claude: apiKey ? '올바른 Claude API 키는 sk-ant-로 시작합니다' : 'API 키가 없습니다',
-          gemini: geminiKey ? '올바른 Gemini API 키를 입력해주세요' : 'API 키가 없습니다',
-          openai: openaiKey ? '올바른 OpenAI API 키는 sk-로 시작합니다' : 'API 키가 없습니다'
+          claude: apiKeys.claude ? '올바른 Claude API 키는 sk-ant-로 시작합니다' : 'API 키가 없습니다',
+          gemini: apiKeys.gemini ? '올바른 Gemini API 키를 입력해주세요' : 'API 키가 없습니다',
+          openai: apiKeys.openai ? '올바른 OpenAI API 키는 sk-로 시작합니다' : 'API 키가 없습니다'
+        },
+        suggestion: '환경변수에서 올바른 형식의 API 키를 설정해주세요'
+      }, 400)
+    }
+
+    // 타입별 프롬프트 생성
+    let prompt = ''
+    let description = ''
+    
+    switch (type) {
+      case 'trending':
+        description = '트렌딩 키워드'
+        prompt = `"${mainKeyword}"와 관련된 현재 트렌드와 인기 있는 키워드 10개를 추천해주세요.
+
+요구사항:
+- 2024년 현재 트렌드 반영
+- 검색량이 높은 키워드 위주
+- SNS에서 화제가 되는 키워드
+- 시즌성을 고려한 키워드
+- 각 키워드는 블로그 주제로 활용 가능한 수준
+
+형식: 다음과 같이 1-10번으로 나열
+1. 키워드1
+2. 키워드2
+...
+10. 키워드10`
+        break
+        
+      case 'related':
+        description = '관련 키워드'
+        prompt = `"${mainKeyword}"와 직접적으로 연관된 관련 키워드 10개를 추천해주세요.
+
+요구사항:
+- 주제적으로 밀접한 연관성
+- 같은 카테고리나 분야의 키워드
+- 사용자가 함께 검색할 만한 키워드
+- 각 키워드는 독립적인 블로그 주제 가능
+- 실용적이고 유용한 키워드
+
+형식: 다음과 같이 1-10번으로 나열
+1. 키워드1
+2. 키워드2
+...
+10. 키워드10`
+        break
+        
+      case 'questions':
+        description = '질문형 키워드'
+        prompt = `"${mainKeyword}"에 대해 사람들이 자주 묻는 질문 형태의 키워드 10개를 추천해주세요.
+
+요구사항:
+- "어떻게", "무엇을", "왜", "언제", "어디서" 등의 의문사 포함
+- 실제 검색되는 질문 패턴
+- 답변 가능한 구체적인 질문
+- FAQ 형태의 실용적인 질문
+- 블로그 글 제목으로 활용 가능
+
+형식: 다음과 같이 1-10번으로 나열
+1. 키워드1
+2. 키워드2
+...
+10. 키워드10`
+        break
+        
+      case 'longtail':
+        description = '롱테일 키워드'
+        prompt = `"${mainKeyword}"와 관련된 롱테일(긴꼬리) 키워드 10개를 추천해주세요.
+
+요구사항:
+- 3-5단어로 구성된 구체적인 키워드
+- 경쟁이 낮고 타겟팅이 명확한 키워드
+- 특정 상황이나 니즈를 반영한 키워드
+- 롱테일 SEO에 유리한 키워드
+- 틈새 시장을 노릴 수 있는 키워드
+
+형식: 다음과 같이 1-10번으로 나열
+1. 키워드1
+2. 키워드2
+...
+10. 키워드10`
+        break
+        
+      default:
+        return c.json({ error: '유효하지 않은 타입입니다. (trending, related, questions, longtail 중 선택)' }, 400)
+    }
+
+    console.log(`🧠 ${description} 생성 시작: ${mainKeyword}`)
+
+    // 성능 추적
+    const startTime = Date.now()
+    const performanceMetrics = {
+      startTime,
+      apiAttempts: [],
+      totalRetries: 0
+    }
+    
+    const result = await generateWithFallback(prompt, apiKeys, { maxTokens: 1000 }, performanceMetrics)
+    
+    // 키워드 파싱
+    const lines = result.content.split('\n').filter(line => line.trim())
+    const keywords = lines
+      .slice(0, 10)
+      .map(line => line.replace(/^\d+\.\s*/, '').replace(/^-\s*/, '').replace(/["""]/g, '').trim())
+      .filter(keyword => keyword.length > 0)
+    
+    if (keywords.length === 0) {
+      return c.json({ 
+        error: '키워드를 파싱할 수 없습니다',
+        rawContent: result.content,
+        usedModel: result.model
+      }, 500)
+    }
+
+    return c.json({ 
+      success: true,
+      type: type,
+      description: description, 
+      keywords: keywords.map((keyword, index) => ({
+        id: `${type}_${index + 1}`,
+        keyword: keyword,
+        type: type,
+        editable: true
+      })),
+      meta: {
+        usedModel: result.model,
+        attempts: result.attempts,
+        mainKeyword: mainKeyword,
+        generatedCount: keywords.length
+      }
+    })
+
+  } catch (error: any) {
+    console.error('스마트 키워드 추천 오류:', error)
+    
+    if (error.type === 'all_models_failed') {
+      return c.json({
+        success: false,
+        error: '모든 AI 모델 호출이 실패했습니다',
+        details: error.attempts || [],
+        suggestion: 'API 키를 확인하거나 잠시 후 다시 시도해주세요',
+        errorType: error.type
+      }, 500)
+    }
+    
+    return c.json({ 
+      success: false,
+      error: error.message || '스마트 키워드 추천 중 오류가 발생했습니다',
+      type: error.type || 'unknown_error',
+      suggestion: '잠시 후 다시 시도해주세요'
+    }, 500)
+  }
+})
+
+// 블로그 글 생성 API (Multi AI Models)
+app.post('/api/generate-article', async (c) => {
+  // UTF-8 인코딩 헤더 설정
+  c.header('Content-Type', 'application/json; charset=utf-8')
+  try {
+    const { keyword, mainKeyword, contentStyle, contentLength, targetAudience } = await c.req.json()
+    
+    if (!keyword) {
+      return c.json({ error: 'keyword가 필요합니다' }, 400)
+    }
+
+    // 환경 변수에서 API 키들 수집 및 검증
+    const apiKeys = {
+      claude: c.env?.CLAUDE_API_KEY,
+      gemini: c.env?.GEMINI_API_KEY, 
+      openai: c.env?.OPENAI_API_KEY
+    }
+
+    // 사용 가능한 API 키 검사
+    const validKeys = Object.entries(apiKeys)
+      .filter(([modelName, key]) => key && validateApiKey(modelName, key))
+      .map(([modelName]) => modelName)
+
+    if (validKeys.length === 0) {
+      return c.json({ 
+        error: '사용 가능한 API 키가 없습니다',
+        details: {
+          claude: apiKeys.claude ? '올바른 Claude API 키는 sk-ant-로 시작합니다' : 'API 키가 없습니다',
+          gemini: apiKeys.gemini ? '올바른 Gemini API 키를 입력해주세요' : 'API 키가 없습니다',
+          openai: apiKeys.openai ? '올바른 OpenAI API 키는 sk-로 시작합니다' : 'API 키가 없습니다'
         },
         suggestion: '설정에서 올바른 형식의 API 키를 입력해주세요'
       }, 400)
@@ -669,7 +1212,7 @@ app.post('/api/generate-article', async (c) => {
 
     // 🎯 업종별 전문 컨텍스트 생성
     function getIndustryContext(keyword: string, mainKeyword: string): string {
-      const keywordLower = keyword.toLowerCase() + ' ' + mainKeyword.toLowerCase()
+      const keywordLower = keyword.toLowerCase() + ' ' + (mainKeyword || '').toLowerCase()
       
       // 기술/IT 분야
       if (keywordLower.match(/프로그래밍|코딩|개발|앱|웹사이트|소프트웨어|ai|인공지능|머신러닝|데이터|클라우드|서버|데이터베이스/)) {
@@ -724,7 +1267,7 @@ app.post('/api/generate-article', async (c) => {
 - 실행 가능한 단계별 가이드 제공`
     }
 
-    const industryContext = getIndustryContext(keyword, mainKeyword)
+    const industryContext = getIndustryContext(keyword, mainKeyword || keyword)
 
     // 블로그 글 생성 프롬프트
     const articlePrompt = `🎯 **MISSION**: 당신은 각 분야의 최고 전문가이자 베스트셀러 작가입니다. 독자에게 진짜 가치를 제공하는 최고 품질의 블로그 글을 작성해주세요.
@@ -800,14 +1343,14 @@ app.post('/api/generate-article', async (c) => {
 ${industryContext}`
 
     // 멀티 AI 모델로 블로그 글 생성 (fallback 포함)
-    const content = await generateWithFallback(
+    const result = await generateWithFallback(
       articlePrompt,
       apiKeys,
       { maxTokens: 3000, temperature: 0.7 }
     )
 
     // 제목 추출
-    const titleMatch = content.match(/^#\s*(.+)$/m)
+    const titleMatch = result.content.match(/^#\s*(.+)$/m)
     const title = titleMatch ? titleMatch[1].trim() : keyword
 
     return c.json({ 
@@ -815,9 +1358,10 @@ ${industryContext}`
       article: {
         title: title,
         keyword: keyword,
-        content: content,
-        wordCount: content.length,
-        createdAt: new Date().toISOString()
+        content: result.content,
+        wordCount: result.content.length,
+        createdAt: new Date().toISOString(),
+        usedModel: result.model
       }
     })
 
@@ -1188,6 +1732,226 @@ function generateImagePrompt(keyword: string, title?: string, content?: string) 
   return `${basePrompt}, ${styleInstructions}`
 }
 
+// ========== 글 관리 API 엔드포인트들 ==========
+
+// 글 편집 API
+app.put('/api/articles/:id/edit', async (c) => {
+  c.header('Content-Type', 'application/json; charset=utf-8')
+  
+  try {
+    const id = c.req.param('id')
+    const { title, content } = await c.req.json()
+    
+    if (!title || !content) {
+      return c.json({ error: '제목과 내용이 필요합니다' }, 400)
+    }
+
+    // 실제 구현에서는 데이터베이스에 저장하지만, 
+    // 현재는 클라이언트 측에서 로컬 스토리지로 관리
+    return c.json({
+      success: true,
+      article: {
+        id,
+        title,
+        content,
+        lastModified: new Date().toISOString()
+      }
+    })
+  } catch (error) {
+    console.error('글 편집 오류:', error)
+    return c.json({ error: '글 편집 중 오류가 발생했습니다' }, 500)
+  }
+})
+
+// 글 이미지 생성 API (기존 이미지 생성 API를 글 ID 기반으로 확장)
+app.post('/api/articles/:id/generate-image', async (c) => {
+  c.header('Content-Type', 'application/json; charset=utf-8')
+  
+  try {
+    const id = c.req.param('id')
+    const { keyword, title, articleContent, imageDescription } = await c.req.json()
+    
+    if (!keyword && !title) {
+      return c.json({ error: '키워드 또는 제목이 필요합니다' }, 400)
+    }
+
+    // 이미지 설명이 제공된 경우 사용, 아니면 키워드/제목 기반 생성
+    const effectiveKeyword = imageDescription || keyword || title
+    const imagePrompt = generateImagePrompt(effectiveKeyword, title, articleContent)
+    
+    try {
+      // HuggingFace Inference API 사용 (무료)
+      const models = [
+        'runwayml/stable-diffusion-v1-5',
+        'stabilityai/stable-diffusion-2-1', 
+        'CompVis/stable-diffusion-v1-4'
+      ]
+      
+      let hfResponse = null
+      let lastError = null
+      
+      for (const model of models) {
+        try {
+          console.log(`Trying HuggingFace model: ${model}`)
+          hfResponse = await fetch(
+            `https://api-inference.huggingface.co/models/${model}`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                inputs: imagePrompt,
+                parameters: {
+                  num_inference_steps: 15,
+                  guidance_scale: 7.5
+                }
+              })
+            }
+          )
+          
+          if (hfResponse.ok) {
+            console.log(`Successfully connected to ${model}`)
+            break
+          } else {
+            const errorText = await hfResponse.text()
+            console.log(`Model ${model} failed:`, errorText)
+            lastError = errorText
+          }
+        } catch (modelError) {
+          console.log(`Model ${model} error:`, modelError.message)
+          lastError = modelError
+        }
+      }
+
+      if (hfResponse && hfResponse.ok) {
+        const imageBlob = await hfResponse.arrayBuffer()
+        
+        // ArrayBuffer를 Base64로 변환
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(imageBlob)))
+        const dataUrl = `data:image/jpeg;base64,${base64}`
+        
+        return c.json({ 
+          success: true, 
+          image: {
+            url: dataUrl,
+            prompt: imagePrompt,
+            keyword: effectiveKeyword,
+            articleId: id,
+            createdAt: new Date().toISOString(),
+            source: 'HuggingFace Stable Diffusion',
+            isAIGenerated: true
+          }
+        })
+      } else {
+        // 모든 HuggingFace 모델 실패 시 폴백
+        console.log('All HuggingFace models failed:', lastError)
+        throw new Error('All HuggingFace models failed')
+      }
+    } catch (hfError) {
+      // 폴백: 고품질 플레이스홀더 이미지 (Unsplash 기반)
+      console.log('Using fallback image service due to:', hfError.message)
+      
+      const unsplashKeywords = {
+        '여행': 'travel,destination,landscape',
+        '제주도': 'jeju,korea,island',
+        '부산': 'busan,korea,city',
+        '서울': 'seoul,korea,skyline',
+        '음식': 'food,cuisine,delicious',
+        '맛집': 'restaurant,gourmet,dining',
+        '카페': 'cafe,coffee,interior',
+        '디저트': 'dessert,sweet,pastry',
+        '프로그래밍': 'programming,code,developer',
+        '인공지능': 'ai,technology,digital',
+        '웹개발': 'web,development,coding',
+        '마케팅': 'marketing,business,growth',
+        '창업': 'startup,business,entrepreneur',
+        '투자': 'investment,finance,money',
+        '건강': 'health,wellness,fitness',
+        '요리': 'cooking,kitchen,chef',
+        '독서': 'reading,books,study',
+        '운동': 'fitness,exercise,gym'
+      }
+      
+      const searchQuery = unsplashKeywords[effectiveKeyword] || effectiveKeyword
+      const fallbackImageUrl = `https://source.unsplash.com/800x450/?${searchQuery}`
+      
+      return c.json({ 
+        success: true, 
+        image: {
+          url: fallbackImageUrl,
+          prompt: imagePrompt,
+          keyword: effectiveKeyword,
+          articleId: id,
+          createdAt: new Date().toISOString(),
+          source: 'Unsplash (fallback)',
+          isFallbackImage: true
+        }
+      })
+    }
+
+  } catch (error) {
+    console.error('글 이미지 생성 오류:', error)
+    return c.json({ error: '이미지 생성 중 오류가 발생했습니다' }, 500)
+  }
+})
+
+// 글 복제 API
+app.post('/api/articles/:id/duplicate', async (c) => {
+  c.header('Content-Type', 'application/json; charset=utf-8')
+  
+  try {
+    const id = c.req.param('id')
+    const { title, content, keyword } = await c.req.json()
+    
+    if (!title || !content) {
+      return c.json({ error: '제목과 내용이 필요합니다' }, 400)
+    }
+
+    // 새로운 ID 생성
+    const newId = `article_${Date.now()}_${Math.random().toString(36).substring(7)}`
+    
+    // 복제된 글 제목에 " (복사본)" 추가
+    const duplicatedTitle = title.includes(' (복사본)') ? title : `${title} (복사본)`
+    
+    return c.json({
+      success: true,
+      article: {
+        id: newId,
+        title: duplicatedTitle,
+        content,
+        keyword,
+        originalId: id,
+        createdAt: new Date().toISOString(),
+        isDuplicate: true
+      }
+    })
+  } catch (error) {
+    console.error('글 복제 오류:', error)
+    return c.json({ error: '글 복제 중 오류가 발생했습니다' }, 500)
+  }
+})
+
+// 글 삭제 API
+app.delete('/api/articles/:id', async (c) => {
+  c.header('Content-Type', 'application/json; charset=utf-8')
+  
+  try {
+    const id = c.req.param('id')
+    
+    // 실제 구현에서는 데이터베이스에서 삭제하지만,
+    // 현재는 클라이언트 측에서 로컬 스토리지로 관리
+    return c.json({
+      success: true,
+      deletedId: id,
+      deletedAt: new Date().toISOString()
+    })
+  } catch (error) {
+    console.error('글 삭제 오류:', error)
+    return c.json({ error: '글 삭제 중 오류가 발생했습니다' }, 500)
+  }
+})
+
 // Main page
 app.get('/', (c) => {
   // 명시적으로 UTF-8 Content-Type 설정
@@ -1356,11 +2120,8 @@ app.get('/', (c) => {
                         <h1 class="text-xl font-bold">AI 블로그 자동 생성기</h1>
                     </div>
                     <div class="flex space-x-4">
-                        <button id="showMonitoringBtn" class="hover:bg-white hover:bg-opacity-20 px-3 py-2 rounded transition" onclick="systemMonitor.showSystemMonitoring()">
-                            <i class="fas fa-heartbeat mr-2"></i>모니터링
-                        </button>
-                        <button id="settingsBtn" class="hover:bg-white hover:bg-opacity-20 px-3 py-2 rounded transition">
-                            <i class="fas fa-cog mr-2"></i>설정
+                        <button id="showProjectModal" class="hover:bg-white hover:bg-opacity-20 px-3 py-2 rounded transition">
+                            <i class="fas fa-folder-open mr-2"></i>프로젝트 관리
                         </button>
                     </div>
                 </div>
@@ -1369,27 +2130,7 @@ app.get('/', (c) => {
 
         <!-- 메인 컨텐츠 -->
         <div class="max-w-6xl mx-auto px-4 py-8">
-            <!-- API 키 상태 섹션 -->
-            <div id="apiKeyStatusSection" class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6" style="display: none;">
-                <div class="flex items-start">
-                    <i class="fas fa-exclamation-triangle text-yellow-600 text-lg mr-3 mt-1"></i>
-                    <div class="flex-1">
-                        <h3 class="text-lg font-semibold text-yellow-800 mb-2">⚠️ API 키 설정이 필요합니다</h3>
-                        <p id="apiKeyMessage" class="text-yellow-700 mb-3">환경 변수로 설정된 API 키가 없습니다. 글 생성을 위해 설정에서 API 키를 입력해주세요.</p>
-                        <div class="flex items-center space-x-4">
-                            <button onclick="blogGenerator.showSettingsModal()" class="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg font-medium transition">
-                                <i class="fas fa-cog mr-2"></i>API 키 설정하기
-                            </button>
-                            <a href="/API_SETUP_GUIDE.md" target="_blank" class="text-yellow-700 hover:text-yellow-900 underline font-medium">
-                                <i class="fas fa-book mr-1"></i>설정 가이드 보기
-                            </a>
-                        </div>
-                    </div>
-                    <button onclick="document.getElementById('apiKeyStatusSection').style.display = 'none'" class="text-yellow-600 hover:text-yellow-800 ml-4">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            </div>
+
 
             <!-- 키워드 입력 섹션 -->
             <div class="bg-white rounded-lg card-shadow p-6 mb-8">
@@ -1440,10 +2181,42 @@ app.get('/', (c) => {
                         </div>
                     </div>
                     
-                    <button id="generateSubKeywords" 
-                            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-300 transform hover:scale-105">
-                        <i class="fas fa-magic mr-2"></i>서브 키워드 자동 생성
-                    </button>
+                    <!-- 🚀 새로운 기능 버튼들 -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <button id="generateSubKeywords" 
+                                class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-300 transform hover:scale-105">
+                            <i class="fas fa-magic mr-2"></i>서브 키워드 생성
+                        </button>
+                        <button id="showSmartSuggestions" 
+                                class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-300 transform hover:scale-105">
+                            <i class="fas fa-brain mr-2"></i>스마트 키워드 추천
+                        </button>
+                        <button id="startBatchGeneration" 
+                                class="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-300 transform hover:scale-105">
+                            <i class="fas fa-layer-group mr-2"></i>배치 생성
+                        </button>
+                    </div>
+                    
+                    <!-- 스마트 키워드 추천 패널 -->
+                    <div id="smartSuggestionsPanel" class="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg" style="display: none;">
+                        <h4 class="text-lg font-semibold text-purple-800 mb-3">
+                            <i class="fas fa-lightbulb mr-2"></i>스마트 키워드 추천
+                        </h4>
+                        <div class="flex gap-2 mb-3">
+                            <button id="getExpandedKeywords" class="bg-purple-100 hover:bg-purple-200 text-purple-800 px-3 py-1 rounded-full text-sm">
+                                확장 키워드
+                            </button>
+                            <button id="getTrendingKeywords" class="bg-purple-100 hover:bg-purple-200 text-purple-800 px-3 py-1 rounded-full text-sm">
+                                트렌딩 키워드
+                            </button>
+                            <button id="getAllSuggestions" class="bg-purple-100 hover:bg-purple-200 text-purple-800 px-3 py-1 rounded-full text-sm">
+                                전체 추천
+                            </button>
+                        </div>
+                        <div id="smartSuggestionsList" class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                            <!-- 동적으로 생성됨 -->
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -1461,10 +2234,55 @@ app.get('/', (c) => {
                     <!-- 동적으로 생성됨 -->
                 </div>
                 
-                <button id="startGeneration" 
-                        class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-300 transform hover:scale-105">
-                    <i class="fas fa-rocket mr-2"></i>블로그 글 생성 시작 (10개)
-                </button>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <button id="startGeneration" 
+                            class="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-300 transform hover:scale-105">
+                        <i class="fas fa-rocket mr-2"></i>블로그 글 생성 시작 (10개)
+                    </button>
+                    <button id="startContentImprovement" 
+                            class="bg-orange-600 hover:bg-orange-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-300 transform hover:scale-105">
+                        <i class="fas fa-wand-magic-sparkles mr-2"></i>콘텐츠 자동 개선
+                    </button>
+                </div>
+            </div>
+
+            <!-- 스마트 키워드 추천 패널 -->
+            <div id="smartSuggestionsPanel" class="bg-white rounded-lg card-shadow p-6 mb-8" style="display: none;">
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center">
+                        <i class="fas fa-brain text-purple-600 text-xl mr-3"></i>
+                        <h2 class="text-2xl font-bold text-gray-800">스마트 키워드 추천</h2>
+                    </div>
+                    <button id="closeSmartSuggestions" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                    <button id="getTrendingKeywords" 
+                            class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg text-sm transition">
+                        <i class="fas fa-fire mr-2"></i>트렌드 키워드
+                    </button>
+                    <button id="getRelatedKeywords" 
+                            class="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg text-sm transition">
+                        <i class="fas fa-link mr-2"></i>관련 키워드
+                    </button>
+                    <button id="getQuestionKeywords" 
+                            class="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg text-sm transition">
+                        <i class="fas fa-question mr-2"></i>질문형 키워드
+                    </button>
+                    <button id="getLongtailKeywords" 
+                            class="bg-purple-500 hover:bg-purple-600 text-white py-2 px-4 rounded-lg text-sm transition">
+                        <i class="fas fa-search mr-2"></i>롱테일 키워드
+                    </button>
+                </div>
+                
+                <div id="smartSuggestionsResults" class="min-h-32 p-4 bg-gray-50 rounded-lg">
+                    <div class="text-center text-gray-500">
+                        <i class="fas fa-lightbulb text-4xl mb-4 opacity-50"></i>
+                        <p>위 버튼을 클릭하여 AI 기반 키워드 추천을 받아보세요!</p>
+                    </div>
+                </div>
             </div>
 
             <!-- 생성 진행률 섹션 -->
@@ -1949,88 +2767,192 @@ app.get('/', (c) => {
             </div>
         </div>
 
-        <!-- 설정 모달 -->
-        <div id="settingsModal" class="fixed inset-0 bg-black bg-opacity-50 z-50" style="display: none;">
+
+
+        <!-- 🚀 배치 생성 모달 -->
+        <div id="batchGeneratorModal" class="fixed inset-0 bg-black bg-opacity-50 z-50" style="display: none;">
             <div class="flex items-center justify-center min-h-screen px-4">
-                <div class="bg-white rounded-lg p-6 w-full max-w-md">
+                <div class="bg-white rounded-lg p-6 w-full max-w-2xl">
                     <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-lg font-bold text-gray-800">설정</h3>
-                        <button id="closeSettings" class="text-gray-500 hover:text-gray-700">
+                        <h3 class="text-xl font-bold text-gray-800">
+                            <i class="fas fa-layer-group mr-2 text-green-600"></i>배치 생성 시스템
+                        </h3>
+                        <button id="closeBatchModal" class="text-gray-500 hover:text-gray-700">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
                     
                     <div class="space-y-4">
-                        <!-- 환경 변수 상태 표시 -->
-                        <div id="environmentStatus" class="bg-green-50 border border-green-200 rounded-lg p-3" style="display: none;">
-                            <div class="flex items-center text-green-800">
-                                <i class="fas fa-check-circle mr-2"></i>
-                                <strong>환경 변수로 API 키가 설정되어 있습니다!</strong>
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-blue-800 mb-2">
+                                <i class="fas fa-info-circle mr-2"></i>배치 생성이란?
+                            </h4>
+                            <p class="text-sm text-blue-700">
+                                여러 키워드에 대해 한 번에 블로그 글을 생성하는 기능입니다. 
+                                최대 50개까지 동시 처리 가능하며, 실시간 진행률을 확인할 수 있습니다.
+                            </p>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">키워드 목록 (한 줄에 하나씩)</label>
+                            <textarea id="batchKeywords" rows="8" 
+                                      placeholder="예:&#10;AI 블로그 작성법&#10;SEO 최적화 가이드&#10;콘텐츠 마케팅 전략&#10;블로그 수익화 방법"
+                                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"></textarea>
+                            <p class="text-xs text-gray-500 mt-1">최대 50개까지, 한 줄에 하나씩 입력하세요</p>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">글 스타일</label>
+                                <select id="batchContentStyle" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                    <option value="informative">정보성</option>
+                                    <option value="review">리뷰</option>
+                                    <option value="guide">가이드</option>
+                                    <option value="tutorial">튜토리얼</option>
+                                </select>
                             </div>
-                            <p class="text-xs text-green-700 mt-1">
-                                Cloudflare Pages 환경 변수로 설정된 API 키를 사용 중입니다. 추가 설정이 필요하지 않습니다.
-                            </p>
-                            <div id="environmentApiList" class="mt-2 text-xs text-green-600">
-                                <!-- 동적으로 생성됨 -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">글 길이</label>
+                                <select id="batchContentLength" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                    <option value="1000">1000자</option>
+                                    <option value="1500">1500자</option>
+                                    <option value="2000">2000자</option>
+                                    <option value="2500">2500자</option>
+                                </select>
                             </div>
                         </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">
-                                <i class="fab fa-anthropic mr-2 text-orange-600"></i>Claude API 키
-                            </label>
-                            <input type="password" id="claudeApiKey" 
-                                   placeholder="sk-ant-..."
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                            <p class="text-xs text-gray-500 mt-1">
-                                <a href="https://console.anthropic.com" target="_blank" class="text-blue-600 hover:underline">
-                                    console.anthropic.com에서 발급 받으세요
-                                </a>
-                            </p>
+                        
+                        <div class="bg-yellow-50 p-3 rounded-lg">
+                            <div class="flex items-center text-yellow-800">
+                                <i class="fas fa-clock mr-2"></i>
+                                <strong>예상 소요 시간: <span id="estimatedTime">계산 중...</span></strong>
+                            </div>
                         </div>
                         
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">
-                                <i class="fab fa-google mr-2 text-blue-600"></i>Gemini API 키
-                            </label>
-                            <input type="password" id="geminiApiKey" 
-                                   placeholder="AIza..."
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
-                            <p class="text-xs text-gray-500 mt-1">
-                                <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-green-600 hover:underline">
-                                    aistudio.google.com에서 발급 받으세요
-                                </a>
-                            </p>
-                        </div>
-                        
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">
-                                <i class="fas fa-robot mr-2 text-green-600"></i>OpenAI API 키
-                            </label>
-                            <input type="password" id="openaiApiKey" 
-                                   placeholder="sk-..."
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
-                            <p class="text-xs text-gray-500 mt-1">
-                                <a href="https://platform.openai.com/api-keys" target="_blank" class="text-purple-600 hover:underline">
-                                    platform.openai.com에서 발급 받으세요
-                                </a>
-                            </p>
-                        </div>
-                        
-                        <div class="bg-gray-50 p-3 rounded-lg">
-                            <p class="text-xs text-gray-600">
-                                <i class="fas fa-info-circle mr-1"></i>
-                                <strong>멀티 AI 모델 시스템:</strong> 하나 이상의 API 키를 설정하면 자동으로 fallback 시스템이 작동합니다. 
-                                Claude → Gemini → OpenAI 순서로 시도됩니다.
-                            </p>
-                        </div>
-                        
-                        <div class="border-t pt-4">
-                            <button id="showProjectModal" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg transition mb-2">
-                                <i class="fas fa-folder-open mr-2"></i>프로젝트 관리
+                        <div class="flex gap-3">
+                            <button id="confirmBatchGeneration" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition">
+                                <i class="fas fa-rocket mr-2"></i>배치 생성 시작
                             </button>
-                            <button id="saveSettings" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition">
-                                설정 저장
+                            <button id="closeBatchModal" class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition">
+                                취소
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 배치 진행률 표시 -->
+                    <div id="batchProgress" class="mt-6 p-4 bg-gray-50 rounded-lg" style="display: none;">
+                        <h4 class="font-semibold mb-3">
+                            <i class="fas fa-tasks mr-2"></i>배치 생성 진행 상황
+                        </h4>
+                        <div class="flex justify-between text-sm text-gray-600 mb-2">
+                            <span>진행률</span>
+                            <span id="batchProgressText">0/0</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-3 mb-3">
+                            <div id="batchProgressBar" class="bg-green-600 h-3 rounded-full transition-all" style="width: 0%"></div>
+                        </div>
+                        <div class="text-xs text-gray-500">
+                            <span>남은 시간: <span id="remainingTime">계산 중...</span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🎯 콘텐츠 개선 모달 -->
+        <div id="contentImprovementModal" class="fixed inset-0 bg-black bg-opacity-50 z-50" style="display: none;">
+            <div class="flex items-center justify-center min-h-screen px-4">
+                <div class="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold text-gray-800">
+                            <i class="fas fa-wand-magic-sparkles mr-2 text-orange-600"></i>콘텐츠 자동 개선
+                        </h3>
+                        <button id="closeContentImprovement" class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div class="bg-orange-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-orange-800 mb-2">
+                                <i class="fas fa-magic mr-2"></i>AI 기반 콘텐츠 개선
+                            </h4>
+                            <p class="text-sm text-orange-700">
+                                생성된 콘텐츠를 AI가 자동으로 분석하여 가독성, SEO, 참여도를 개선합니다.
+                            </p>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">개선할 콘텐츠 선택</label>
+                            <select id="contentToImprove" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                <option value="">콘텐츠를 선택하세요</option>
+                                <!-- 동적으로 생성됨 -->
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">개선 유형</label>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                <label class="flex items-center">
+                                    <input type="radio" name="improvementType" value="all" checked class="mr-2">
+                                    <span class="text-sm">종합 개선</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="improvementType" value="readability" class="mr-2">
+                                    <span class="text-sm">가독성</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="improvementType" value="seo" class="mr-2">
+                                    <span class="text-sm">SEO</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="improvementType" value="cta" class="mr-2">
+                                    <span class="text-sm">참여도</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="flex gap-3">
+                            <button id="confirmContentImprovement" class="flex-1 bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 px-4 rounded-lg transition">
+                                <i class="fas fa-wand-magic-sparkles mr-2"></i>개선 시작
+                            </button>
+                            <button id="closeContentImprovement" class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition">
+                                취소
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 개선 결과 표시 -->
+                    <div id="improvementResults" class="mt-6" style="display: none;">
+                        <h4 class="font-semibold mb-3">
+                            <i class="fas fa-check-circle text-green-600 mr-2"></i>개선 결과
+                        </h4>
+                        
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            <div>
+                                <h5 class="font-medium text-gray-700 mb-2">원본</h5>
+                                <div id="originalContent" class="p-3 bg-gray-50 rounded-lg max-h-64 overflow-y-auto text-sm">
+                                    <!-- 원본 콘텐츠 -->
+                                </div>
+                            </div>
+                            <div>
+                                <h5 class="font-medium text-gray-700 mb-2">개선됨</h5>
+                                <div id="improvedContent" class="p-3 bg-green-50 rounded-lg max-h-64 overflow-y-auto text-sm">
+                                    <!-- 개선된 콘텐츠 -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="improvementAnalysis" class="mt-4 p-3 bg-blue-50 rounded-lg">
+                            <!-- 개선 분석 결과 -->
+                        </div>
+                        
+                        <div class="mt-4 flex gap-3">
+                            <button id="applyImprovement" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg">
+                                <i class="fas fa-check mr-2"></i>개선안 적용
+                            </button>
+                            <button id="discardImprovement" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg">
+                                <i class="fas fa-times mr-2"></i>무시
                             </button>
                         </div>
                     </div>
