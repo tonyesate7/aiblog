@@ -858,14 +858,31 @@ app.get('/api/system-status', async (c) => {
   c.header('Content-Type', 'application/json; charset=utf-8')
   
   try {
+    // 환경 변수에서 API 키 상태 확인
+    const claudeKey = c.env?.CLAUDE_API_KEY
+    const geminiKey = c.env?.GEMINI_API_KEY  
+    const openaiKey = c.env?.OPENAI_API_KEY
+    
     const systemStatus = {
       timestamp: new Date().toISOString(),
       uptime: process.uptime ? process.uptime() * 1000 : 0,
       memory: process.memoryUsage ? process.memoryUsage() : { heapUsed: 0, heapTotal: 0 },
       apis: {
-        claude: { status: 'unknown', lastCheck: new Date().toISOString() },
-        gemini: { status: 'unknown', lastCheck: new Date().toISOString() },
-        openai: { status: 'unknown', lastCheck: new Date().toISOString() }
+        claude: { 
+          status: claudeKey ? (validateApiKey('claude', claudeKey) ? 'active' : 'invalid') : 'not_configured', 
+          lastCheck: new Date().toISOString(),
+          configured: !!claudeKey
+        },
+        gemini: { 
+          status: geminiKey ? (validateApiKey('gemini', geminiKey) ? 'active' : 'invalid') : 'not_configured', 
+          lastCheck: new Date().toISOString(),
+          configured: !!geminiKey
+        },
+        openai: { 
+          status: openaiKey ? (validateApiKey('openai', openaiKey) ? 'active' : 'invalid') : 'not_configured', 
+          lastCheck: new Date().toISOString(),
+          configured: !!openaiKey
+        }
       },
       performance: {
         avgResponseTime: '0ms',
@@ -1520,21 +1537,21 @@ app.get('/', (c) => {
                                 <div id="claudeStatus" class="w-3 h-3 rounded-full bg-gray-400 mr-3"></div>
                                 <span class="font-medium">Claude API</span>
                             </div>
-                            <span id="claudeResponseTime" class="text-sm text-gray-500">-</span>
+                            <span id="claudeResponseTime" class="text-sm text-gray-500">DISCONNECTED</span>
                         </div>
                         <div class="bg-white rounded-lg p-3 flex items-center justify-between">
                             <div class="flex items-center">
                                 <div id="geminiStatus" class="w-3 h-3 rounded-full bg-gray-400 mr-3"></div>
                                 <span class="font-medium">Gemini API</span>
                             </div>
-                            <span id="geminiResponseTime" class="text-sm text-gray-500">-</span>
+                            <span id="geminiResponseTime" class="text-sm text-gray-500">DISCONNECTED</span>
                         </div>
                         <div class="bg-white rounded-lg p-3 flex items-center justify-between">
                             <div class="flex items-center">
                                 <div id="openaiStatus" class="w-3 h-3 rounded-full bg-gray-400 mr-3"></div>
                                 <span class="font-medium">OpenAI API</span>
                             </div>
-                            <span id="openaiResponseTime" class="text-sm text-gray-500">-</span>
+                            <span id="openaiResponseTime" class="text-sm text-gray-500">DISCONNECTED</span>
                         </div>
                     </div>
                 </div>
@@ -1944,16 +1961,67 @@ app.get('/', (c) => {
                     </div>
                     
                     <div class="space-y-4">
+                        <!-- 환경 변수 상태 표시 -->
+                        <div id="environmentStatus" class="bg-green-50 border border-green-200 rounded-lg p-3" style="display: none;">
+                            <div class="flex items-center text-green-800">
+                                <i class="fas fa-check-circle mr-2"></i>
+                                <strong>환경 변수로 API 키가 설정되어 있습니다!</strong>
+                            </div>
+                            <p class="text-xs text-green-700 mt-1">
+                                Cloudflare Pages 환경 변수로 설정된 API 키를 사용 중입니다. 추가 설정이 필요하지 않습니다.
+                            </p>
+                            <div id="environmentApiList" class="mt-2 text-xs text-green-600">
+                                <!-- 동적으로 생성됨 -->
+                            </div>
+                        </div>
+
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Claude API 키</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fab fa-anthropic mr-2 text-orange-600"></i>Claude API 키
+                            </label>
                             <input type="password" id="claudeApiKey" 
                                    placeholder="sk-ant-..."
                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                             <p class="text-xs text-gray-500 mt-1">
-                                설정된 API 키는 브라우저에 안전하게 저장됩니다<br>
                                 <a href="https://console.anthropic.com" target="_blank" class="text-blue-600 hover:underline">
                                     console.anthropic.com에서 발급 받으세요
                                 </a>
+                            </p>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fab fa-google mr-2 text-blue-600"></i>Gemini API 키
+                            </label>
+                            <input type="password" id="geminiApiKey" 
+                                   placeholder="AIza..."
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                            <p class="text-xs text-gray-500 mt-1">
+                                <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-green-600 hover:underline">
+                                    aistudio.google.com에서 발급 받으세요
+                                </a>
+                            </p>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                <i class="fas fa-robot mr-2 text-green-600"></i>OpenAI API 키
+                            </label>
+                            <input type="password" id="openaiApiKey" 
+                                   placeholder="sk-..."
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                            <p class="text-xs text-gray-500 mt-1">
+                                <a href="https://platform.openai.com/api-keys" target="_blank" class="text-purple-600 hover:underline">
+                                    platform.openai.com에서 발급 받으세요
+                                </a>
+                            </p>
+                        </div>
+                        
+                        <div class="bg-gray-50 p-3 rounded-lg">
+                            <p class="text-xs text-gray-600">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                <strong>멀티 AI 모델 시스템:</strong> 하나 이상의 API 키를 설정하면 자동으로 fallback 시스템이 작동합니다. 
+                                Claude → Gemini → OpenAI 순서로 시도됩니다.
                             </p>
                         </div>
                         
@@ -1983,3 +2051,4 @@ app.get('/', (c) => {
 })
 
 export default app
+// Updated for environment variables Tue Sep  2 05:57:27 UTC 2025

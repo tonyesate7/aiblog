@@ -5,6 +5,7 @@ class BlogGenerator {
         this.generatedArticles = [];
         this.currentProgress = 0;
         this.totalArticles = 10;
+        this.environmentAlertShown = false; // 환경 변수 알림 중복 방지
         this.init();
     }
 
@@ -143,9 +144,9 @@ class BlogGenerator {
             return;
         }
 
-        const apiKey = localStorage.getItem('claude_api_key');
-        if (!apiKey) {
-            this.showAlert('Claude API 키가 설정되지 않았습니다. 설정에서 API 키를 입력해주세요.', 'error');
+        const settings = this.getSettings();
+        if (!settings.claudeApiKey && !settings.geminiApiKey && !settings.openaiApiKey) {
+            this.showAlert('API 키가 설정되지 않았습니다. 설정에서 최소 하나의 API 키를 입력해주세요.', 'error');
             return;
         }
 
@@ -157,7 +158,11 @@ class BlogGenerator {
         try {
             const response = await axios.post('/api/generate-subkeywords', {
                 mainKeyword: mainKeyword,
-                apiKey: apiKey
+                apiKey: settings.claudeApiKey,
+                geminiKey: settings.geminiApiKey,
+                openaiKey: settings.openaiApiKey,
+                contentStyle: document.getElementById('contentStyle').value,
+                targetAudience: document.getElementById('targetAudience').value
             });
 
             if (response.data.success) {
@@ -264,9 +269,9 @@ class BlogGenerator {
     }
 
     startBlogGeneration() {
-        const apiKey = localStorage.getItem('claude_api_key');
-        if (!apiKey) {
-            this.showAlert('Claude API 키가 설정되지 않았습니다. 설정에서 API 키를 입력해주세요.', 'error');
+        const settings = this.getSettings();
+        if (!settings.claudeApiKey && !settings.geminiApiKey && !settings.openaiApiKey) {
+            this.showAlert('API 키가 설정되지 않았습니다. 설정에서 최소 하나의 API 키를 입력해주세요.', 'error');
             return;
         }
 
@@ -334,7 +339,7 @@ class BlogGenerator {
         const keyword = keywords[index];
         this.updateProgressItem(index, 'generating');
 
-        const apiKey = localStorage.getItem('claude_api_key');
+        const settings = this.getSettings();
         const mainKeyword = document.getElementById('mainKeyword').value.trim();
         const contentStyle = document.getElementById('contentStyle').value;
         const contentLength = document.getElementById('contentLength').value;
@@ -347,7 +352,9 @@ class BlogGenerator {
                 contentStyle: contentStyle,
                 contentLength: contentLength,
                 targetAudience: targetAudience,
-                apiKey: apiKey
+                apiKey: settings.claudeApiKey,
+                geminiKey: settings.geminiApiKey,
+                openaiKey: settings.openaiApiKey
             });
 
             if (response.data.success) {
@@ -2685,8 +2692,82 @@ ${article.content}
         return tempDiv.textContent || tempDiv.innerText || '';
     }
 
-    showSettingsModal() {
+    async showSettingsModal() {
         document.getElementById('settingsModal').style.display = 'flex';
+        // 환경 변수 상태 확인 및 표시
+        await this.checkEnvironmentVariables();
+        // API 키 상태도 다시 확인
+        setTimeout(() => {
+            this.checkApiKeyStatus();
+        }, 100);
+    }
+
+    // 환경 변수 상태 확인 및 설정 모달에 표시
+    async checkEnvironmentVariables() {
+        try {
+            const response = await fetch('/api/check-api-keys');
+            const result = await response.json();
+            
+            const envStatus = document.getElementById('environmentStatus');
+            const envApiList = document.getElementById('environmentApiList');
+            
+            if (result.configured && envStatus && envApiList) {
+                // 환경 변수가 설정된 경우 상태 표시
+                envStatus.style.display = 'block';
+                
+                const configuredApis = [];
+                if (result.details.claude === '설정됨') configuredApis.push('🟢 Claude API');
+                if (result.details.gemini === '설정됨') configuredApis.push('🟢 Gemini API');
+                if (result.details.openai === '설정됨') configuredApis.push('🟢 OpenAI API');
+                
+                envApiList.innerHTML = `설정된 환경 변수: ${configuredApis.join(', ')}`;
+                
+                // 로컬 API 키 입력 필드들 비활성화 및 안내 메시지 표시
+                const claudeInput = document.getElementById('claudeApiKey');
+                const geminiInput = document.getElementById('geminiApiKey');
+                const openaiInput = document.getElementById('openaiApiKey');
+                
+                if (claudeInput && result.details.claude === '설정됨') {
+                    claudeInput.placeholder = '환경 변수에서 API 키가 감지됨';
+                    claudeInput.disabled = true;
+                    claudeInput.value = '';
+                }
+                if (geminiInput && result.details.gemini === '설정됨') {
+                    geminiInput.placeholder = '환경 변수에서 API 키가 감지됨';
+                    geminiInput.disabled = true;
+                    geminiInput.value = '';
+                }
+                if (openaiInput && result.details.openai === '설정됨') {
+                    openaiInput.placeholder = '환경 변수에서 API 키가 감지됨';
+                    openaiInput.disabled = true;
+                    openaiInput.value = '';
+                }
+            } else {
+                // 환경 변수가 설정되지 않은 경우 숨김 및 입력 필드 활성화
+                if (envStatus) envStatus.style.display = 'none';
+                
+                const claudeInput = document.getElementById('claudeApiKey');
+                const geminiInput = document.getElementById('geminiApiKey');
+                const openaiInput = document.getElementById('openaiApiKey');
+                
+                if (claudeInput) {
+                    claudeInput.placeholder = 'Claude API 키를 입력하세요';
+                    claudeInput.disabled = false;
+                }
+                if (geminiInput) {
+                    geminiInput.placeholder = 'Gemini API 키를 입력하세요';
+                    geminiInput.disabled = false;
+                }
+                if (openaiInput) {
+                    openaiInput.placeholder = 'OpenAI API 키를 입력하세요';
+                    openaiInput.disabled = false;
+                }
+            }
+        } catch (error) {
+            console.error('환경 변수 확인 실패:', error);
+            const envStatus = document.getElementById('environmentStatus');
+            if (envStatus) envStatus.style.display = 'none';
+        }
     }
 
     hideSettingsModal() {
@@ -2694,21 +2775,65 @@ ${article.content}
     }
 
     saveSettings() {
-        const apiKey = document.getElementById('claudeApiKey').value.trim();
+        const claudeApiKey = document.getElementById('claudeApiKey').value.trim();
+        const geminiApiKey = document.getElementById('geminiApiKey').value.trim();
+        const openaiApiKey = document.getElementById('openaiApiKey').value.trim();
         
-        if (apiKey) {
-            localStorage.setItem('claude_api_key', apiKey);
-            this.showAlert('Claude API 키가 저장되었습니다.', 'success');
-            this.hideSettingsModal();
+        let savedKeys = [];
+        
+        // Claude API 키 저장
+        if (claudeApiKey) {
+            localStorage.setItem('claude_api_key', claudeApiKey);
+            savedKeys.push('Claude');
         } else {
-            this.showAlert('Claude API 키를 입력해주세요.', 'error');
+            localStorage.removeItem('claude_api_key');
+        }
+        
+        // Gemini API 키 저장
+        if (geminiApiKey) {
+            localStorage.setItem('gemini_api_key', geminiApiKey);
+            savedKeys.push('Gemini');
+        } else {
+            localStorage.removeItem('gemini_api_key');
+        }
+        
+        // OpenAI API 키 저장
+        if (openaiApiKey) {
+            localStorage.setItem('openai_api_key', openaiApiKey);
+            savedKeys.push('OpenAI');
+        } else {
+            localStorage.removeItem('openai_api_key');
+        }
+        
+        if (savedKeys.length > 0) {
+            this.showAlert(`${savedKeys.join(', ')} API 키가 저장되었습니다. (총 ${savedKeys.length}개)`, 'success');
+            this.hideSettingsModal();
+            // API 키 상태 재확인
+            setTimeout(() => {
+                this.checkApiKeyStatus();
+            }, 500);
+        } else {
+            this.showAlert('최소 하나의 API 키를 입력해주세요.', 'error');
         }
     }
 
     loadSettings() {
-        const apiKey = localStorage.getItem('claude_api_key');
-        if (apiKey) {
-            document.getElementById('claudeApiKey').value = apiKey;
+        // Claude API 키 불러오기
+        const claudeApiKey = localStorage.getItem('claude_api_key');
+        if (claudeApiKey) {
+            document.getElementById('claudeApiKey').value = claudeApiKey;
+        }
+        
+        // Gemini API 키 불러오기
+        const geminiApiKey = localStorage.getItem('gemini_api_key');
+        if (geminiApiKey) {
+            document.getElementById('geminiApiKey').value = geminiApiKey;
+        }
+        
+        // OpenAI API 키 불러오기
+        const openaiApiKey = localStorage.getItem('openai_api_key');
+        if (openaiApiKey) {
+            document.getElementById('openaiApiKey').value = openaiApiKey;
         }
     }
 
@@ -3497,6 +3622,15 @@ ${article.content}
         container.insertAdjacentHTML('beforeend', qualityHtml);
     }
 
+    // 설정된 API 키들 가져오기
+    getSettings() {
+        return {
+            claudeApiKey: localStorage.getItem('claude_api_key'),
+            geminiApiKey: localStorage.getItem('gemini_api_key'),
+            openaiApiKey: localStorage.getItem('openai_api_key')
+        };
+    }
+
     // API 키 상태 확인 메서드
     async checkApiKeyStatus() {
         try {
@@ -3506,28 +3640,74 @@ ${article.content}
             const statusSection = document.getElementById('apiKeyStatusSection');
             const messageElement = document.getElementById('apiKeyMessage');
             
-            if (!result.configured) {
-                // 환경 변수에 API 키가 설정되지 않은 경우 알림 표시
-                messageElement.textContent = result.message;
-                statusSection.style.display = 'block';
+            // 로컬 설정 확인
+            const settings = this.getSettings();
+            const hasLocalKeys = settings.claudeApiKey || settings.geminiApiKey || settings.openaiApiKey;
+            
+            if (result.configured) {
+                // 환경 변수에 API 키가 설정된 경우 - 알림 완전히 숨김
+                if (statusSection) {
+                    statusSection.style.display = 'none';
+                }
+                // 환경 변수 설정 상태를 모니터링에 반영
+                this.updateEnvironmentApiStatus(result);
                 
-                // 설정에서 API 키가 있는지도 확인
-                const settings = this.getSettings();
-                if (!settings.claudeApiKey && !settings.geminiApiKey && !settings.openaiApiKey) {
+                // 성공 알림 표시 (한 번만)
+                if (!this.environmentAlertShown) {
+                    this.showAlert('환경 변수에서 API 키가 감지되었습니다! 🔐', 'success');
+                    this.environmentAlertShown = true;
+                }
+            } else if (hasLocalKeys) {
+                // 로컬에 API 키가 있는 경우 - 알림 숨김
+                if (statusSection) {
+                    statusSection.style.display = 'none';
+                }
+                // 실시간 모니터링 상태 업데이트
+                this.updateLocalApiStatus();
+            } else {
+                // 환경 변수와 로컬 모두 설정되지 않은 경우 - 알림 표시
+                if (messageElement) {
                     messageElement.innerHTML = `
                         ${result.message}<br>
                         <small class="text-yellow-600">💡 <strong>팁:</strong> 환경 변수 설정 또는 아래 '설정' 버튼에서 API 키를 입력하실 수 있습니다.</small>
                     `;
                 }
-            } else {
-                // API 키가 설정된 경우 알림 숨김
-                statusSection.style.display = 'none';
+                if (statusSection) {
+                    statusSection.style.display = 'block';
+                }
             }
         } catch (error) {
             console.error('API 키 상태 확인 실패:', error);
-            // 네트워크 오류 등의 경우 기본 메시지 표시
+            // 네트워크 오류 등의 경우 로컬 설정만 확인
+            const settings = this.getSettings();
+            const hasLocalKeys = settings.claudeApiKey || settings.geminiApiKey || settings.openaiApiKey;
+            
             const statusSection = document.getElementById('apiKeyStatusSection');
-            statusSection.style.display = 'block';
+            if (statusSection) {
+                statusSection.style.display = hasLocalKeys ? 'none' : 'block';
+            }
+        }
+    }
+
+    // 로컬 API 키 상태 업데이트
+    updateLocalApiStatus() {
+        const settings = this.getSettings();
+        
+        // 각 API 상태 업데이트
+        if (typeof systemMonitor !== 'undefined') {
+            systemMonitor.updateAPIStatus('claude', settings.claudeApiKey ? 'configured' : 'not_configured');
+            systemMonitor.updateAPIStatus('gemini', settings.geminiApiKey ? 'configured' : 'not_configured');
+            systemMonitor.updateAPIStatus('openai', settings.openaiApiKey ? 'configured' : 'not_configured');
+        }
+    }
+
+    // 환경 변수 API 키 상태 업데이트
+    updateEnvironmentApiStatus(result) {
+        if (typeof systemMonitor !== 'undefined') {
+            // 환경 변수로 설정된 경우 'active' 상태로 표시 (초록색)
+            systemMonitor.updateAPIStatus('claude', result.details.claude === '설정됨' ? 'active' : 'not_configured');
+            systemMonitor.updateAPIStatus('gemini', result.details.gemini === '설정됨' ? 'active' : 'not_configured');
+            systemMonitor.updateAPIStatus('openai', result.details.openai === '설정됨' ? 'active' : 'not_configured');
         }
     }
 }
@@ -3640,7 +3820,38 @@ class SystemMonitor {
             section.style.display = section.style.display === 'none' ? 'block' : 'none';
             if (section.style.display === 'block') {
                 section.scrollIntoView({ behavior: 'smooth' });
+                // 모니터링 화면 표시 시 API 상태 즉시 업데이트
+                this.updateCurrentApiStatus();
             }
+        }
+    }
+
+    // 현재 API 키 설정에 따른 상태 즉시 업데이트
+    async updateCurrentApiStatus() {
+        try {
+            // 먼저 서버에서 환경 변수 상태 확인
+            const response = await fetch('/api/check-api-keys');
+            const result = await response.json();
+            
+            if (result.configured) {
+                // 환경 변수가 설정된 경우 'active' 상태로 표시
+                this.updateAPIStatus('claude', result.details.claude === '설정됨' ? 'active' : 'not_configured');
+                this.updateAPIStatus('gemini', result.details.gemini === '설정됨' ? 'active' : 'not_configured');
+                this.updateAPIStatus('openai', result.details.openai === '설정됨' ? 'active' : 'not_configured');
+            } else {
+                // 환경 변수가 없으면 로컬 설정 확인
+                const settings = blogGenerator.getSettings();
+                this.updateAPIStatus('claude', settings.claudeApiKey ? 'configured' : 'not_configured');
+                this.updateAPIStatus('gemini', settings.geminiApiKey ? 'configured' : 'not_configured');
+                this.updateAPIStatus('openai', settings.openaiApiKey ? 'configured' : 'not_configured');
+            }
+        } catch (error) {
+            console.error('API 상태 확인 실패:', error);
+            // 오류 시 로컬 설정으로 fallback
+            const settings = blogGenerator.getSettings();
+            this.updateAPIStatus('claude', settings.claudeApiKey ? 'configured' : 'not_configured');
+            this.updateAPIStatus('gemini', settings.geminiApiKey ? 'configured' : 'not_configured');
+            this.updateAPIStatus('openai', settings.openaiApiKey ? 'configured' : 'not_configured');
         }
     }
 
@@ -3735,20 +3946,54 @@ class SystemMonitor {
         const statusElement = document.getElementById(`${apiName}Status`);
         const responseTimeElement = document.getElementById(`${apiName}ResponseTime`);
         
+        // 로컬 저장소에서 API 키 상태 확인
+        const settings = blogGenerator.getSettings();
+        let localStatus = status;
+        
+        // 서버 상태가 unknown이면 로컬 설정 확인
+        if (status === 'unknown' || status === 'not_configured') {
+            if (apiName === 'claude' && settings.claudeApiKey) {
+                localStatus = 'configured';
+            } else if (apiName === 'gemini' && settings.geminiApiKey) {
+                localStatus = 'configured';
+            } else if (apiName === 'openai' && settings.openaiApiKey) {
+                localStatus = 'configured';
+            } else {
+                localStatus = 'not_configured';
+            }
+        }
+        
         if (statusElement) {
-            statusElement.className = 'w-3 h-3 rounded-full mr-3 ' + this.getStatusColor(status);
+            statusElement.className = 'w-3 h-3 rounded-full mr-3 ' + this.getStatusColor(localStatus);
         }
         
         if (responseTimeElement) {
-            responseTimeElement.textContent = status === 'active' ? '< 2s' : status === 'error' ? 'Error' : 'Unknown';
+            // 상태에 따른 텍스트 설정
+            let statusText = 'DISCONNECTED';
+            if (localStatus === 'active') {
+                statusText = 'ON AIR';
+            } else if (localStatus === 'configured') {
+                statusText = 'ON AIR';
+            } else if (localStatus === 'error') {
+                statusText = 'ERROR';
+            } else if (localStatus === 'slow') {
+                statusText = 'SLOW';
+            } else if (localStatus === 'invalid') {
+                statusText = 'INVALID';
+            }
+            
+            responseTimeElement.textContent = statusText;
         }
     }
 
     getStatusColor(status) {
         switch (status) {
             case 'active': return 'bg-green-500';
+            case 'configured': return 'bg-blue-500';
             case 'slow': return 'bg-yellow-500';
             case 'error': return 'bg-red-500';
+            case 'invalid': return 'bg-orange-500';
+            case 'not_configured': return 'bg-gray-400';
             default: return 'bg-gray-400';
         }
     }
