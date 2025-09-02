@@ -182,10 +182,12 @@ blogGenerator.createTestArticles();
 
 ## 🔧 배포 정보
 - **상태**: ✅ 활성 (Version 2.0)
-- **현재 배포 URL**: https://3000-irjw24nhumrh4fh4yovkl-6532622b.e2b.dev
-- **플랫폼**: Cloudflare Pages (배포 준비 중)
+- **Production URL**: https://74f6a574.ai-blog-generator-v2.pages.dev
+- **Alternative URL**: https://ai-blog-generator-v2.pages.dev
+- **플랫폼**: Cloudflare Pages
 - **배포 브랜치**: main
-- **마지막 업데이트**: 2024년 9월 2일 (Version 2.0 - 완전한 블로그 관리 시스템)
+- **프로젝트명**: ai-blog-generator-v2
+- **배포 완료**: 2024년 9월 2일 (Version 2.0 - 완전한 블로그 관리 시스템)
 
 ## 📋 Version 2.0 기술적 개선사항
 
