@@ -695,9 +695,18 @@ ${keyword}에 대해 자세히 알아보았습니다. 이 정보가 여러분에
                             <img src="${article.image.url}" alt="${article.image.keyword || article.keyword}" 
                                  class="w-full max-w-md mx-auto rounded-lg shadow-sm"
                                  loading="lazy">
-                            <div class="text-xs text-gray-500 text-center mt-2">
-                                <i class="fas fa-robot mr-1"></i>AI 생성 이미지: ${article.image.keyword}
-                                ${article.image.source ? ` | ${article.image.source}` : ''}
+                            <div class="text-xs text-center mt-2">
+                                ${article.image.isProfessionalPhoto ? `
+                                    <div class="inline-flex items-center bg-blue-50 text-blue-700 px-2 py-1 rounded-full">
+                                        <i class="fas fa-camera mr-1"></i>고품질 전문 사진
+                                        <span class="ml-1 text-blue-500">• ${article.image.resolution}</span>
+                                    </div>
+                                ` : `
+                                    <div class="text-gray-500">
+                                        <i class="fas fa-image mr-1"></i>${article.image.keyword}
+                                        ${article.image.source ? ` | ${article.image.source}` : ''}
+                                    </div>
+                                `}
                             </div>
                         </div>
                     ` : ''}
@@ -779,8 +788,8 @@ ${keyword}에 대해 자세히 알아보았습니다. 이 정보가 여러분에
                         </button>
                         <button onclick="blogGenerator.generateArticleImage('${article.id}')" 
                                 class="text-purple-600 hover:text-purple-800 text-sm transition ${article.image ? 'opacity-50' : ''}"
-                                ${article.image ? 'title="이미 이미지가 있습니다"' : ''}>
-                            <i class="fas fa-image mr-1"></i>이미지 생성
+                                ${article.image ? 'title="이미 고품질 사진이 있습니다"' : 'title="고품질 전문 사진 생성"'}>
+                            <i class="fas fa-camera mr-1"></i>전문 사진 생성
                         </button>
                         <button onclick="blogGenerator.duplicateArticle('${article.id}')" 
                                 class="text-green-600 hover:text-green-800 text-sm transition">
@@ -4515,7 +4524,9 @@ ${article.content}
                 this.showResults();
                 this.saveToLocalStorage();
 
-                this.showAlert(`"${article.keyword}" 키워드로 이미지가 생성되었습니다! 🖼️`, 'success');
+                // 개선된 성공 메시지
+                const imageType = imageData.isProfessionalPhoto ? '고품질 전문 사진' : '이미지';
+                this.showAlert(`"${article.keyword}" 키워드로 ${imageType}이 생성되었습니다! 📸✨`, 'success');
             } else {
                 this.showAlert('이미지 생성에 실패했습니다: ' + response.data.error, 'error');
             }

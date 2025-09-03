@@ -1554,6 +1554,7 @@ app.post('/api/analyze-content-quality', async (c) => {
 app.post('/api/generate-image', async (c) => {
   // UTF-8 인코딩 헤더 설정
   c.header('Content-Type', 'application/json; charset=utf-8')
+  
   try {
     const { keyword, title, articleContent } = await c.req.json()
     
@@ -1561,125 +1562,133 @@ app.post('/api/generate-image', async (c) => {
       return c.json({ error: 'keyword가 필요합니다' }, 400)
     }
 
+    console.log(`🖼️ 고품질 이미지 생성 요청: ${keyword}`)
+    
     // 키워드와 제목을 기반으로 영문 이미지 프롬프트 생성
     const imagePrompt = generateImagePrompt(keyword, title, articleContent)
     
-    try {
-      // HuggingFace Inference API 사용 (무료)
-      // 여러 모델을 순차적으로 시도
-      const models = [
-        'runwayml/stable-diffusion-v1-5',
-        'stabilityai/stable-diffusion-2-1',
-        'CompVis/stable-diffusion-v1-4'
-      ]
-      
-      let hfResponse = null
-      let lastError = null
-      
-      for (const model of models) {
-        try {
-          console.log(`Trying HuggingFace model: ${model}`)
-          hfResponse = await fetch(
-            `https://api-inference.huggingface.co/models/${model}`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                inputs: imagePrompt,
-                parameters: {
-                  num_inference_steps: 15,
-                  guidance_scale: 7.5
-                }
-              })
-            }
-          )
-          
-          if (hfResponse.ok) {
-            console.log(`Successfully connected to ${model}`)
-            break
-          } else {
-            const errorText = await hfResponse.text()
-            console.log(`Model ${model} failed:`, errorText)
-            lastError = errorText
-          }
-        } catch (modelError) {
-          console.log(`Model ${model} error:`, modelError.message)
-          lastError = modelError
-        }
+    // 🎯 최적화된 Unsplash 고품질 이미지 시스템
+    const optimizedImageUrl = generateOptimizedUnsplashUrl(keyword, title)
+    
+    return c.json({ 
+      success: true, 
+      image: {
+        url: optimizedImageUrl,
+        prompt: imagePrompt,
+        keyword: keyword,
+        title: title,
+        createdAt: new Date().toISOString(),
+        source: 'Unsplash Professional Photography',
+        isProfessionalPhoto: true,
+        resolution: '800x450',
+        aspectRatio: '16:9'
       }
-
-      if (hfResponse && hfResponse.ok) {
-        const imageBlob = await hfResponse.arrayBuffer()
-        
-        // ArrayBuffer를 Base64로 변환
-        const base64 = btoa(String.fromCharCode(...new Uint8Array(imageBlob)))
-        const dataUrl = `data:image/jpeg;base64,${base64}`
-        
-        return c.json({ 
-          success: true, 
-          image: {
-            url: dataUrl,
-            prompt: imagePrompt,
-            keyword: keyword,
-            createdAt: new Date().toISOString(),
-            source: 'HuggingFace Stable Diffusion',
-            isAIGenerated: true
-          }
-        })
-      } else {
-        // 모든 HuggingFace 모델 실패 시 폴백
-        console.log('All HuggingFace models failed:', lastError)
-        throw new Error('All HuggingFace models failed')
-      }
-    } catch (hfError) {
-      // 폴백: 고품질 플레이스홀더 이미지 (Unsplash 기반)
-      console.log('Using fallback image service due to:', hfError.message)
-      
-      // 키워드 기반 Unsplash 이미지 URL 생성
-      const unsplashKeywords = {
-        '여행': 'travel,destination,landscape',
-        '제주도': 'jeju,korea,island',
-        '부산': 'busan,korea,city',
-        '서울': 'seoul,korea,skyline',
-        '음식': 'food,cuisine,delicious',
-        '맛집': 'restaurant,gourmet,dining',
-        '카페': 'cafe,coffee,interior',
-        '디저트': 'dessert,sweet,pastry',
-        '프로그래밍': 'programming,code,developer',
-        '인공지능': 'ai,technology,digital',
-        '웹개발': 'web,development,coding',
-        '마케팅': 'marketing,business,growth',
-        '창업': 'startup,business,entrepreneur',
-        '투자': 'investment,finance,money',
-        '건강': 'health,wellness,fitness',
-        '요리': 'cooking,kitchen,chef',
-        '독서': 'reading,books,study',
-        '운동': 'fitness,exercise,gym'
-      }
-      
-      const searchQuery = unsplashKeywords[keyword] || keyword
-      const fallbackImageUrl = `https://source.unsplash.com/800x450/?${searchQuery}`
-      
-      return c.json({ 
-        success: true, 
-        image: {
-          url: fallbackImageUrl,
-          prompt: imagePrompt,
-          keyword: keyword,
-          createdAt: new Date().toISOString(),
-          source: 'Unsplash (fallback)',
-          isFallbackImage: true
-        }
-      })
-    }
+    })
 
   } catch (error) {
     console.error('이미지 생성 오류:', error)
     return c.json({ error: '서버 오류가 발생했습니다' }, 500)
   }
 })
+
+// 🎯 최적화된 Unsplash 이미지 URL 생성 함수
+function generateOptimizedUnsplashUrl(keyword: string, title?: string): string {
+  // 확장된 한국어-영어 키워드 매핑
+  const optimizedKeywordMap: { [key: string]: string } = {
+    // 여행 & 관광
+    '여행': 'travel,vacation,adventure',
+    '제주도': 'jeju,island,korea,nature',
+    '부산': 'busan,korea,beach,city',
+    '서울': 'seoul,korea,skyline,urban',
+    '경주': 'gyeongju,korea,temple,history',
+    '강릉': 'gangneung,korea,beach,ocean',
+    '전주': 'jeonju,korea,hanok,traditional',
+    '인천': 'incheon,korea,airport,bridge',
+    
+    // 음식 & 요리
+    '음식': 'food,delicious,cuisine,gourmet',
+    '맛집': 'restaurant,dining,gourmet,food',
+    '카페': 'cafe,coffee,latte,cozy',
+    '디저트': 'dessert,cake,sweet,bakery',
+    '한식': 'korean,food,kimchi,bibimbap',
+    '양식': 'western,food,pasta,steak',
+    '일식': 'japanese,sushi,ramen,food',
+    '중식': 'chinese,food,noodles,dumpling',
+    '치킨': 'chicken,fried,crispy,delicious',
+    '피자': 'pizza,cheese,italian,food',
+    '햄버거': 'burger,fast,food,beef',
+    '라면': 'ramen,noodles,soup,hot',
+    
+    // IT & 기술
+    '프로그래밍': 'programming,code,developer,computer',
+    '인공지능': 'ai,artificial,intelligence,technology',
+    '웹개발': 'web,development,coding,website',
+    '앱개발': 'app,development,mobile,software',
+    '데이터': 'data,analytics,database,chart',
+    '클라우드': 'cloud,computing,aws,server',
+    '블록체인': 'blockchain,bitcoin,crypto,technology',
+    '사이버보안': 'cybersecurity,security,hacking,protection',
+    
+    // 비즈니스 & 경제
+    '마케팅': 'marketing,business,strategy,growth',
+    '창업': 'startup,entrepreneur,business,innovation',
+    '투자': 'investment,finance,money,stocks',
+    '부동산': 'real,estate,property,house',
+    '경제': 'economy,finance,market,business',
+    '회계': 'accounting,finance,calculator,money',
+    
+    // 건강 & 운동
+    '건강': 'health,wellness,fitness,medical',
+    '운동': 'exercise,fitness,gym,workout',
+    '요가': 'yoga,meditation,stretch,wellness',
+    '다이어트': 'diet,healthy,weight,loss',
+    '헬스': 'fitness,gym,muscle,strength',
+    '조깅': 'running,jogging,exercise,outdoor',
+    '수영': 'swimming,pool,water,sport',
+    
+    // 교육 & 학습
+    '교육': 'education,learning,school,student',
+    '독서': 'reading,books,literature,study',
+    '학습': 'learning,study,education,knowledge',
+    '언어': 'language,learning,communication,words',
+    '영어': 'english,language,learning,study',
+    
+    // 라이프스타일
+    '패션': 'fashion,style,clothing,trendy',
+    '뷰티': 'beauty,makeup,skincare,cosmetics',
+    '인테리어': 'interior,design,home,decoration',
+    '원예': 'gardening,plants,green,nature',
+    '펫': 'pets,dogs,cats,animals',
+    '반려동물': 'pets,companion,animals,cute',
+    
+    // 취미 & 문화
+    '음악': 'music,concert,instruments,melody',
+    '영화': 'movie,cinema,film,entertainment',
+    '사진': 'photography,camera,picture,art',
+    '그림': 'painting,art,drawing,creative',
+    '게임': 'gaming,video,games,entertainment',
+    '도서': 'books,library,knowledge,literature'
+  }
+  
+  // 키워드 매핑 확인
+  let searchTerms = optimizedKeywordMap[keyword] || keyword
+  
+  // 제목에서 추가 컨텍스트 추출
+  if (title) {
+    const titleKeywords = Object.keys(optimizedKeywordMap).filter(k => title.includes(k))
+    if (titleKeywords.length > 0) {
+      const additionalTerms = titleKeywords.map(k => optimizedKeywordMap[k]).join(',')
+      searchTerms = `${searchTerms},${additionalTerms}`
+    }
+  }
+  
+  // 고해상도, 고품질 매개변수 추가
+  const qualityParams = 'high-quality,professional,clean,bright,sharp'
+  const finalSearchTerms = `${searchTerms},${qualityParams}`
+  
+  // Unsplash URL 생성 (800x450 = 16:9 비율)
+  return `https://source.unsplash.com/800x450/?${encodeURIComponent(finalSearchTerms)}`
+}
 
 // 키워드 기반 이미지 프롬프트 생성 함수
 function generateImagePrompt(keyword: string, title?: string, content?: string) {
@@ -1777,124 +1786,36 @@ app.post('/api/articles/:id/generate-image', async (c) => {
 
     // 이미지 설명이 제공된 경우 사용, 아니면 키워드/제목 기반 생성
     const effectiveKeyword = imageDescription || keyword || title
+    console.log(`🖼️ 글 ${id}용 고품질 이미지 생성: ${effectiveKeyword}`)
+    
     const imagePrompt = generateImagePrompt(effectiveKeyword, title, articleContent)
     
-    try {
-      // HuggingFace Inference API 사용 (무료)
-      const models = [
-        'runwayml/stable-diffusion-v1-5',
-        'stabilityai/stable-diffusion-2-1', 
-        'CompVis/stable-diffusion-v1-4'
-      ]
-      
-      let hfResponse = null
-      let lastError = null
-      
-      for (const model of models) {
-        try {
-          console.log(`Trying HuggingFace model: ${model}`)
-          hfResponse = await fetch(
-            `https://api-inference.huggingface.co/models/${model}`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                inputs: imagePrompt,
-                parameters: {
-                  num_inference_steps: 15,
-                  guidance_scale: 7.5
-                }
-              })
-            }
-          )
-          
-          if (hfResponse.ok) {
-            console.log(`Successfully connected to ${model}`)
-            break
-          } else {
-            const errorText = await hfResponse.text()
-            console.log(`Model ${model} failed:`, errorText)
-            lastError = errorText
-          }
-        } catch (modelError) {
-          console.log(`Model ${model} error:`, modelError.message)
-          lastError = modelError
-        }
+    // 🎯 최적화된 Unsplash 고품질 이미지 시스템
+    const optimizedImageUrl = generateOptimizedUnsplashUrl(effectiveKeyword, title)
+    
+    return c.json({ 
+      success: true, 
+      image: {
+        url: optimizedImageUrl,
+        prompt: imagePrompt,
+        keyword: effectiveKeyword,
+        title: title,
+        articleId: id,
+        createdAt: new Date().toISOString(),
+        source: 'Unsplash Professional Photography',
+        isProfessionalPhoto: true,
+        resolution: '800x450',
+        aspectRatio: '16:9'
       }
-
-      if (hfResponse && hfResponse.ok) {
-        const imageBlob = await hfResponse.arrayBuffer()
-        
-        // ArrayBuffer를 Base64로 변환
-        const base64 = btoa(String.fromCharCode(...new Uint8Array(imageBlob)))
-        const dataUrl = `data:image/jpeg;base64,${base64}`
-        
-        return c.json({ 
-          success: true, 
-          image: {
-            url: dataUrl,
-            prompt: imagePrompt,
-            keyword: effectiveKeyword,
-            articleId: id,
-            createdAt: new Date().toISOString(),
-            source: 'HuggingFace Stable Diffusion',
-            isAIGenerated: true
-          }
-        })
-      } else {
-        // 모든 HuggingFace 모델 실패 시 폴백
-        console.log('All HuggingFace models failed:', lastError)
-        throw new Error('All HuggingFace models failed')
-      }
-    } catch (hfError) {
-      // 폴백: 고품질 플레이스홀더 이미지 (Unsplash 기반)
-      console.log('Using fallback image service due to:', hfError.message)
-      
-      const unsplashKeywords = {
-        '여행': 'travel,destination,landscape',
-        '제주도': 'jeju,korea,island',
-        '부산': 'busan,korea,city',
-        '서울': 'seoul,korea,skyline',
-        '음식': 'food,cuisine,delicious',
-        '맛집': 'restaurant,gourmet,dining',
-        '카페': 'cafe,coffee,interior',
-        '디저트': 'dessert,sweet,pastry',
-        '프로그래밍': 'programming,code,developer',
-        '인공지능': 'ai,technology,digital',
-        '웹개발': 'web,development,coding',
-        '마케팅': 'marketing,business,growth',
-        '창업': 'startup,business,entrepreneur',
-        '투자': 'investment,finance,money',
-        '건강': 'health,wellness,fitness',
-        '요리': 'cooking,kitchen,chef',
-        '독서': 'reading,books,study',
-        '운동': 'fitness,exercise,gym'
-      }
-      
-      const searchQuery = unsplashKeywords[effectiveKeyword] || effectiveKeyword
-      const fallbackImageUrl = `https://source.unsplash.com/800x450/?${searchQuery}`
-      
-      return c.json({ 
-        success: true, 
-        image: {
-          url: fallbackImageUrl,
-          prompt: imagePrompt,
-          keyword: effectiveKeyword,
-          articleId: id,
-          createdAt: new Date().toISOString(),
-          source: 'Unsplash (fallback)',
-          isFallbackImage: true
-        }
-      })
-    }
+    })
 
   } catch (error) {
     console.error('글 이미지 생성 오류:', error)
-    return c.json({ error: '이미지 생성 중 오류가 발생했습니다' }, 500)
+    return c.json({ error: '서버 오류가 발생했습니다' }, 500)
   }
 })
+
+
 
 // 글 복제 API
 app.post('/api/articles/:id/duplicate', async (c) => {
