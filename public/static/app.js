@@ -5426,64 +5426,11 @@ class SmartContentManager {
             }
         });
 
-        // 탭 전환
-        document.addEventListener('click', (e) => {
-            if (e.target.classList.contains('content-tab')) {
-                this.switchTab(e.target.dataset.tab);
-            }
-        });
+        // SmartContentManager는 탭 전환을 직접 처리하지 않음 (전역에서 처리)
     }
 
-    switchTab(tabName) {
-        // 모든 탭 비활성화
-        document.querySelectorAll('.content-tab').forEach(tab => {
-            tab.classList.remove('bg-blue-500', 'text-white');
-            tab.classList.add('text-gray-600', 'hover:text-blue-500');
-        });
-
-        // 모든 탭 컨텐츠 숨기기
-        document.querySelectorAll('.tab-content').forEach(content => {
-            content.classList.add('hidden');
-        });
-
-        // 선택된 탭 활성화
-        const selectedTab = document.querySelector(`[data-tab="${tabName}"]`);
-        if (selectedTab) {
-            selectedTab.classList.add('bg-blue-500', 'text-white');
-            selectedTab.classList.remove('text-gray-600', 'hover:text-blue-500');
-        }
-
-        // 선택된 컨텐츠 표시
-        const selectedContent = document.getElementById(`${tabName}Tab`);
-        if (selectedContent) {
-            selectedContent.classList.remove('hidden');
-        }
-
-        // 탭별 데이터 로드
-        switch (tabName) {
-            case 'series':
-                this.loadSeriesList();
-                break;
-            case 'ideas':
-                this.loadContentIdeas();
-                break;
-            case 'analytics':
-                this.loadAnalytics();
-                break;
-            case 'scheduling':
-                // 스케줄링 탭 - ContentScheduler 인스턴스 사용
-                if (window.contentScheduler) {
-                    window.contentScheduler.loadSchedulesList();
-                }
-                break;
-            case 'tags':
-                // 태그 관리 탭 - ContentScheduler 인스턴스 사용
-                if (window.contentScheduler) {
-                    window.contentScheduler.loadTagsList();
-                }
-                break;
-        }
-    }
+    // SmartContentManager는 탭 전환을 직접 처리하지 않음 (전역에서 처리)
+    // switchTab 메서드를 제거하고 개별 로드 메서드만 유지
 
     showCreateSeriesModal() {
         document.getElementById('createSeriesModal').classList.remove('hidden');
@@ -5818,6 +5765,26 @@ class SmartContentManager {
                 `).join('')}
             </div>
         `;
+    }
+
+    async loadContentIdeas() {
+        // 아이디어 탭 로드 시 기본 설정
+        const container = document.getElementById('ideasContainer');
+        if (!container) return;
+
+        // 기본 상태 표시 (아이디어가 없을 때)
+        if (!this.contentIdeas || this.contentIdeas.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-8 text-gray-500">
+                    <i class="fas fa-lightbulb text-3xl mb-3"></i>
+                    <p>아직 생성된 아이디어가 없습니다</p>
+                    <p class="text-sm">위 폼을 사용하여 AI 기반 콘텐츠 아이디어를 생성해보세요!</p>
+                </div>
+            `;
+        } else {
+            // 기존 아이디어가 있으면 렌더링
+            this.renderContentIdeas();
+        }
     }
 
     async loadAnalytics() {
@@ -6610,3 +6577,113 @@ window.contentScheduler = null;
 // 앱 초기화
 const blogGenerator = new BlogGenerator();
 const systemMonitor = new SystemMonitor();
+
+// 전역 탭 전환 함수 (HTML에서 호출됨)
+function switchTab(tabName) {
+    console.log(`🔄 전역 switchTab() 호출됨: tabName=${tabName}`);
+    
+    // 모든 탭 비활성화
+    document.querySelectorAll('.content-tab').forEach(tab => {
+        tab.classList.remove('bg-blue-500', 'text-white');
+        tab.classList.add('text-gray-600', 'hover:text-blue-500');
+    });
+
+    // 모든 탭 컨텐츠 숨기기
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.add('hidden');
+    });
+
+    // 선택된 탭 활성화
+    const selectedTab = document.querySelector(`[data-tab="${tabName}"]`);
+    if (selectedTab) {
+        selectedTab.classList.add('bg-blue-500', 'text-white');
+        selectedTab.classList.remove('text-gray-600', 'hover:text-blue-500');
+    }
+
+    // 선택된 컨텐츠 표시
+    const selectedContent = document.getElementById(`${tabName}Tab`);
+    if (selectedContent) {
+        selectedContent.classList.remove('hidden');
+    }
+
+    // 탭별 데이터 로드 - 인스턴스 메서드 호출
+    switch (tabName) {
+        case 'series':
+            // 시리즈 관리 탭
+            if (window.smartContentManager) {
+                console.log('📚 시리즈 관리 탭 로드 - SmartContentManager 사용');
+                window.smartContentManager.loadSeriesList();
+            } else {
+                console.error('❌ SmartContentManager 인스턴스가 없습니다');
+            }
+            break;
+        case 'ideas':
+            // 아이디어 생성 탭
+            if (window.smartContentManager) {
+                console.log('💡 아이디어 생성 탭 로드 - SmartContentManager 사용');
+                window.smartContentManager.loadContentIdeas();
+            } else {
+                console.error('❌ SmartContentManager 인스턴스가 없습니다');
+            }
+            break;
+        case 'analytics':
+            // 성과 분석 탭
+            if (window.smartContentManager) {
+                console.log('📊 성과 분석 탭 로드 - SmartContentManager 사용');
+                window.smartContentManager.loadAnalytics();
+            } else {
+                console.error('❌ SmartContentManager 인스턴스가 없습니다');
+            }
+            break;
+        case 'scheduling':
+            // 스케줄링 탭
+            if (window.contentScheduler) {
+                console.log('⏰ 스케줄링 탭 로드 - ContentScheduler 사용');
+                window.contentScheduler.loadSchedulesList();
+            } else {
+                console.error('❌ ContentScheduler 인스턴스가 없습니다');
+            }
+            break;
+        case 'tags':
+            // 태그 관리 탭
+            if (window.contentScheduler) {
+                console.log('🏷️ 태그 관리 탭 로드 - ContentScheduler 사용');
+                window.contentScheduler.loadTagsList();
+            } else {
+                console.error('❌ ContentScheduler 인스턴스가 없습니다');
+            }
+            break;
+        default:
+            console.warn(`⚠️ 알 수 없는 탭: ${tabName}`);
+    }
+}
+
+// 스마트 콘텐츠 관리자 및 콘텐츠 스케줄러 초기화
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 DOMContentLoaded 이벤트 발생 - 클래스 인스턴스 초기화 시작');
+    
+    // SmartContentManager 인스턴스 생성
+    window.smartContentManager = new SmartContentManager();
+    console.log('✅ SmartContentManager 초기화 완료');
+    
+    // ContentScheduler 인스턴스 생성  
+    window.contentScheduler = new ContentScheduler();
+    console.log('✅ ContentScheduler 초기화 완료');
+    
+    // 탭 클릭 이벤트 리스너 추가
+    document.querySelectorAll('.content-tab').forEach(tabButton => {
+        tabButton.addEventListener('click', function() {
+            const tabName = this.getAttribute('data-tab');
+            console.log(`🎯 탭 클릭 이벤트 감지: ${tabName}`);
+            
+            if (tabName && typeof switchTab === 'function') {
+                switchTab(tabName);
+            } else {
+                console.error(`❌ 탭 전환 실패: tabName=${tabName}, switchTab 함수 존재=${typeof switchTab}`);
+            }
+        });
+    });
+    
+    console.log('🎯 모든 인스턴스 초기화 완료 - 시리즈 관리 UI 준비됨');
+    console.log('🔗 탭 클릭 이벤트 리스너 추가 완료');
+});
