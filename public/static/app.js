@@ -5354,6 +5354,1229 @@ class SystemMonitor {
     }
 }
 
+// ==================== 스마트 콘텐츠 관리 시스템 ====================
+
+class SmartContentManager {
+    constructor() {
+        this.series = [];
+        this.contentIdeas = [];
+        this.analytics = {};
+        this.currentSeries = null;
+        this.init();
+    }
+
+    init() {
+        this.loadSeriesData();
+        this.setupEventListeners();
+    }
+
+    setupEventListeners() {
+        // 시리즈 생성 버튼
+        document.addEventListener('click', (e) => {
+            if (e.target.id === 'createSeriesBtn') {
+                this.showCreateSeriesModal();
+            }
+            if (e.target.id === 'saveSeriesBtn') {
+                this.createSeries();
+            }
+            if (e.target.id === 'generateIdeasBtn') {
+                this.generateContentIdeas();
+            }
+            if (e.target.classList.contains('view-series-btn')) {
+                const seriesId = e.target.dataset.seriesId;
+                this.viewSeriesDetails(seriesId);
+            }
+            if (e.target.classList.contains('edit-series-btn')) {
+                const seriesId = e.target.dataset.seriesId;
+                this.editSeries(seriesId);
+            }
+            if (e.target.classList.contains('delete-series-btn')) {
+                const seriesId = e.target.dataset.seriesId;
+                this.deleteSeries(seriesId);
+            }
+        });
+
+        // 탭 전환
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('content-tab')) {
+                this.switchTab(e.target.dataset.tab);
+            }
+        });
+    }
+
+    switchTab(tabName) {
+        // 모든 탭 비활성화
+        document.querySelectorAll('.content-tab').forEach(tab => {
+            tab.classList.remove('bg-blue-500', 'text-white');
+            tab.classList.add('text-gray-600', 'hover:text-blue-500');
+        });
+
+        // 모든 탭 컨텐츠 숨기기
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.add('hidden');
+        });
+
+        // 선택된 탭 활성화
+        const selectedTab = document.querySelector(`[data-tab="${tabName}"]`);
+        if (selectedTab) {
+            selectedTab.classList.add('bg-blue-500', 'text-white');
+            selectedTab.classList.remove('text-gray-600', 'hover:text-blue-500');
+        }
+
+        // 선택된 컨텐츠 표시
+        const selectedContent = document.getElementById(`${tabName}Tab`);
+        if (selectedContent) {
+            selectedContent.classList.remove('hidden');
+        }
+
+        // 탭별 데이터 로드
+        switch (tabName) {
+            case 'series':
+                this.loadSeriesList();
+                break;
+            case 'ideas':
+                this.loadContentIdeas();
+                break;
+            case 'analytics':
+                this.loadAnalytics();
+                break;
+            case 'scheduling':
+                // 스케줄링 탭 - ContentScheduler 인스턴스 사용
+                if (window.contentScheduler) {
+                    window.contentScheduler.loadSchedulesList();
+                }
+                break;
+            case 'tags':
+                // 태그 관리 탭 - ContentScheduler 인스턴스 사용
+                if (window.contentScheduler) {
+                    window.contentScheduler.loadTagsList();
+                }
+                break;
+        }
+    }
+
+    showCreateSeriesModal() {
+        document.getElementById('createSeriesModal').classList.remove('hidden');
+        document.getElementById('seriesTitle').focus();
+    }
+
+    hideCreateSeriesModal() {
+        document.getElementById('createSeriesModal').classList.add('hidden');
+        document.getElementById('createSeriesForm').reset();
+    }
+
+    async createSeries() {
+        try {
+            const formData = new FormData(document.getElementById('createSeriesForm'));
+            const seriesData = {
+                title: formData.get('title'),
+                description: formData.get('description'),
+                totalPlannedArticles: parseInt(formData.get('totalArticles')) || 0,
+                targetAudience: formData.get('targetAudience'),
+                contentStyle: formData.get('contentStyle'),
+                estimatedCompletionDate: formData.get('completionDate'),
+                tags: formData.get('tags').split(',').map(tag => tag.trim()).filter(tag => tag),
+                creatorNotes: formData.get('notes')
+            };
+
+            if (!seriesData.title) {
+                throw new Error('시리즈 제목을 입력해주세요');
+            }
+
+            const response = await axios.post('/api/series', seriesData);
+
+            if (response.data.success) {
+                this.showAlert('시리즈가 생성되었습니다! 🎉', 'success');
+                this.hideCreateSeriesModal();
+                this.loadSeriesList();
+            } else {
+                throw new Error(response.data.error || '시리즈 생성에 실패했습니다');
+            }
+
+        } catch (error) {
+            console.error('시리즈 생성 오류:', error);
+            this.showAlert(`시리즈 생성 실패: ${error.message}`, 'error');
+        }
+    }
+
+    async loadSeriesList() {
+        try {
+            const response = await axios.get('/api/series');
+            
+            if (response.data.success) {
+                this.series = response.data.series;
+                this.renderSeriesList();
+            } else {
+                throw new Error(response.data.error);
+            }
+
+        } catch (error) {
+            console.error('시리즈 로드 오류:', error);
+            this.showAlert('시리즈 목록을 불러오는데 실패했습니다', 'error');
+        }
+    }
+
+    renderSeriesList() {
+        const container = document.getElementById('seriesContainer');
+        if (!container) return;
+
+        if (this.series.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-12">
+                    <i class="fas fa-book-open text-4xl text-gray-400 mb-4"></i>
+                    <h3 class="text-lg font-semibold text-gray-600 mb-2">아직 생성된 시리즈가 없습니다</h3>
+                    <p class="text-gray-500 mb-6">첫 번째 시리즈를 만들어보세요!</p>
+                    <button id="createSeriesBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg">
+                        <i class="fas fa-plus mr-2"></i>시리즈 생성
+                    </button>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-bold text-gray-800">시리즈 목록 (${this.series.length}개)</h2>
+                <button id="createSeriesBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">
+                    <i class="fas fa-plus mr-2"></i>새 시리즈
+                </button>
+            </div>
+            
+            <div class="grid gap-4">
+                ${this.series.map(series => `
+                    <div class="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="flex-1">
+                                <h3 class="text-lg font-semibold text-gray-800 mb-2">${series.title}</h3>
+                                <p class="text-gray-600 mb-3">${series.description || '설명 없음'}</p>
+                                
+                                <div class="flex flex-wrap gap-2 mb-3">
+                                    <span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-sm">
+                                        ${this.getAudienceName(series.targetAudience)}
+                                    </span>
+                                    <span class="px-2 py-1 bg-green-100 text-green-700 rounded text-sm">
+                                        ${this.getStyleName(series.contentStyle)}
+                                    </span>
+                                    <span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-sm">
+                                        ${series.status}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="flex space-x-2 ml-4">
+                                <button class="view-series-btn bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm" 
+                                        data-series-id="${series.id}">
+                                    <i class="fas fa-eye mr-1"></i>보기
+                                </button>
+                                <button class="edit-series-btn bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm" 
+                                        data-series-id="${series.id}">
+                                    <i class="fas fa-edit mr-1"></i>편집
+                                </button>
+                                <button class="delete-series-btn bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm" 
+                                        data-series-id="${series.id}">
+                                    <i class="fas fa-trash mr-1"></i>삭제
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 진행률 표시 -->
+                        <div class="mb-4">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-sm text-gray-600">진행률</span>
+                                <span class="text-sm font-semibold text-gray-800">
+                                    ${series.currentArticleCount || 0}/${series.totalPlannedArticles || 0} 글
+                                </span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-blue-500 h-2 rounded-full transition-all duration-300" 
+                                     style="width: ${series.progress || 0}%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="text-xs text-gray-500">
+                            생성일: ${new Date(series.createdAt).toLocaleDateString('ko-KR')}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    async viewSeriesDetails(seriesId) {
+        try {
+            const response = await axios.get(`/api/series/${seriesId}`);
+            
+            if (response.data.success) {
+                this.showSeriesDetailModal(response.data.series);
+            } else {
+                throw new Error(response.data.error);
+            }
+
+        } catch (error) {
+            console.error('시리즈 상세 조회 오류:', error);
+            this.showAlert('시리즈 상세 정보를 불러오는데 실패했습니다', 'error');
+        }
+    }
+
+    showSeriesDetailModal(series) {
+        const modal = document.getElementById('seriesDetailModal');
+        const content = document.getElementById('seriesDetailContent');
+        
+        content.innerHTML = `
+            <div class="p-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">${series.title}</h2>
+                <p class="text-gray-600 mb-6">${series.description || '설명 없음'}</p>
+                
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div>
+                        <h4 class="font-semibold text-gray-800 mb-2">시리즈 정보</h4>
+                        <div class="space-y-2 text-sm">
+                            <div><span class="font-medium">상태:</span> ${series.status}</div>
+                            <div><span class="font-medium">타겟 독자:</span> ${this.getAudienceName(series.targetAudience)}</div>
+                            <div><span class="font-medium">콘텐츠 스타일:</span> ${this.getStyleName(series.contentStyle)}</div>
+                            <div><span class="font-medium">총 계획 글:</span> ${series.totalPlannedArticles}개</div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h4 class="font-semibold text-gray-800 mb-2">진행 상황</h4>
+                        <div class="space-y-2 text-sm">
+                            <div><span class="font-medium">작성 완료:</span> ${series.currentArticleCount}개</div>
+                            <div><span class="font-medium">진행률:</span> ${Math.round((series.currentArticleCount / series.totalPlannedArticles) * 100) || 0}%</div>
+                            <div><span class="font-medium">생성일:</span> ${new Date(series.createdAt).toLocaleDateString('ko-KR')}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 시리즈 내 글 목록 -->
+                <div class="mb-6">
+                    <h4 class="font-semibold text-gray-800 mb-3">시리즈 글 목록</h4>
+                    ${series.articles && series.articles.length > 0 ? `
+                        <div class="space-y-2">
+                            ${series.articles.map((article, index) => `
+                                <div class="flex items-center justify-between p-3 bg-gray-50 rounded">
+                                    <div class="flex items-center">
+                                        <span class="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold mr-3">
+                                            ${article.seriesOrder}
+                                        </span>
+                                        <div>
+                                            <div class="font-medium text-gray-800">${article.title}</div>
+                                            <div class="text-xs text-gray-500">
+                                                상태: ${article.status} 
+                                                ${article.publishedAt ? `| 발행: ${new Date(article.publishedAt).toLocaleDateString('ko-KR')}` : ''}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        ${article.status === 'published' 
+                                            ? '<i class="fas fa-check-circle text-green-500"></i>' 
+                                            : '<i class="fas fa-clock text-orange-500"></i>'
+                                        }
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : `
+                        <div class="text-center py-8 text-gray-500">
+                            <i class="fas fa-inbox text-2xl mb-2"></i>
+                            <p>아직 작성된 글이 없습니다</p>
+                        </div>
+                    `}
+                </div>
+                
+                <div class="flex justify-end space-x-3">
+                    <button onclick="document.getElementById('seriesDetailModal').classList.add('hidden')" 
+                            class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded">
+                        닫기
+                    </button>
+                    <button class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+                        <i class="fas fa-plus mr-2"></i>새 글 작성
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        modal.classList.remove('hidden');
+    }
+
+    async generateContentIdeas() {
+        const topic = document.getElementById('ideasTopic').value.trim();
+        const targetAudience = document.getElementById('ideasAudience').value;
+        const count = parseInt(document.getElementById('ideasCount').value) || 5;
+
+        if (!topic) {
+            this.showAlert('주제를 입력해주세요', 'error');
+            return;
+        }
+
+        const generateBtn = document.getElementById('generateIdeasBtn');
+        const originalText = generateBtn.textContent;
+        
+        try {
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>아이디어 생성 중...';
+
+            const response = await axios.post('/api/content-ideas/generate', {
+                topic,
+                targetAudience,
+                count
+            });
+
+            if (response.data.success) {
+                this.contentIdeas = response.data.ideas;
+                this.renderContentIdeas();
+                this.showAlert(`${response.data.ideas.length}개의 콘텐츠 아이디어가 생성되었습니다! 💡`, 'success');
+            } else {
+                throw new Error(response.data.error);
+            }
+
+        } catch (error) {
+            console.error('아이디어 생성 오류:', error);
+            this.showAlert(`아이디어 생성 실패: ${error.message}`, 'error');
+        } finally {
+            generateBtn.disabled = false;
+            generateBtn.textContent = originalText;
+        }
+    }
+
+    renderContentIdeas() {
+        const container = document.getElementById('ideasContainer');
+        if (!container || !this.contentIdeas) return;
+
+        if (this.contentIdeas.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-8 text-gray-500">
+                    <i class="fas fa-lightbulb text-3xl mb-3"></i>
+                    <p>아직 생성된 아이디어가 없습니다</p>
+                    <p class="text-sm">위 폼을 사용하여 콘텐츠 아이디어를 생성해보세요!</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="space-y-4">
+                ${this.contentIdeas.map((idea, index) => `
+                    <div class="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow">
+                        <div class="flex justify-between items-start mb-3">
+                            <h3 class="text-lg font-semibold text-gray-800 flex-1">${idea.title}</h3>
+                            <div class="flex space-x-2 ml-4">
+                                <button class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm">
+                                    <i class="fas fa-edit mr-1"></i>글 작성
+                                </button>
+                                <button class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm">
+                                    <i class="fas fa-bookmark mr-1"></i>저장
+                                </button>
+                            </div>
+                        </div>
+                        
+                        ${idea.description ? `<p class="text-gray-600 mb-3">${idea.description}</p>` : ''}
+                        
+                        ${idea.keywords && idea.keywords.length > 0 ? `
+                            <div class="flex flex-wrap gap-1 mb-3">
+                                ${idea.keywords.map(keyword => `
+                                    <span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">${keyword}</span>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                        
+                        <div class="flex justify-between items-center text-xs text-gray-500">
+                            <span>아이디어 ${index + 1}</span>
+                            <span>생성: ${new Date(idea.createdAt).toLocaleDateString('ko-KR')}</span>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    async loadAnalytics() {
+        try {
+            const response = await axios.get('/api/analytics/overview');
+            
+            if (response.data.success) {
+                this.analytics = response.data.analytics;
+                this.renderAnalyticsDashboard();
+            } else {
+                throw new Error(response.data.error);
+            }
+
+        } catch (error) {
+            console.error('분석 데이터 로드 오류:', error);
+            this.showAlert('분석 데이터를 불러오는데 실패했습니다', 'error');
+        }
+    }
+
+    renderAnalyticsDashboard() {
+        const container = document.getElementById('analyticsContainer');
+        if (!container || !this.analytics) return;
+
+        container.innerHTML = `
+            <!-- 주요 지표 카드 -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white rounded-lg border border-gray-200 p-6 text-center">
+                    <div class="text-3xl font-bold text-blue-600">${this.analytics.totalArticles || 0}</div>
+                    <div class="text-gray-600">총 글 수</div>
+                </div>
+                <div class="bg-white rounded-lg border border-gray-200 p-6 text-center">
+                    <div class="text-3xl font-bold text-green-600">${this.analytics.totalSeries || 0}</div>
+                    <div class="text-gray-600">시리즈 수</div>
+                </div>
+                <div class="bg-white rounded-lg border border-gray-200 p-6 text-center">
+                    <div class="text-3xl font-bold text-purple-600">${this.analytics.totalViews?.toLocaleString() || 0}</div>
+                    <div class="text-gray-600">총 조회수</div>
+                </div>
+                <div class="bg-white rounded-lg border border-gray-200 p-6 text-center">
+                    <div class="text-3xl font-bold text-orange-600">${this.analytics.totalEngagement || 0}%</div>
+                    <div class="text-gray-600">참여율</div>
+                </div>
+            </div>
+
+            <!-- 최근 성과 -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <div class="bg-white rounded-lg border border-gray-200 p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">최근 30일 성과</h3>
+                    ${this.analytics.recentPerformance ? `
+                        <div class="space-y-3">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">새 글</span>
+                                <span class="font-semibold">${this.analytics.recentPerformance.newArticles}개</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">평균 조회수</span>
+                                <span class="font-semibold">${this.analytics.recentPerformance.averageViews?.toLocaleString()}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">최고 성과 키워드</span>
+                                <span class="font-semibold text-blue-600">${this.analytics.recentPerformance.topPerformingKeyword}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">참여율 증가</span>
+                                <span class="font-semibold text-green-600">+${this.analytics.recentPerformance.engagementGrowth}%</span>
+                            </div>
+                        </div>
+                    ` : '<p class="text-gray-500">데이터 없음</p>'}
+                </div>
+
+                <!-- 시리즈 성과 -->
+                <div class="bg-white rounded-lg border border-gray-200 p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">시리즈별 성과</h3>
+                    ${this.analytics.seriesPerformance && this.analytics.seriesPerformance.length > 0 ? `
+                        <div class="space-y-3">
+                            ${this.analytics.seriesPerformance.map(series => `
+                                <div class="border-b border-gray-100 pb-3 last:border-b-0">
+                                    <div class="font-medium text-gray-800">${series.title}</div>
+                                    <div class="text-sm text-gray-600 flex justify-between">
+                                        <span>조회수: ${series.totalViews?.toLocaleString()}</span>
+                                        <span>참여율: ${series.averageEngagement}%</span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : '<p class="text-gray-500">시리즈 데이터 없음</p>'}
+                </div>
+            </div>
+
+            <!-- 트렌딩 키워드 -->
+            <div class="bg-white rounded-lg border border-gray-200 p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">트렌딩 키워드</h3>
+                ${this.analytics.trendingKeywords && this.analytics.trendingKeywords.length > 0 ? `
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        ${this.analytics.trendingKeywords.map(keyword => `
+                            <div class="p-4 bg-gray-50 rounded-lg">
+                                <div class="font-medium text-gray-800">${keyword.keyword}</div>
+                                <div class="text-sm text-gray-600">검색량: ${keyword.searchVolume?.toLocaleString()}</div>
+                                <div class="text-xs mt-1">
+                                    <span class="px-2 py-1 rounded ${
+                                        keyword.trend === 'rising' ? 'bg-green-100 text-green-700' :
+                                        keyword.trend === 'stable' ? 'bg-blue-100 text-blue-700' :
+                                        'bg-red-100 text-red-700'
+                                    }">
+                                        ${keyword.trend === 'rising' ? '상승' : keyword.trend === 'stable' ? '안정' : '하락'}
+                                    </span>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : '<p class="text-gray-500">키워드 데이터 없음</p>'}
+            </div>
+        `;
+    }
+
+    getAudienceName(audience) {
+        const audiences = {
+            general: '일반인',
+            beginner: '초보자',
+            intermediate: '중급자',
+            expert: '전문가'
+        };
+        return audiences[audience] || '일반인';
+    }
+
+    getStyleName(style) {
+        const styles = {
+            informative: '정보성',
+            tutorial: '튜토리얼',
+            guide: '가이드',
+            news: '뉴스'
+        };
+        return styles[style] || '정보성';
+    }
+
+    loadSeriesData() {
+        // 로컬 스토리지에서 시리즈 데이터 로드 (필요시)
+        const savedSeries = localStorage.getItem('content_series');
+        if (savedSeries) {
+            try {
+                this.series = JSON.parse(savedSeries);
+            } catch (error) {
+                console.error('시리즈 데이터 로드 오류:', error);
+            }
+        }
+    }
+
+    saveSeriesData() {
+        // 로컬 스토리지에 시리즈 데이터 저장 (필요시)
+        try {
+            localStorage.setItem('content_series', JSON.stringify(this.series));
+        } catch (error) {
+            console.error('시리즈 데이터 저장 오류:', error);
+        }
+    }
+
+    showAlert(message, type = 'info') {
+        // 기존 BlogGenerator의 showAlert 메서드 사용
+        if (window.blogGenerator && window.blogGenerator.showAlert) {
+            window.blogGenerator.showAlert(message, type);
+        } else {
+            alert(message);
+        }
+    }
+
+    async deleteSeries(seriesId) {
+        if (!confirm('이 시리즈를 정말 삭제하시겠습니까?')) {
+            return;
+        }
+
+        try {
+            const response = await axios.delete(`/api/series/${seriesId}`);
+            
+            if (response.data.success) {
+                this.showAlert('시리즈가 삭제되었습니다', 'success');
+                this.loadSeriesList();
+            } else {
+                throw new Error(response.data.error);
+            }
+
+        } catch (error) {
+            console.error('시리즈 삭제 오류:', error);
+            this.showAlert('시리즈 삭제에 실패했습니다', 'error');
+        }
+    }
+
+    editSeries(seriesId) {
+        // 시리즈 편집 기능 (추후 구현)
+        this.showAlert('시리즈 편집 기능은 곧 제공됩니다', 'info');
+    }
+}
+
+// 스마트 콘텐츠 관리자 전역 인스턴스
+window.smartContentManager = null;
+
+// ==================== 콘텐츠 스케줄링 및 태그 관리자 ====================
+
+class ContentScheduler {
+    constructor() {
+        this.schedules = [];
+        this.tags = [];
+        this.tagCategories = [];
+        this.init();
+    }
+
+    init() {
+        this.loadSchedules();
+        this.loadTags();
+        this.setupSchedulingEventListeners();
+    }
+
+    setupSchedulingEventListeners() {
+        document.addEventListener('click', (e) => {
+            // 스케줄링 관련 버튼들
+            if (e.target.id === 'createScheduleBtn') {
+                this.showCreateScheduleModal();
+            }
+            if (e.target.id === 'saveScheduleBtn') {
+                this.createSchedule();
+            }
+            if (e.target.classList.contains('edit-schedule-btn')) {
+                const scheduleId = e.target.dataset.scheduleId;
+                this.editSchedule(scheduleId);
+            }
+            if (e.target.classList.contains('delete-schedule-btn')) {
+                const scheduleId = e.target.dataset.scheduleId;
+                this.deleteSchedule(scheduleId);
+            }
+
+            // 태그 관련 버튼들
+            if (e.target.id === 'createTagBtn') {
+                this.showCreateTagModal();
+            }
+            if (e.target.id === 'saveTagBtn') {
+                this.createTag();
+            }
+            if (e.target.id === 'autoSuggestTagsBtn') {
+                this.autoSuggestTags();
+            }
+            if (e.target.classList.contains('tag-filter-btn')) {
+                const category = e.target.dataset.category;
+                this.filterTagsByCategory(category);
+            }
+        });
+    }
+
+    // ==================== 스케줄링 기능 ====================
+
+    showCreateScheduleModal() {
+        document.getElementById('createScheduleModal').classList.remove('hidden');
+        
+        // 현재 날짜와 시간을 기본값으로 설정
+        const now = new Date();
+        const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+        
+        document.getElementById('scheduleDate').value = tomorrow.toISOString().split('T')[0];
+        document.getElementById('scheduleTime').value = '09:00';
+    }
+
+    hideCreateScheduleModal() {
+        document.getElementById('createScheduleModal').classList.add('hidden');
+        document.getElementById('createScheduleForm').reset();
+    }
+
+    async createSchedule() {
+        try {
+            const formData = new FormData(document.getElementById('createScheduleForm'));
+            const scheduleData = {
+                articleId: formData.get('articleId') || `demo_article_${Date.now()}`,
+                seriesId: formData.get('seriesId') || null,
+                scheduledDate: formData.get('scheduledDate'),
+                scheduledTime: formData.get('scheduledTime'),
+                timezone: formData.get('timezone') || 'Asia/Seoul',
+                autoPublish: formData.get('autoPublish') === 'on',
+                publishToPlatforms: Array.from(formData.getAll('platforms')),
+                isRecurring: formData.get('isRecurring') === 'on',
+                recurrencePattern: formData.get('recurrencePattern'),
+                recurrenceInterval: parseInt(formData.get('recurrenceInterval')) || 1,
+                recurrenceEndDate: formData.get('recurrenceEndDate') || null,
+                notes: formData.get('notes')
+            };
+
+            if (!scheduleData.scheduledDate || !scheduleData.scheduledTime) {
+                throw new Error('예약 날짜와 시간을 설정해주세요');
+            }
+
+            const response = await axios.post('/api/schedule', scheduleData);
+
+            if (response.data.success) {
+                this.showAlert('예약 발행이 설정되었습니다! ⏰', 'success');
+                this.hideCreateScheduleModal();
+                this.loadSchedulesList();
+            } else {
+                throw new Error(response.data.error);
+            }
+
+        } catch (error) {
+            console.error('스케줄 생성 오류:', error);
+            this.showAlert(`스케줄 생성 실패: ${error.message}`, 'error');
+        }
+    }
+
+    async loadSchedulesList() {
+        try {
+            const response = await axios.get('/api/schedule');
+            
+            if (response.data.success) {
+                this.schedules = response.data.schedules;
+                this.renderSchedulesList();
+            } else {
+                throw new Error(response.data.error);
+            }
+
+        } catch (error) {
+            console.error('스케줄 로드 오류:', error);
+            this.showAlert('스케줄 목록을 불러오는데 실패했습니다', 'error');
+        }
+    }
+
+    renderSchedulesList() {
+        const container = document.getElementById('schedulesContainer');
+        if (!container) return;
+
+        if (this.schedules.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-12">
+                    <i class="fas fa-calendar-alt text-4xl text-gray-400 mb-4"></i>
+                    <h3 class="text-lg font-semibold text-gray-600 mb-2">예약된 발행이 없습니다</h3>
+                    <p class="text-gray-500 mb-6">첫 번째 예약 발행을 설정해보세요!</p>
+                    <button id="createScheduleBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg">
+                        <i class="fas fa-plus mr-2"></i>예약 발행 설정
+                    </button>
+                </div>
+            `;
+            return;
+        }
+
+        // 상태별 그룹화
+        const groupedSchedules = {
+            scheduled: this.schedules.filter(s => s.status === 'scheduled'),
+            published: this.schedules.filter(s => s.status === 'published'),
+            failed: this.schedules.filter(s => s.status === 'failed')
+        };
+
+        container.innerHTML = `
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-bold text-gray-800">예약 발행 관리 (${this.schedules.length}개)</h2>
+                <button id="createScheduleBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">
+                    <i class="fas fa-plus mr-2"></i>새 예약
+                </button>
+            </div>
+
+            <!-- 상태 통계 -->
+            <div class="grid grid-cols-3 gap-4 mb-6">
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+                    <div class="text-2xl font-bold text-blue-600">${groupedSchedules.scheduled.length}</div>
+                    <div class="text-sm text-blue-600">예약 대기</div>
+                </div>
+                <div class="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+                    <div class="text-2xl font-bold text-green-600">${groupedSchedules.published.length}</div>
+                    <div class="text-sm text-green-600">발행 완료</div>
+                </div>
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+                    <div class="text-2xl font-bold text-red-600">${groupedSchedules.failed.length}</div>
+                    <div class="text-sm text-red-600">발행 실패</div>
+                </div>
+            </div>
+
+            <!-- 스케줄 목록 -->
+            <div class="space-y-4">
+                ${this.schedules.map(schedule => `
+                    <div class="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="flex-1">
+                                <h3 class="text-lg font-semibold text-gray-800 mb-2">${schedule.articleTitle || '제목 없음'}</h3>
+                                ${schedule.seriesTitle ? `
+                                    <p class="text-sm text-blue-600 mb-2">
+                                        <i class="fas fa-book mr-1"></i>${schedule.seriesTitle}
+                                    </p>
+                                ` : ''}
+                                
+                                <div class="flex flex-wrap gap-2 mb-3">
+                                    <span class="px-2 py-1 rounded text-xs font-medium ${this.getStatusBadgeClass(schedule.status)}">
+                                        ${this.getStatusText(schedule.status)}
+                                    </span>
+                                    ${schedule.isRecurring ? `
+                                        <span class="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs">
+                                            <i class="fas fa-repeat mr-1"></i>반복 발행
+                                        </span>
+                                    ` : ''}
+                                    ${schedule.autoPublish ? `
+                                        <span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">
+                                            <i class="fas fa-robot mr-1"></i>자동 발행
+                                        </span>
+                                    ` : ''}
+                                </div>
+                            </div>
+                            
+                            <div class="flex space-x-2 ml-4">
+                                <button class="edit-schedule-btn bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm" 
+                                        data-schedule-id="${schedule.id}">
+                                    <i class="fas fa-edit mr-1"></i>편집
+                                </button>
+                                <button class="delete-schedule-btn bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm" 
+                                        data-schedule-id="${schedule.id}">
+                                    <i class="fas fa-trash mr-1"></i>취소
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 스케줄 정보 -->
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <span class="font-medium text-gray-600">예정 시간:</span>
+                                <span class="ml-2">${this.formatScheduleDateTime(schedule.scheduledDate, schedule.scheduledTime)}</span>
+                            </div>
+                            <div>
+                                <span class="font-medium text-gray-600">발행 플랫폼:</span>
+                                <span class="ml-2">${this.formatPlatforms(schedule.publishToPlatforms)}</span>
+                            </div>
+                            ${schedule.nextOccurrence ? `
+                                <div class="col-span-2">
+                                    <span class="font-medium text-gray-600">다음 발행:</span>
+                                    <span class="ml-2">${new Date(schedule.nextOccurrence).toLocaleString('ko-KR')}</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    getStatusBadgeClass(status) {
+        switch (status) {
+            case 'scheduled': return 'bg-blue-100 text-blue-700';
+            case 'published': return 'bg-green-100 text-green-700';
+            case 'failed': return 'bg-red-100 text-red-700';
+            case 'cancelled': return 'bg-gray-100 text-gray-700';
+            default: return 'bg-gray-100 text-gray-700';
+        }
+    }
+
+    getStatusText(status) {
+        switch (status) {
+            case 'scheduled': return '예약 대기';
+            case 'published': return '발행 완료';
+            case 'failed': return '발행 실패';
+            case 'cancelled': return '취소됨';
+            default: return status;
+        }
+    }
+
+    formatScheduleDateTime(date, time) {
+        const scheduleDate = new Date(`${date} ${time}`);
+        return scheduleDate.toLocaleString('ko-KR', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    formatPlatforms(platforms) {
+        if (typeof platforms === 'string') {
+            platforms = JSON.parse(platforms);
+        }
+        const platformNames = {
+            blog: '블로그',
+            social: '소셜미디어', 
+            newsletter: '뉴스레터'
+        };
+        return platforms.map(p => platformNames[p] || p).join(', ');
+    }
+
+    async deleteSchedule(scheduleId) {
+        if (!confirm('이 예약 발행을 취소하시겠습니까?')) {
+            return;
+        }
+
+        try {
+            const response = await axios.delete(`/api/schedule/${scheduleId}`);
+            
+            if (response.data.success) {
+                this.showAlert('예약 발행이 취소되었습니다', 'success');
+                this.loadSchedulesList();
+            } else {
+                throw new Error(response.data.error);
+            }
+
+        } catch (error) {
+            console.error('스케줄 삭제 오류:', error);
+            this.showAlert('예약 취소에 실패했습니다', 'error');
+        }
+    }
+
+    editSchedule(scheduleId) {
+        this.showAlert('스케줄 편집 기능은 곧 제공됩니다', 'info');
+    }
+
+    // ==================== 태그 관리 기능 ====================
+
+    async loadTags() {
+        try {
+            const response = await axios.get('/api/tags');
+            
+            if (response.data.success) {
+                this.tags = response.data.tags;
+                this.tagCategories = response.data.categories;
+            }
+
+        } catch (error) {
+            console.error('태그 로드 오류:', error);
+        }
+    }
+
+    async loadTagsList() {
+        try {
+            const response = await axios.get('/api/tags');
+            
+            if (response.data.success) {
+                this.tags = response.data.tags;
+                this.tagCategories = response.data.categories;
+                this.renderTagsList();
+            } else {
+                throw new Error(response.data.error);
+            }
+
+        } catch (error) {
+            console.error('태그 목록 로드 오류:', error);
+            this.showAlert('태그 목록을 불러오는데 실패했습니다', 'error');
+        }
+    }
+
+    renderTagsList() {
+        const container = document.getElementById('tagsContainer');
+        if (!container) return;
+
+        container.innerHTML = `
+            <!-- 태그 관리 헤더 -->
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-bold text-gray-800">태그 관리 (${this.tags.length}개)</h2>
+                <div class="flex space-x-2">
+                    <button id="autoSuggestTagsBtn" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg">
+                        <i class="fas fa-magic mr-2"></i>AI 태그 추천
+                    </button>
+                    <button id="createTagBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">
+                        <i class="fas fa-plus mr-2"></i>새 태그
+                    </button>
+                </div>
+            </div>
+
+            <!-- 카테고리 필터 -->
+            <div class="mb-6">
+                <div class="flex flex-wrap gap-2">
+                    <button class="tag-filter-btn px-3 py-1 rounded-full text-sm bg-blue-500 text-white" 
+                            data-category="all">
+                        전체 (${this.tags.length})
+                    </button>
+                    ${this.tagCategories.map(category => `
+                        <button class="tag-filter-btn px-3 py-1 rounded-full text-sm bg-gray-100 text-gray-600 hover:bg-gray-200" 
+                                data-category="${category.id}">
+                            ${category.name} (${category.count})
+                        </button>
+                    `).join('')}
+                </div>
+            </div>
+
+            <!-- 태그 목록 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="tagsGrid">
+                ${this.tags.map(tag => `
+                    <div class="tag-card bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow" 
+                         data-category="${tag.category}">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center">
+                                <div class="w-4 h-4 rounded-full mr-2" style="background-color: ${tag.color}"></div>
+                                <h3 class="font-semibold text-gray-800">${tag.name}</h3>
+                            </div>
+                            <div class="text-xs text-gray-500">${tag.usageCount}회</div>
+                        </div>
+                        
+                        <div class="flex justify-between items-center text-sm text-gray-600 mb-3">
+                            <span class="px-2 py-1 bg-gray-100 rounded text-xs">${this.getCategoryName(tag.category)}</span>
+                            <div class="flex space-x-2 text-xs">
+                                <span>SEO: ${tag.seoValue}</span>
+                                <span>트렌드: ${tag.trendScore}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-end space-x-2">
+                            <button class="text-blue-500 hover:text-blue-700 text-xs">
+                                <i class="fas fa-edit mr-1"></i>편집
+                            </button>
+                            <button class="text-red-500 hover:text-red-700 text-xs">
+                                <i class="fas fa-trash mr-1"></i>삭제
+                            </button>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    getCategoryName(categoryId) {
+        const categoryNames = {
+            topic: '주제',
+            difficulty: '난이도', 
+            format: '형식',
+            audience: '대상'
+        };
+        return categoryNames[categoryId] || categoryId;
+    }
+
+    filterTagsByCategory(category) {
+        const tagCards = document.querySelectorAll('.tag-card');
+        const filterButtons = document.querySelectorAll('.tag-filter-btn');
+
+        // 필터 버튼 스타일 업데이트
+        filterButtons.forEach(btn => {
+            btn.classList.remove('bg-blue-500', 'text-white');
+            btn.classList.add('bg-gray-100', 'text-gray-600');
+        });
+        
+        const activeButton = document.querySelector(`[data-category="${category}"]`);
+        if (activeButton) {
+            activeButton.classList.remove('bg-gray-100', 'text-gray-600');
+            activeButton.classList.add('bg-blue-500', 'text-white');
+        }
+
+        // 태그 카드 필터링
+        tagCards.forEach(card => {
+            if (category === 'all' || card.dataset.category === category) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    }
+
+    showCreateTagModal() {
+        document.getElementById('createTagModal').classList.remove('hidden');
+        document.getElementById('tagName').focus();
+    }
+
+    hideCreateTagModal() {
+        document.getElementById('createTagModal').classList.add('hidden');
+        document.getElementById('createTagForm').reset();
+    }
+
+    async createTag() {
+        try {
+            const formData = new FormData(document.getElementById('createTagForm'));
+            const tagData = {
+                name: formData.get('name'),
+                category: formData.get('category'),
+                color: formData.get('color'),
+                description: formData.get('description')
+            };
+
+            if (!tagData.name) {
+                throw new Error('태그 이름을 입력해주세요');
+            }
+
+            const response = await axios.post('/api/tags', tagData);
+
+            if (response.data.success) {
+                this.showAlert(`태그 "${tagData.name}"가 생성되었습니다! 🏷️`, 'success');
+                this.hideCreateTagModal();
+                this.loadTagsList();
+            } else {
+                throw new Error(response.data.error);
+            }
+
+        } catch (error) {
+            console.error('태그 생성 오류:', error);
+            this.showAlert(`태그 생성 실패: ${error.message}`, 'error');
+        }
+    }
+
+    async autoSuggestTags() {
+        // 현재 선택된 글의 내용을 기반으로 AI 태그 추천
+        const articles = window.blogGenerator?.generatedArticles || [];
+        
+        if (articles.length === 0) {
+            this.showAlert('분석할 글이 없습니다. 먼저 글을 생성해주세요.', 'error');
+            return;
+        }
+
+        const latestArticle = articles[articles.length - 1];
+        
+        try {
+            this.showAlert('AI가 태그를 분석하고 있습니다...', 'info');
+
+            const response = await axios.post('/api/tags/auto-suggest', {
+                title: latestArticle.title,
+                content: latestArticle.content.substring(0, 1000),
+                existingTags: this.tags.map(tag => tag.name)
+            });
+
+            if (response.data.success) {
+                this.showTagSuggestions(response.data.suggestedTags);
+            } else {
+                throw new Error(response.data.error);
+            }
+
+        } catch (error) {
+            console.error('자동 태그 추천 오류:', error);
+            this.showAlert(`AI 태그 추천 실패: ${error.message}`, 'error');
+        }
+    }
+
+    showTagSuggestions(suggestedTags) {
+        if (suggestedTags.length === 0) {
+            this.showAlert('추천할 태그가 없습니다', 'info');
+            return;
+        }
+
+        // 간단한 알림으로 추천 태그 표시
+        const tagNames = suggestedTags.map(tag => `${tag.name} (${Math.round(tag.confidence * 100)}%)`).join(', ');
+        this.showAlert(`AI 추천 태그: ${tagNames}`, 'success');
+        
+        // 자동으로 태그 생성
+        this.applyTagSuggestions(suggestedTags);
+    }
+
+    async applyTagSuggestions(suggestedTags) {
+        try {
+            let createdCount = 0;
+            
+            for (const tag of suggestedTags) {
+                const response = await axios.post('/api/tags', {
+                    name: tag.name,
+                    category: tag.category,
+                    color: this.getDefaultColorForCategory(tag.category),
+                    description: `AI 추천 태그 (신뢰도: ${Math.round(tag.confidence * 100)}%)`
+                });
+                
+                if (response.data.success) {
+                    createdCount++;
+                }
+            }
+
+            if (createdCount > 0) {
+                this.showAlert(`${createdCount}개의 AI 추천 태그가 생성되었습니다! 🏷️`, 'success');
+                this.loadTagsList();
+            }
+
+        } catch (error) {
+            console.error('태그 적용 오류:', error);
+            this.showAlert('일부 태그 생성에 실패했습니다', 'error');
+        }
+    }
+
+    getDefaultColorForCategory(category) {
+        const colors = {
+            topic: '#3B82F6',
+            difficulty: '#EF4444', 
+            format: '#10B981',
+            audience: '#F59E0B'
+        };
+        return colors[category] || '#6B7280';
+    }
+
+    loadSchedules() {
+        // 로컬 스토리지에서 스케줄 데이터 로드
+        const savedSchedules = localStorage.getItem('content_schedules');
+        if (savedSchedules) {
+            try {
+                this.schedules = JSON.parse(savedSchedules);
+            } catch (error) {
+                console.error('스케줄 데이터 로드 오류:', error);
+            }
+        }
+    }
+
+    showAlert(message, type = 'info') {
+        // 기존 BlogGenerator의 showAlert 메서드 사용
+        if (window.blogGenerator && window.blogGenerator.showAlert) {
+            window.blogGenerator.showAlert(message, type);
+        } else {
+            alert(message);
+        }
+    }
+}
+
+// 콘텐츠 스케줄러 전역 인스턴스
+window.contentScheduler = null;
+
 // 앱 초기화
 const blogGenerator = new BlogGenerator();
 const systemMonitor = new SystemMonitor();

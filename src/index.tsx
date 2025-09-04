@@ -1873,6 +1873,871 @@ app.delete('/api/articles/:id', async (c) => {
   }
 })
 
+// ==================== 스마트 콘텐츠 관리 시스템 API ====================
+
+// 콘텐츠 시리즈 생성 API
+app.post('/api/series', async (c) => {
+  c.header('Content-Type', 'application/json; charset=utf-8')
+  
+  try {
+    const body = await c.req.json()
+    const { 
+      title, 
+      description, 
+      totalPlannedArticles = 0, 
+      targetAudience = 'general', 
+      contentStyle = 'informative',
+      estimatedCompletionDate,
+      tags = [],
+      creatorNotes 
+    } = body
+
+    if (!title) {
+      return c.json({ error: '시리즈 제목이 필요합니다' }, 400)
+    }
+
+    const seriesId = `series_${Date.now()}_${Math.random().toString(36).substring(7)}`
+    
+    const series = {
+      id: seriesId,
+      title,
+      description: description || '',
+      status: 'active',
+      totalPlannedArticles,
+      currentArticleCount: 0,
+      coverImageUrl: null,
+      tags: JSON.stringify(tags),
+      targetAudience,
+      contentStyle,
+      estimatedCompletionDate,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      creatorNotes: creatorNotes || ''
+    }
+
+    return c.json({
+      success: true,
+      series,
+      message: `시리즈 "${title}"가 생성되었습니다`
+    })
+
+  } catch (error) {
+    console.error('시리즈 생성 오류:', error)
+    return c.json({ error: '시리즈 생성 중 오류가 발생했습니다' }, 500)
+  }
+})
+
+// 모든 시리즈 조회 API
+app.get('/api/series', async (c) => {
+  c.header('Content-Type', 'application/json; charset=utf-8')
+  
+  try {
+    // 실제 구현에서는 데이터베이스에서 조회
+    // 현재는 샘플 데이터 반환
+    const sampleSeries = [
+      {
+        id: 'series_demo_1',
+        title: 'React 완전정복 시리즈',
+        description: 'React 개발을 위한 완벽한 가이드',
+        status: 'active',
+        totalPlannedArticles: 10,
+        currentArticleCount: 3,
+        targetAudience: 'intermediate',
+        contentStyle: 'tutorial',
+        createdAt: new Date(Date.now() - 86400000 * 5).toISOString(),
+        progress: 30
+      },
+      {
+        id: 'series_demo_2', 
+        title: 'AI 블로그 마케팅 전략',
+        description: 'AI 도구를 활용한 효과적인 블로그 운영법',
+        status: 'active',
+        totalPlannedArticles: 7,
+        currentArticleCount: 2,
+        targetAudience: 'beginner',
+        contentStyle: 'guide',
+        createdAt: new Date(Date.now() - 86400000 * 3).toISOString(),
+        progress: 28
+      }
+    ]
+
+    return c.json({
+      success: true,
+      series: sampleSeries,
+      total: sampleSeries.length
+    })
+
+  } catch (error) {
+    console.error('시리즈 조회 오류:', error)
+    return c.json({ error: '시리즈 조회 중 오류가 발생했습니다' }, 500)
+  }
+})
+
+// 특정 시리즈 상세 조회 API
+app.get('/api/series/:id', async (c) => {
+  c.header('Content-Type', 'application/json; charset=utf-8')
+  
+  try {
+    const seriesId = c.req.param('id')
+    
+    // 샘플 데이터
+    const series = {
+      id: seriesId,
+      title: 'React 완전정복 시리즈',
+      description: 'React 개발을 위한 완벽한 가이드',
+      status: 'active',
+      totalPlannedArticles: 10,
+      currentArticleCount: 3,
+      targetAudience: 'intermediate',
+      contentStyle: 'tutorial',
+      createdAt: new Date(Date.now() - 86400000 * 5).toISOString(),
+      articles: [
+        {
+          id: 'article_1',
+          title: 'React 시작하기: 첫 번째 컴포넌트 만들기',
+          seriesOrder: 1,
+          status: 'published',
+          publishedAt: new Date(Date.now() - 86400000 * 4).toISOString()
+        },
+        {
+          id: 'article_2', 
+          title: 'JSX 문법과 컴포넌트 Props 이해하기',
+          seriesOrder: 2,
+          status: 'published',
+          publishedAt: new Date(Date.now() - 86400000 * 2).toISOString()
+        },
+        {
+          id: 'article_3',
+          title: 'State와 이벤트 처리 마스터하기',
+          seriesOrder: 3,
+          status: 'draft'
+        }
+      ]
+    }
+
+    return c.json({
+      success: true,
+      series
+    })
+
+  } catch (error) {
+    console.error('시리즈 상세 조회 오류:', error)
+    return c.json({ error: '시리즈 조회 중 오류가 발생했습니다' }, 500)
+  }
+})
+
+// 시리즈 업데이트 API
+app.put('/api/series/:id', async (c) => {
+  c.header('Content-Type', 'application/json; charset=utf-8')
+  
+  try {
+    const seriesId = c.req.param('id')
+    const body = await c.req.json()
+    
+    const updatedSeries = {
+      id: seriesId,
+      ...body,
+      updatedAt: new Date().toISOString()
+    }
+
+    return c.json({
+      success: true,
+      series: updatedSeries,
+      message: '시리즈가 업데이트되었습니다'
+    })
+
+  } catch (error) {
+    console.error('시리즈 업데이트 오류:', error)
+    return c.json({ error: '시리즈 업데이트 중 오류가 발생했습니다' }, 500)
+  }
+})
+
+// 시리즈 삭제 API
+app.delete('/api/series/:id', async (c) => {
+  c.header('Content-Type', 'application/json; charset=utf-8')
+  
+  try {
+    const seriesId = c.req.param('id')
+    
+    return c.json({
+      success: true,
+      deletedId: seriesId,
+      message: '시리즈가 삭제되었습니다'
+    })
+
+  } catch (error) {
+    console.error('시리즈 삭제 오류:', error)
+    return c.json({ error: '시리즈 삭제 중 오류가 발생했습니다' }, 500)
+  }
+})
+
+// 콘텐츠 아이디어 생성 API
+app.post('/api/content-ideas/generate', async (c) => {
+  c.header('Content-Type', 'application/json; charset=utf-8')
+  
+  try {
+    const body = await c.req.json()
+    const { topic, targetAudience = 'general', count = 5 } = body
+
+    if (!topic) {
+      return c.json({ error: '주제가 필요합니다' }, 400)
+    }
+
+    // AI 모델을 사용하여 콘텐츠 아이디어 생성
+    const prompt = `
+다음 주제에 대해 ${count}개의 블로그 콘텐츠 아이디어를 생성해주세요.
+
+주제: ${topic}
+타겟 독자: ${targetAudience}
+
+각 아이디어는 다음 형식으로 제공해주세요:
+1. 제목 (매력적이고 SEO에 최적화된)
+2. 간단한 설명 (1-2문장)
+3. 예상 키워드 (3-5개)
+4. 우선순위 (1-5, 1이 최고)
+5. 예상 난이도 (1-5, 1이 쉬움)
+6. 예상 트래픽 잠재력 (높음/중간/낮음)
+
+실용적이고 검색량이 높을 것 같은 아이디어들로 구성해주세요.
+`
+
+    // AI 모델 호출 (기존 fallback 시스템 사용)
+    let aiResponse = ''
+    const models = ['claude', 'gemini', 'openai']
+    
+    for (const modelName of models) {
+      try {
+        const apiKey = getApiKey(modelName, c.env)
+        if (!apiKey) continue
+
+        const model = aiModels[modelName]
+        const response = await fetch(modelName === 'gemini' ? `${model.endpoint}?key=${apiKey}` : model.endpoint, {
+          method: 'POST',
+          headers: model.headers(apiKey),
+          body: JSON.stringify(model.formatRequest(prompt)),
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          aiResponse = model.parseResponse(data)
+          break
+        }
+      } catch (error) {
+        console.warn(`${modelName} 모델 오류:`, error)
+        continue
+      }
+    }
+
+    if (!aiResponse) {
+      return c.json({ error: 'AI 모델에서 응답을 받을 수 없습니다' }, 500)
+    }
+
+    // 생성된 아이디어를 구조화된 데이터로 변환
+    const ideas = []
+    const lines = aiResponse.split('\n').filter(line => line.trim())
+    
+    let currentIdea = {}
+    for (const line of lines) {
+      if (line.match(/^\d+\./)) {
+        if (Object.keys(currentIdea).length > 0) {
+          ideas.push({
+            id: `idea_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+            ...currentIdea,
+            status: 'idea',
+            createdAt: new Date().toISOString()
+          })
+        }
+        currentIdea = { title: line.replace(/^\d+\.\s*/, '') }
+      } else if (line.includes('설명:') || line.includes('간단한 설명:')) {
+        currentIdea.description = line.replace(/.*설명:\s*/, '')
+      } else if (line.includes('키워드:')) {
+        const keywordsText = line.replace(/.*키워드:\s*/, '')
+        currentIdea.keywords = keywordsText.split(',').map(k => k.trim())
+      }
+    }
+
+    // 마지막 아이디어 추가
+    if (Object.keys(currentIdea).length > 0) {
+      ideas.push({
+        id: `idea_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+        ...currentIdea,
+        status: 'idea',
+        createdAt: new Date().toISOString()
+      })
+    }
+
+    return c.json({
+      success: true,
+      ideas,
+      topic,
+      generatedAt: new Date().toISOString()
+    })
+
+  } catch (error) {
+    console.error('콘텐츠 아이디어 생성 오류:', error)
+    return c.json({ error: '콘텐츠 아이디어 생성 중 오류가 발생했습니다' }, 500)
+  }
+})
+
+// 콘텐츠 성과 분석 API
+app.get('/api/analytics/overview', async (c) => {
+  c.header('Content-Type', 'application/json; charset=utf-8')
+  
+  try {
+    // 샘플 분석 데이터
+    const analytics = {
+      totalArticles: 25,
+      totalSeries: 3,
+      totalViews: 12847,
+      totalEngagement: 1.2,
+      
+      // 지난 30일 데이터
+      recentPerformance: {
+        newArticles: 5,
+        averageViews: 486,
+        topPerformingKeyword: 'React 초보자 가이드',
+        engagementGrowth: 15.3
+      },
+      
+      // 시리즈별 성과
+      seriesPerformance: [
+        {
+          id: 'series_demo_1',
+          title: 'React 완전정복 시리즈',
+          totalViews: 5420,
+          averageEngagement: 1.8,
+          completionRate: 30
+        },
+        {
+          id: 'series_demo_2',
+          title: 'AI 블로그 마케팅 전략',
+          totalViews: 3210,
+          averageEngagement: 1.4,
+          completionRate: 28
+        }
+      ],
+      
+      // 키워드 트렌드
+      trendingKeywords: [
+        { keyword: 'React Hook', searchVolume: 2400, trend: 'rising' },
+        { keyword: 'AI 콘텐츠 생성', searchVolume: 1800, trend: 'rising' },
+        { keyword: '블로그 SEO', searchVolume: 1200, trend: 'stable' }
+      ]
+    }
+
+    return c.json({
+      success: true,
+      analytics,
+      generatedAt: new Date().toISOString()
+    })
+
+  } catch (error) {
+    console.error('성과 분석 오류:', error)
+    return c.json({ error: '성과 분석 중 오류가 발생했습니다' }, 500)
+  }
+})
+
+// ==================== 콘텐츠 스케줄링 시스템 API ====================
+
+// 예약 발행 생성 API
+app.post('/api/schedule', async (c) => {
+  c.header('Content-Type', 'application/json; charset=utf-8')
+  
+  try {
+    const body = await c.req.json()
+    const {
+      articleId,
+      seriesId,
+      scheduledDate,
+      scheduledTime,
+      timezone = 'Asia/Seoul',
+      autoPublish = true,
+      publishToPlatforms = ['blog'],
+      isRecurring = false,
+      recurrencePattern,
+      recurrenceInterval = 1,
+      recurrenceEndDate,
+      notes
+    } = body
+
+    if (!articleId || !scheduledDate || !scheduledTime) {
+      return c.json({ error: '필수 정보가 누락되었습니다 (articleId, scheduledDate, scheduledTime)' }, 400)
+    }
+
+    const scheduleId = `schedule_${Date.now()}_${Math.random().toString(36).substring(7)}`
+    
+    // 다음 발행 시간 계산 (반복 발행의 경우)
+    let nextOccurrence = null
+    if (isRecurring && recurrencePattern) {
+      const baseDate = new Date(`${scheduledDate} ${scheduledTime}`)
+      switch (recurrencePattern) {
+        case 'daily':
+          nextOccurrence = new Date(baseDate.getTime() + (recurrenceInterval * 24 * 60 * 60 * 1000))
+          break
+        case 'weekly':
+          nextOccurrence = new Date(baseDate.getTime() + (recurrenceInterval * 7 * 24 * 60 * 60 * 1000))
+          break
+        case 'monthly':
+          nextOccurrence = new Date(baseDate)
+          nextOccurrence.setMonth(nextOccurrence.getMonth() + recurrenceInterval)
+          break
+      }
+    }
+
+    const schedule = {
+      id: scheduleId,
+      articleId,
+      seriesId: seriesId || null,
+      scheduledDate,
+      scheduledTime,
+      timezone,
+      status: 'scheduled',
+      publishAttempts: 0,
+      autoPublish,
+      publishToPlatforms: JSON.stringify(publishToPlatforms),
+      isRecurring,
+      recurrencePattern: recurrencePattern || null,
+      recurrenceInterval,
+      recurrenceEndDate: recurrenceEndDate || null,
+      nextOccurrence: nextOccurrence ? nextOccurrence.toISOString() : null,
+      notes: notes || '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+
+    return c.json({
+      success: true,
+      schedule,
+      message: '예약 발행이 설정되었습니다'
+    })
+
+  } catch (error) {
+    console.error('예약 발행 생성 오류:', error)
+    return c.json({ error: '예약 발행 설정 중 오류가 발생했습니다' }, 500)
+  }
+})
+
+// 예약 목록 조회 API
+app.get('/api/schedule', async (c) => {
+  c.header('Content-Type', 'application/json; charset=utf-8')
+  
+  try {
+    const { status, date } = c.req.query()
+    
+    // 샘플 스케줄 데이터
+    const schedules = [
+      {
+        id: 'schedule_demo_1',
+        articleId: 'article_1',
+        articleTitle: 'React Hook 완전정복 가이드',
+        seriesId: 'series_demo_1',
+        seriesTitle: 'React 완전정복 시리즈',
+        scheduledDate: '2024-09-05',
+        scheduledTime: '09:00',
+        timezone: 'Asia/Seoul',
+        status: 'scheduled',
+        autoPublish: true,
+        publishToPlatforms: ['blog', 'social'],
+        isRecurring: false,
+        createdAt: new Date(Date.now() - 86400000).toISOString()
+      },
+      {
+        id: 'schedule_demo_2',
+        articleId: 'article_2',
+        articleTitle: '주간 AI 뉴스 정리',
+        scheduledDate: '2024-09-06',
+        scheduledTime: '18:00',
+        timezone: 'Asia/Seoul',
+        status: 'scheduled',
+        autoPublish: true,
+        publishToPlatforms: ['blog', 'newsletter'],
+        isRecurring: true,
+        recurrencePattern: 'weekly',
+        nextOccurrence: '2024-09-13T18:00:00',
+        createdAt: new Date(Date.now() - 43200000).toISOString()
+      },
+      {
+        id: 'schedule_demo_3',
+        articleId: 'article_3',
+        articleTitle: '프론트엔드 개발 팁 모음',
+        scheduledDate: '2024-09-04',
+        scheduledTime: '12:00',
+        timezone: 'Asia/Seoul',
+        status: 'published',
+        publishedAt: '2024-09-04T12:00:00',
+        autoPublish: true,
+        publishToPlatforms: ['blog'],
+        createdAt: new Date(Date.now() - 172800000).toISOString()
+      }
+    ]
+
+    // 필터 적용
+    let filteredSchedules = schedules
+    if (status) {
+      filteredSchedules = schedules.filter(s => s.status === status)
+    }
+    if (date) {
+      filteredSchedules = filteredSchedules.filter(s => s.scheduledDate === date)
+    }
+
+    return c.json({
+      success: true,
+      schedules: filteredSchedules,
+      total: filteredSchedules.length,
+      filters: { status, date }
+    })
+
+  } catch (error) {
+    console.error('예약 목록 조회 오류:', error)
+    return c.json({ error: '예약 목록 조회 중 오류가 발생했습니다' }, 500)
+  }
+})
+
+// 예약 발행 상세 조회
+app.get('/api/schedule/:id', async (c) => {
+  c.header('Content-Type', 'application/json; charset=utf-8')
+  
+  try {
+    const scheduleId = c.req.param('id')
+    
+    // 샘플 데이터
+    const schedule = {
+      id: scheduleId,
+      articleId: 'article_1',
+      articleTitle: 'React Hook 완전정복 가이드',
+      articleContent: '# React Hook 완전정복...',
+      seriesId: 'series_demo_1',
+      seriesTitle: 'React 완전정복 시리즈',
+      scheduledDate: '2024-09-05',
+      scheduledTime: '09:00',
+      timezone: 'Asia/Seoul',
+      status: 'scheduled',
+      publishAttempts: 0,
+      autoPublish: true,
+      publishToPlatforms: ['blog', 'social'],
+      isRecurring: false,
+      notes: '중요한 기술 글이므로 오전 시간대에 발행',
+      createdAt: new Date(Date.now() - 86400000).toISOString(),
+      logs: [
+        {
+          eventType: 'scheduled',
+          eventMessage: '예약 발행이 설정되었습니다',
+          createdAt: new Date(Date.now() - 86400000).toISOString()
+        }
+      ]
+    }
+
+    return c.json({
+      success: true,
+      schedule
+    })
+
+  } catch (error) {
+    console.error('예약 상세 조회 오류:', error)
+    return c.json({ error: '예약 상세 조회 중 오류가 발생했습니다' }, 500)
+  }
+})
+
+// 예약 발행 업데이트
+app.put('/api/schedule/:id', async (c) => {
+  c.header('Content-Type', 'application/json; charset=utf-8')
+  
+  try {
+    const scheduleId = c.req.param('id')
+    const body = await c.req.json()
+    
+    return c.json({
+      success: true,
+      schedule: {
+        id: scheduleId,
+        ...body,
+        updatedAt: new Date().toISOString()
+      },
+      message: '예약 발행 설정이 업데이트되었습니다'
+    })
+
+  } catch (error) {
+    console.error('예약 업데이트 오류:', error)
+    return c.json({ error: '예약 업데이트 중 오류가 발생했습니다' }, 500)
+  }
+})
+
+// 예약 발행 취소/삭제
+app.delete('/api/schedule/:id', async (c) => {
+  c.header('Content-Type', 'application/json; charset=utf-8')
+  
+  try {
+    const scheduleId = c.req.param('id')
+    
+    return c.json({
+      success: true,
+      deletedId: scheduleId,
+      message: '예약 발행이 취소되었습니다'
+    })
+
+  } catch (error) {
+    console.error('예약 취소 오류:', error)
+    return c.json({ error: '예약 취소 중 오류가 발생했습니다' }, 500)
+  }
+})
+
+// ==================== 태그 관리 시스템 API ====================
+
+// 모든 태그 조회 API
+app.get('/api/tags', async (c) => {
+  c.header('Content-Type', 'application/json; charset=utf-8')
+  
+  try {
+    const { category, search } = c.req.query()
+    
+    // 샘플 태그 데이터
+    let tags = [
+      { id: 'tag_tech', name: '기술', slug: 'tech', category: 'topic', color: '#3B82F6', usageCount: 45, seoValue: 85, trendScore: 90 },
+      { id: 'tag_programming', name: '프로그래밍', slug: 'programming', category: 'topic', color: '#1E40AF', usageCount: 38, seoValue: 90, trendScore: 85 },
+      { id: 'tag_ai', name: 'AI', slug: 'ai', category: 'topic', color: '#6366F1', usageCount: 52, seoValue: 95, trendScore: 95 },
+      { id: 'tag_web_dev', name: '웹개발', slug: 'web-dev', category: 'topic', color: '#2563EB', usageCount: 31, seoValue: 88, trendScore: 87 },
+      { id: 'tag_beginner', name: '초보자', slug: 'beginner', category: 'difficulty', color: '#22C55E', usageCount: 29, seoValue: 85, trendScore: 90 },
+      { id: 'tag_tutorial', name: '튜토리얼', slug: 'tutorial', category: 'format', color: '#06B6D4', usageCount: 35, seoValue: 90, trendScore: 85 },
+      { id: 'tag_guide', name: '가이드', slug: 'guide', category: 'format', color: '#0EA5E9', usageCount: 28, seoValue: 85, trendScore: 80 },
+      { id: 'tag_tips', name: '팁', slug: 'tips', category: 'format', color: '#F97316', usageCount: 22, seoValue: 80, trendScore: 85 }
+    ]
+
+    // 필터 적용
+    if (category) {
+      tags = tags.filter(tag => tag.category === category)
+    }
+    if (search) {
+      tags = tags.filter(tag => 
+        tag.name.toLowerCase().includes(search.toLowerCase()) ||
+        tag.slug.toLowerCase().includes(search.toLowerCase())
+      )
+    }
+
+    // 사용 횟수 기준 정렬
+    tags.sort((a, b) => b.usageCount - a.usageCount)
+
+    return c.json({
+      success: true,
+      tags,
+      total: tags.length,
+      categories: [
+        { id: 'topic', name: '주제', count: tags.filter(t => t.category === 'topic').length },
+        { id: 'difficulty', name: '난이도', count: tags.filter(t => t.category === 'difficulty').length },
+        { id: 'format', name: '형식', count: tags.filter(t => t.category === 'format').length },
+        { id: 'audience', name: '대상', count: tags.filter(t => t.category === 'audience').length }
+      ]
+    })
+
+  } catch (error) {
+    console.error('태그 조회 오류:', error)
+    return c.json({ error: '태그 조회 중 오류가 발생했습니다' }, 500)
+  }
+})
+
+// 태그 생성 API
+app.post('/api/tags', async (c) => {
+  c.header('Content-Type', 'application/json; charset=utf-8')
+  
+  try {
+    const body = await c.req.json()
+    const { name, category = 'topic', color = '#3B82F6', description } = body
+
+    if (!name) {
+      return c.json({ error: '태그 이름이 필요합니다' }, 400)
+    }
+
+    const tagId = `tag_${Date.now()}_${Math.random().toString(36).substring(7)}`
+    const slug = name.toLowerCase().replace(/[^a-z0-9가-힣]/g, '-').replace(/--+/g, '-')
+    
+    const tag = {
+      id: tagId,
+      name,
+      slug,
+      category,
+      color,
+      description: description || '',
+      usageCount: 0,
+      seoValue: 50, // 기본 SEO 값
+      trendScore: 50, // 기본 트렌드 점수
+      isAutoGenerated: false,
+      createdAt: new Date().toISOString()
+    }
+
+    return c.json({
+      success: true,
+      tag,
+      message: `태그 "${name}"가 생성되었습니다`
+    })
+
+  } catch (error) {
+    console.error('태그 생성 오류:', error)
+    return c.json({ error: '태그 생성 중 오류가 발생했습니다' }, 500)
+  }
+})
+
+// AI 기반 자동 태그 추천 API
+app.post('/api/tags/auto-suggest', async (c) => {
+  c.header('Content-Type', 'application/json; charset=utf-8')
+  
+  try {
+    const body = await c.req.json()
+    const { content, title, existingTags = [] } = body
+
+    if (!content && !title) {
+      return c.json({ error: '분석할 콘텐츠가 필요합니다' }, 400)
+    }
+
+    // AI 모델을 사용하여 태그 추천
+    const analysisText = `${title || ''} ${content}`.substring(0, 1000) // 처음 1000자만 분석
+    
+    const prompt = `
+다음 콘텐츠를 분석하여 적절한 태그 5-8개를 추천해주세요.
+
+콘텐츠: ${analysisText}
+
+기존 태그: ${existingTags.join(', ')}
+
+다음 형식으로 응답해주세요:
+1. 주제 태그 (3-4개): 콘텐츠의 주요 주제/분야
+2. 난이도 태그 (1개): 초보자/중급자/고급자
+3. 형식 태그 (1-2개): 튜토리얼/가이드/리뷰/팁/뉴스
+4. 대상 태그 (1개): 개발자/마케터/디자이너/일반인
+
+각 태그는 한국어로, 간결하게 제시해주세요.
+기존 태그와 중복되지 않도록 해주세요.
+`
+
+    // AI 모델 호출 (기존 fallback 시스템 사용)
+    let aiResponse = ''
+    const models = ['claude', 'gemini', 'openai']
+    
+    for (const modelName of models) {
+      try {
+        const apiKey = getApiKey(modelName, c.env)
+        if (!apiKey) continue
+
+        const model = aiModels[modelName]
+        const response = await fetch(modelName === 'gemini' ? `${model.endpoint}?key=${apiKey}` : model.endpoint, {
+          method: 'POST',
+          headers: model.headers(apiKey),
+          body: JSON.stringify(model.formatRequest(prompt)),
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          aiResponse = model.parseResponse(data)
+          break
+        }
+      } catch (error) {
+        console.warn(`${modelName} 모델 오류:`, error)
+        continue
+      }
+    }
+
+    if (!aiResponse) {
+      // AI 모델 실패 시 기본 태그 추천
+      const suggestions = [
+        { name: '기술', category: 'topic', confidence: 0.8 },
+        { name: '초보자', category: 'difficulty', confidence: 0.7 },
+        { name: '가이드', category: 'format', confidence: 0.9 }
+      ]
+      
+      return c.json({
+        success: true,
+        suggestedTags: suggestions,
+        analysisMethod: 'fallback',
+        message: '기본 태그를 추천합니다'
+      })
+    }
+
+    // AI 응답에서 태그 추출
+    const suggestedTags = []
+    const lines = aiResponse.split('\n').filter(line => line.trim())
+    
+    for (const line of lines) {
+      if (line.includes(':')) {
+        const tags = line.split(':')[1]?.split(',') || []
+        tags.forEach(tag => {
+          const cleanTag = tag.trim().replace(/^[-\d.)\s]+/, '')
+          if (cleanTag && !existingTags.includes(cleanTag)) {
+            // 카테고리 자동 분류
+            let category = 'topic'
+            if (['초보자', '중급자', '고급자', '입문', '고급'].some(word => cleanTag.includes(word))) {
+              category = 'difficulty'
+            } else if (['튜토리얼', '가이드', '리뷰', '팁', '뉴스'].some(word => cleanTag.includes(word))) {
+              category = 'format'
+            } else if (['개발자', '마케터', '디자이너'].some(word => cleanTag.includes(word))) {
+              category = 'audience'
+            }
+
+            suggestedTags.push({
+              name: cleanTag,
+              category,
+              confidence: 0.8 + (Math.random() * 0.2) // 0.8-1.0 신뢰도
+            })
+          }
+        })
+      }
+    }
+
+    return c.json({
+      success: true,
+      suggestedTags: suggestedTags.slice(0, 8), // 최대 8개
+      analysisMethod: 'ai',
+      generatedAt: new Date().toISOString()
+    })
+
+  } catch (error) {
+    console.error('자동 태그 추천 오류:', error)
+    return c.json({ error: '자동 태그 추천 중 오류가 발생했습니다' }, 500)
+  }
+})
+
+// 태그별 콘텐츠 조회 API
+app.get('/api/tags/:tagId/content', async (c) => {
+  c.header('Content-Type', 'application/json; charset=utf-8')
+  
+  try {
+    const tagId = c.req.param('tagId')
+    const { limit = 10, offset = 0 } = c.req.query()
+    
+    // 샘플 데이터
+    const content = [
+      {
+        id: 'article_1',
+        title: 'React Hook 완전정복',
+        excerpt: 'React Hook의 모든 것을 다루는 완전한 가이드입니다...',
+        createdAt: new Date(Date.now() - 86400000).toISOString(),
+        views: 1250,
+        tags: ['React', '프로그래밍', '웹개발']
+      },
+      {
+        id: 'article_2',
+        title: 'JavaScript ES2024 새로운 기능',
+        excerpt: '최신 JavaScript 기능들을 살펴보고 실제 사용법을...',
+        createdAt: new Date(Date.now() - 172800000).toISOString(),
+        views: 890,
+        tags: ['JavaScript', '프로그래밍', '최신기술']
+      }
+    ]
+
+    return c.json({
+      success: true,
+      content,
+      total: content.length,
+      pagination: {
+        limit: parseInt(limit as string),
+        offset: parseInt(offset as string),
+        hasMore: false
+      }
+    })
+
+  } catch (error) {
+    console.error('태그별 콘텐츠 조회 오류:', error)
+    return c.json({ error: '태그별 콘텐츠 조회 중 오류가 발생했습니다' }, 500)
+  }
+})
+
 // Main page
 app.get('/', (c) => {
   // 명시적으로 UTF-8 Content-Type 설정
@@ -2051,9 +2916,40 @@ app.get('/', (c) => {
 
         <!-- 메인 컨텐츠 -->
         <div class="max-w-6xl mx-auto px-4 py-8">
+            
+            <!-- 탭 네비게이션 -->
+            <div class="bg-white rounded-lg card-shadow mb-8">
+                <div class="flex border-b border-gray-200">
+                    <button class="content-tab tab-btn px-6 py-4 text-gray-600 hover:text-blue-500 border-b-2 border-transparent active bg-blue-500 text-white" 
+                            data-tab="generator">
+                        <i class="fas fa-magic mr-2"></i>블로그 생성기
+                    </button>
+                    <button class="content-tab tab-btn px-6 py-4 text-gray-600 hover:text-blue-500 border-b-2 border-transparent" 
+                            data-tab="series">
+                        <i class="fas fa-book mr-2"></i>시리즈 관리
+                    </button>
+                    <button class="content-tab tab-btn px-6 py-4 text-gray-600 hover:text-blue-500 border-b-2 border-transparent" 
+                            data-tab="ideas">
+                        <i class="fas fa-lightbulb mr-2"></i>아이디어 생성
+                    </button>
+                    <button class="content-tab tab-btn px-6 py-4 text-gray-600 hover:text-blue-500 border-b-2 border-transparent" 
+                            data-tab="analytics">
+                        <i class="fas fa-chart-line mr-2"></i>성과 분석
+                    </button>
+                    <button class="content-tab tab-btn px-6 py-4 text-gray-600 hover:text-blue-500 border-b-2 border-transparent" 
+                            data-tab="scheduling">
+                        <i class="fas fa-calendar-alt mr-2"></i>예약 발행
+                    </button>
+                    <button class="content-tab tab-btn px-6 py-4 text-gray-600 hover:text-blue-500 border-b-2 border-transparent" 
+                            data-tab="tags">
+                        <i class="fas fa-tags mr-2"></i>태그 관리
+                    </button>
+                </div>
+            </div>
 
-
-            <!-- 키워드 입력 섹션 -->
+            <!-- 블로그 생성기 탭 (기본) -->
+            <div id="generatorTab" class="tab-content">
+                <!-- 키워드 입력 섹션 -->
             <div class="bg-white rounded-lg card-shadow p-6 mb-8">
                 <div class="flex items-center mb-6">
                     <i class="fas fa-keyboard text-blue-600 text-xl mr-3"></i>
@@ -2879,6 +3775,404 @@ app.get('/', (c) => {
                     </div>
                 </div>
             </div>
+            
+            <!-- 시리즈 관리 탭 -->
+            <div id="seriesTab" class="tab-content hidden">
+                <div class="bg-white rounded-lg card-shadow p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-center">
+                            <i class="fas fa-book text-blue-600 text-xl mr-3"></i>
+                            <h2 class="text-2xl font-bold text-gray-800">콘텐츠 시리즈 관리</h2>
+                        </div>
+                        <button id="createSeriesBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">
+                            <i class="fas fa-plus mr-2"></i>새 시리즈 생성
+                        </button>
+                    </div>
+                    
+                    <div id="seriesContainer">
+                        <!-- 시리즈 목록이 여기에 렌더링됩니다 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 아이디어 생성 탭 -->
+            <div id="ideasTab" class="tab-content hidden">
+                <div class="bg-white rounded-lg card-shadow p-6">
+                    <div class="flex items-center mb-6">
+                        <i class="fas fa-lightbulb text-yellow-600 text-xl mr-3"></i>
+                        <h2 class="text-2xl font-bold text-gray-800">콘텐츠 아이디어 생성</h2>
+                    </div>
+                    
+                    <!-- 아이디어 생성 폼 -->
+                    <div class="bg-gray-50 rounded-lg p-6 mb-6">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">주제</label>
+                                <input type="text" id="ideasTopic" 
+                                       placeholder="예: 프로그래밍, 요리, 여행"
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">타겟 독자</label>
+                                <select id="ideasAudience" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    <option value="general">일반인</option>
+                                    <option value="beginner">초보자</option>
+                                    <option value="intermediate">중급자</option>
+                                    <option value="expert">전문가</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">생성할 아이디어 수</label>
+                                <select id="ideasCount" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    <option value="3">3개</option>
+                                    <option value="5" selected>5개</option>
+                                    <option value="7">7개</option>
+                                    <option value="10">10개</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <button id="generateIdeasBtn" class="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-3 rounded-lg font-medium">
+                            <i class="fas fa-magic mr-2"></i>아이디어 생성
+                        </button>
+                    </div>
+                    
+                    <!-- 생성된 아이디어 목록 -->
+                    <div id="ideasContainer">
+                        <div class="text-center py-8 text-gray-500">
+                            <i class="fas fa-lightbulb text-3xl mb-3"></i>
+                            <p>아직 생성된 아이디어가 없습니다</p>
+                            <p class="text-sm">위 폼을 사용하여 콘텐츠 아이디어를 생성해보세요!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 성과 분석 탭 -->
+            <div id="analyticsTab" class="tab-content hidden">
+                <div class="bg-white rounded-lg card-shadow p-6">
+                    <div class="flex items-center mb-6">
+                        <i class="fas fa-chart-line text-green-600 text-xl mr-3"></i>
+                        <h2 class="text-2xl font-bold text-gray-800">콘텐츠 성과 분석</h2>
+                    </div>
+                    
+                    <div id="analyticsContainer">
+                        <!-- 분석 데이터가 여기에 렌더링됩니다 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 예약 발행 탭 -->
+            <div id="schedulingTab" class="tab-content hidden">
+                <div class="bg-white rounded-lg card-shadow p-6">
+                    <div class="flex items-center mb-6">
+                        <i class="fas fa-calendar-alt text-purple-600 text-xl mr-3"></i>
+                        <h2 class="text-2xl font-bold text-gray-800">콘텐츠 예약 발행</h2>
+                    </div>
+                    
+                    <div id="schedulesContainer">
+                        <!-- 스케줄 목록이 여기에 렌더링됩니다 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 태그 관리 탭 -->
+            <div id="tagsTab" class="tab-content hidden">
+                <div class="bg-white rounded-lg card-shadow p-6">
+                    <div class="flex items-center mb-6">
+                        <i class="fas fa-tags text-orange-600 text-xl mr-3"></i>
+                        <h2 class="text-2xl font-bold text-gray-800">태그 관리 시스템</h2>
+                    </div>
+                    
+                    <div id="tagsContainer">
+                        <!-- 태그 목록이 여기에 렌더링됩니다 -->
+                    </div>
+                </div>
+            </div>
+            </div>
+
+            <!-- 시리즈 생성 모달 -->
+            <div id="createSeriesModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                <div class="bg-white rounded-lg max-w-2xl w-full max-h-90vh overflow-y-auto">
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-xl font-bold text-gray-800">새 시리즈 생성</h3>
+                            <button onclick="document.getElementById('createSeriesModal').classList.add('hidden')" 
+                                    class="text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-times text-xl"></i>
+                            </button>
+                        </div>
+                        
+                        <form id="createSeriesForm">
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">시리즈 제목 *</label>
+                                    <input type="text" name="title" id="seriesTitle" required
+                                           placeholder="예: React 완전정복 시리즈"
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">시리즈 설명</label>
+                                    <textarea name="description" rows="3"
+                                              placeholder="시리즈의 목적과 내용을 간단히 설명해주세요"
+                                              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"></textarea>
+                                </div>
+                                
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">계획된 글 수</label>
+                                        <input type="number" name="totalArticles" min="1" max="100" 
+                                               placeholder="10"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">완료 예정일</label>
+                                        <input type="date" name="completionDate"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    </div>
+                                </div>
+                                
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">타겟 독자</label>
+                                        <select name="targetAudience" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                            <option value="general">일반인</option>
+                                            <option value="beginner">초보자</option>
+                                            <option value="intermediate">중급자</option>
+                                            <option value="expert">전문가</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">콘텐츠 스타일</label>
+                                        <select name="contentStyle" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                            <option value="informative">정보성</option>
+                                            <option value="tutorial">튜토리얼</option>
+                                            <option value="guide">가이드</option>
+                                            <option value="review">리뷰</option>
+                                            <option value="news">뉴스</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">태그</label>
+                                    <input type="text" name="tags"
+                                           placeholder="태그1, 태그2, 태그3 (쉼표로 구분)"
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">작성자 노트</label>
+                                    <textarea name="notes" rows="3"
+                                              placeholder="시리즈 작성 시 참고할 메모나 아이디어를 적어주세요"
+                                              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"></textarea>
+                                </div>
+                            </div>
+                            
+                            <div class="flex justify-end space-x-3 mt-6">
+                                <button type="button" onclick="document.getElementById('createSeriesModal').classList.add('hidden')" 
+                                        class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg">
+                                    취소
+                                </button>
+                                <button type="button" id="saveSeriesBtn" 
+                                        class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">
+                                    <i class="fas fa-save mr-2"></i>시리즈 생성
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 시리즈 상세 모달 -->
+            <div id="seriesDetailModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                <div class="bg-white rounded-lg max-w-4xl w-full max-h-90vh overflow-y-auto">
+                    <div id="seriesDetailContent">
+                        <!-- 시리즈 상세 내용이 여기에 동적으로 로드됩니다 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 예약 발행 생성 모달 -->
+            <div id="createScheduleModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                <div class="bg-white rounded-lg max-w-2xl w-full max-h-90vh overflow-y-auto">
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-xl font-bold text-gray-800">예약 발행 설정</h3>
+                            <button onclick="document.getElementById('createScheduleModal').classList.add('hidden')" 
+                                    class="text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-times text-xl"></i>
+                            </button>
+                        </div>
+                        
+                        <form id="createScheduleForm">
+                            <div class="space-y-4">
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">발행 날짜 *</label>
+                                        <input type="date" name="scheduledDate" id="scheduleDate" required
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">발행 시간 *</label>
+                                        <input type="time" name="scheduledTime" id="scheduleTime" required
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">시간대</label>
+                                    <select name="timezone" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                                        <option value="Asia/Seoul">서울 (KST)</option>
+                                        <option value="UTC">UTC</option>
+                                        <option value="America/New_York">뉴욕 (EST/EDT)</option>
+                                        <option value="Europe/London">런던 (GMT/BST)</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">발행 플랫폼</label>
+                                    <div class="space-y-2">
+                                        <label class="flex items-center">
+                                            <input type="checkbox" name="platforms" value="blog" checked class="mr-2">
+                                            <span class="text-sm text-gray-700">블로그</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" name="platforms" value="social" class="mr-2">
+                                            <span class="text-sm text-gray-700">소셜미디어</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" name="platforms" value="newsletter" class="mr-2">
+                                            <span class="text-sm text-gray-700">뉴스레터</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="border-t pt-4">
+                                    <label class="flex items-center mb-4">
+                                        <input type="checkbox" name="autoPublish" class="mr-2">
+                                        <span class="text-sm font-medium text-gray-700">자동 발행 활성화</span>
+                                    </label>
+                                    
+                                    <label class="flex items-center mb-4">
+                                        <input type="checkbox" name="isRecurring" id="recurringCheckbox" class="mr-2">
+                                        <span class="text-sm font-medium text-gray-700">반복 발행 설정</span>
+                                    </label>
+                                </div>
+
+                                <div id="recurringOptions" class="hidden border border-gray-200 rounded-lg p-4 bg-gray-50">
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">반복 주기</label>
+                                            <select name="recurrencePattern" class="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                                                <option value="daily">매일</option>
+                                                <option value="weekly">매주</option>
+                                                <option value="monthly">매월</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">간격</label>
+                                            <input type="number" name="recurrenceInterval" min="1" max="30" value="1"
+                                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mt-4">
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">종료 날짜</label>
+                                        <input type="date" name="recurrenceEndDate"
+                                               class="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">메모</label>
+                                    <textarea name="notes" rows="3"
+                                              placeholder="발행과 관련된 메모나 특별 지시사항을 입력하세요"
+                                              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"></textarea>
+                                </div>
+                            </div>
+                            
+                            <div class="flex justify-end space-x-3 mt-6">
+                                <button type="button" onclick="document.getElementById('createScheduleModal').classList.add('hidden')" 
+                                        class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg">
+                                    취소
+                                </button>
+                                <button type="button" id="saveScheduleBtn" 
+                                        class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg">
+                                    <i class="fas fa-calendar-check mr-2"></i>예약 설정
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 태그 생성 모달 -->
+            <div id="createTagModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                <div class="bg-white rounded-lg max-w-lg w-full">
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-xl font-bold text-gray-800">새 태그 생성</h3>
+                            <button onclick="document.getElementById('createTagModal').classList.add('hidden')" 
+                                    class="text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-times text-xl"></i>
+                            </button>
+                        </div>
+                        
+                        <form id="createTagForm">
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">태그 이름 *</label>
+                                    <input type="text" name="name" id="tagName" required
+                                           placeholder="예: React, 초보자, 튜토리얼"
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500">
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">카테고리</label>
+                                    <select name="category" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500">
+                                        <option value="topic">주제</option>
+                                        <option value="difficulty">난이도</option>
+                                        <option value="format">형식</option>
+                                        <option value="audience">대상</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">색상</label>
+                                    <input type="color" name="color" value="#3B82F6"
+                                           class="w-full h-12 border border-gray-300 rounded-lg">
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">설명</label>
+                                    <textarea name="description" rows="2"
+                                              placeholder="태그에 대한 간단한 설명을 입력하세요"
+                                              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"></textarea>
+                                </div>
+                            </div>
+                            
+                            <div class="flex justify-end space-x-3 mt-6">
+                                <button type="button" onclick="document.getElementById('createTagModal').classList.add('hidden')" 
+                                        class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg">
+                                    취소
+                                </button>
+                                <button type="button" id="saveTagBtn" 
+                                        class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg">
+                                    <i class="fas fa-tag mr-2"></i>태그 생성
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- JavaScript Libraries -->
@@ -2888,6 +4182,55 @@ app.get('/', (c) => {
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
         <script src="/static/app.js"></script>
+        <script>
+            // 페이지 로드 시 초기화
+            document.addEventListener('DOMContentLoaded', function() {
+                // 기존 블로그 생성기 초기화
+                window.blogGenerator = new BlogGenerator();
+                
+                // 스마트 콘텐츠 관리자 초기화
+                window.smartContentManager = new SmartContentManager();
+                
+                // 콘텐츠 스케줄러 초기화
+                window.contentScheduler = new ContentScheduler();
+                
+                // 기본적으로 블로그 생성기 탭 활성화
+                window.smartContentManager.switchTab('generator');
+                
+                // 반복 발행 체크박스 이벤트
+                document.getElementById('recurringCheckbox').addEventListener('change', function() {
+                    const recurringOptions = document.getElementById('recurringOptions');
+                    if (this.checked) {
+                        recurringOptions.classList.remove('hidden');
+                    } else {
+                        recurringOptions.classList.add('hidden');
+                    }
+                });
+
+                // 탭 전환 시 해당 데이터 로드
+                document.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('content-tab')) {
+                        const tabName = e.target.dataset.tab;
+                        
+                        // 스케줄링 탭 활성화 시
+                        if (tabName === 'scheduling' && window.contentScheduler) {
+                            setTimeout(() => {
+                                window.contentScheduler.loadSchedulesList();
+                            }, 100);
+                        }
+                        
+                        // 태그 관리 탭 활성화 시
+                        if (tabName === 'tags' && window.contentScheduler) {
+                            setTimeout(() => {
+                                window.contentScheduler.loadTagsList();
+                            }, 100);
+                        }
+                    }
+                });
+                
+                console.log('🚀 AI 블로그 생성기 V3.1 - 스케줄링 & 태그 시스템 초기화 완료');
+            });
+        </script>
     </body>
     </html>
   `)
