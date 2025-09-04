@@ -3784,38 +3784,54 @@ app.get('/', (c) => {
                             <i class="fas fa-book text-blue-600 text-xl mr-3"></i>
                             <h2 class="text-2xl font-bold text-gray-800">콘텐츠 시리즈 관리</h2>
                         </div>
-                        <button id="createSeriesBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">
-                            <i class="fas fa-plus mr-2"></i>새 시리즈 생성
-                        </button>
+                        <div class="flex gap-2">
+                            <button id="seriesTemplatesBtn" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg">
+                                <i class="fas fa-file-alt mr-2"></i>템플릿
+                            </button>
+                            <button id="createSeriesBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">
+                                <i class="fas fa-plus mr-2"></i>새 시리즈 생성
+                            </button>
+                        </div>
                     </div>
                     
-                    <div id="seriesContainer">
-                        <!-- 시리즈 목록이 여기에 렌더링됩니다 -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- 아이디어 생성 탭 -->
-            <div id="ideasTab" class="tab-content hidden">
-                <div class="bg-white rounded-lg card-shadow p-6">
-                    <div class="flex items-center mb-6">
-                        <i class="fas fa-lightbulb text-yellow-600 text-xl mr-3"></i>
-                        <h2 class="text-2xl font-bold text-gray-800">콘텐츠 아이디어 생성</h2>
+                    <!-- 시리즈 통계 대시보드 -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                        <div class="bg-blue-50 p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-blue-600" id="totalSeriesCount">12</div>
+                            <div class="text-sm text-blue-800 font-medium">전체 시리즈</div>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-green-600" id="activeSeriesCount">8</div>
+                            <div class="text-sm text-green-800 font-medium">진행 중</div>
+                        </div>
+                        <div class="bg-purple-50 p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-purple-600" id="completedSeriesCount">3</div>
+                            <div class="text-sm text-purple-800 font-medium">완료</div>
+                        </div>
+                        <div class="bg-orange-50 p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-orange-600" id="avgProgressPercent">67%</div>
+                            <div class="text-sm text-orange-800 font-medium">평균 진행률</div>
+                        </div>
                     </div>
                     
-                    <!-- 아이디어 생성 폼 -->
-                    <div class="bg-gray-50 rounded-lg p-6 mb-6">
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <!-- 시리즈 필터 및 정렬 -->
+                    <div class="bg-gray-50 rounded-lg p-4 mb-6">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">주제</label>
-                                <input type="text" id="ideasTopic" 
-                                       placeholder="예: 프로그래밍, 요리, 여행"
-                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">상태 필터</label>
+                                <select id="seriesStatusFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    <option value="">모든 상태</option>
+                                    <option value="active">진행 중</option>
+                                    <option value="completed">완료</option>
+                                    <option value="paused">일시정지</option>
+                                    <option value="planned">계획</option>
+                                </select>
                             </div>
                             
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">타겟 독자</label>
-                                <select id="ideasAudience" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                <select id="seriesAudienceFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    <option value="">모든 독자</option>
                                     <option value="general">일반인</option>
                                     <option value="beginner">초보자</option>
                                     <option value="intermediate">중급자</option>
@@ -3824,19 +3840,216 @@ app.get('/', (c) => {
                             </div>
                             
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">생성할 아이디어 수</label>
-                                <select id="ideasCount" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                                    <option value="3">3개</option>
-                                    <option value="5" selected>5개</option>
-                                    <option value="7">7개</option>
-                                    <option value="10">10개</option>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">정렬 기준</label>
+                                <select id="seriesSortFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                    <option value="created">최신 생성순</option>
+                                    <option value="progress">진행률순</option>
+                                    <option value="title">제목순</option>
+                                    <option value="articles">아티클 수</option>
+                                </select>
+                            </div>
+                            
+                            <div class="flex items-end">
+                                <button id="refreshSeriesList" class="w-full bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg">
+                                    <i class="fas fa-sync-alt mr-2"></i>새로고침
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 추천 시리즈 아이디어 -->
+                    <div class="bg-gradient-to-r from-blue-100 to-purple-100 p-6 rounded-lg mb-6">
+                        <h3 class="text-lg font-semibold mb-3">
+                            <i class="fas fa-lightbulb text-yellow-600 mr-2"></i>추천 시리즈 아이디어
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="bg-white p-4 rounded-lg">
+                                <div class="text-center">
+                                    <div class="text-lg font-bold text-blue-600">React 마스터 과정</div>
+                                    <div class="text-sm text-gray-600 mt-1">10부작 시리즈</div>
+                                    <div class="text-xs text-green-600 font-bold mt-1">예상 조회수: 15K+</div>
+                                </div>
+                            </div>
+                            <div class="bg-white p-4 rounded-lg">
+                                <div class="text-center">
+                                    <div class="text-lg font-bold text-green-600">AI 도구 활용법</div>
+                                    <div class="text-sm text-gray-600 mt-1">7부작 시리즈</div>
+                                    <div class="text-xs text-green-600 font-bold mt-1">트렌드 점수: 92</div>
+                                </div>
+                            </div>
+                            <div class="bg-white p-4 rounded-lg">
+                                <div class="text-center">
+                                    <div class="text-lg font-bold text-purple-600">블로그 수익화</div>
+                                    <div class="text-sm text-gray-600 mt-1">5부작 시리즈</div>
+                                    <div class="text-xs text-green-600 font-bold mt-1">수익성: 높음</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="seriesContainer">
+                        <!-- 시리즈 목록이 여기에 동적으로 렌더링됩니다 -->
+                        <div class="text-center py-8 text-gray-500">
+                            <i class="fas fa-book-open text-3xl mb-3"></i>
+                            <p>생성된 시리즈가 없습니다</p>
+                            <p class="text-sm">새 시리즈를 생성하여 체계적인 콘텐츠 관리를 시작하세요!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 아이디어 생성 탭 -->
+            <div id="ideasTab" class="tab-content hidden">
+                <div class="bg-white rounded-lg card-shadow p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-center">
+                            <i class="fas fa-lightbulb text-yellow-600 text-xl mr-3"></i>
+                            <h2 class="text-2xl font-bold text-gray-800">콘텐츠 아이디어 생성</h2>
+                        </div>
+                        <div class="flex gap-2">
+                            <button id="trendAnalysisBtn" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg">
+                                <i class="fas fa-chart-line mr-2"></i>트렌드 분석
+                            </button>
+                            <button id="ideaHistoryBtn" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg">
+                                <i class="fas fa-history mr-2"></i>이전 아이디어
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 아이디어 생성 폼 -->
+                    <div class="bg-gray-50 rounded-lg p-6 mb-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">주제/키워드</label>
+                                <input type="text" id="ideasTopic" 
+                                       placeholder="예: 프로그래밍, 요리, 여행"
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500">
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">산업 분야</label>
+                                <select id="ideasIndustry" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500">
+                                    <option value="tech">기술/IT</option>
+                                    <option value="business">비즈니스</option>
+                                    <option value="lifestyle">라이프스타일</option>
+                                    <option value="education">교육</option>
+                                    <option value="health">건강</option>
+                                    <option value="finance">금융</option>
+                                    <option value="travel">여행</option>
+                                    <option value="food">음식</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">타겟 독자</label>
+                                <select id="ideasAudience" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500">
+                                    <option value="general">일반인</option>
+                                    <option value="beginner">초보자</option>
+                                    <option value="intermediate">중급자</option>
+                                    <option value="expert">전문가</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">콘텐츠 유형</label>
+                                <select id="ideasContentType" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500">
+                                    <option value="tutorial">튜토리얼</option>
+                                    <option value="guide">가이드</option>
+                                    <option value="review">리뷰</option>
+                                    <option value="tips">팁/노하우</option>
+                                    <option value="news">뉴스/트렌드</option>
+                                    <option value="case-study">사례분석</option>
+                                    <option value="comparison">비교분석</option>
                                 </select>
                             </div>
                         </div>
                         
-                        <button id="generateIdeasBtn" class="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-3 rounded-lg font-medium">
-                            <i class="fas fa-magic mr-2"></i>아이디어 생성
-                        </button>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">생성할 아이디어 수</label>
+                                <select id="ideasCount" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500">
+                                    <option value="3">3개</option>
+                                    <option value="5" selected>5개</option>
+                                    <option value="7">7개</option>
+                                    <option value="10">10개</option>
+                                    <option value="15">15개</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">창의성 수준</label>
+                                <select id="ideasCreativity" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500">
+                                    <option value="conservative">보수적</option>
+                                    <option value="balanced" selected>균형있는</option>
+                                    <option value="creative">창의적</option>
+                                    <option value="experimental">실험적</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">시장 포커스</label>
+                                <select id="ideasMarketFocus" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500">
+                                    <option value="trending">트렌딩 주제</option>
+                                    <option value="evergreen">에버그린 콘텐츠</option>
+                                    <option value="seasonal">계절성 콘텐츠</option>
+                                    <option value="niche">니치 마켓</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="flex gap-3">
+                            <button id="generateIdeasBtn" class="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-3 rounded-lg font-medium">
+                                <i class="fas fa-magic mr-2"></i>AI 아이디어 생성
+                            </button>
+                            <button id="quickIdeasBtn" class="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-medium">
+                                <i class="fas fa-bolt mr-2"></i>빠른 아이디어
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 트렌드 키워드 추천 -->
+                    <div class="bg-gradient-to-r from-yellow-100 to-orange-100 p-6 rounded-lg mb-6">
+                        <h3 class="text-lg font-semibold mb-3">
+                            <i class="fas fa-fire text-red-600 mr-2"></i>실시간 트렌드 키워드
+                        </h3>
+                        <div class="flex flex-wrap gap-2" id="trendingKeywordsList">
+                            <span class="bg-red-500 text-white px-3 py-1 rounded-full text-sm cursor-pointer hover:bg-red-600 transition" onclick="document.getElementById('ideasTopic').value='ChatGPT'">
+                                ChatGPT <span class="text-xs opacity-75">(↑67%)</span>
+                            </span>
+                            <span class="bg-orange-500 text-white px-3 py-1 rounded-full text-sm cursor-pointer hover:bg-orange-600 transition" onclick="document.getElementById('ideasTopic').value='React 19'">
+                                React 19 <span class="text-xs opacity-75">(↑45%)</span>
+                            </span>
+                            <span class="bg-yellow-500 text-white px-3 py-1 rounded-full text-sm cursor-pointer hover:bg-yellow-600 transition" onclick="document.getElementById('ideasTopic').value='TypeScript'">
+                                TypeScript <span class="text-xs opacity-75">(↑38%)</span>
+                            </span>
+                            <span class="bg-green-500 text-white px-3 py-1 rounded-full text-sm cursor-pointer hover:bg-green-600 transition" onclick="document.getElementById('ideasTopic').value='Cloudflare'">
+                                Cloudflare <span class="text-xs opacity-75">(↑32%)</span>
+                            </span>
+                            <span class="bg-blue-500 text-white px-3 py-1 rounded-full text-sm cursor-pointer hover:bg-blue-600 transition" onclick="document.getElementById('ideasTopic').value='Next.js'">
+                                Next.js <span class="text-xs opacity-75">(↑28%)</span>
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <!-- 아이디어 템플릿 -->
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+                        <h3 class="text-lg font-semibold mb-3">
+                            <i class="fas fa-file-alt text-blue-600 mr-2"></i>인기 아이디어 템플릿
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <button class="text-left p-4 bg-white rounded-lg hover:shadow-md transition" onclick="applyIdeaTemplate('howto')">
+                                <div class="font-medium text-blue-600">How-to 가이드</div>
+                                <div class="text-sm text-gray-600 mt-1">"[주제]를 위한 단계별 가이드"</div>
+                            </button>
+                            <button class="text-left p-4 bg-white rounded-lg hover:shadow-md transition" onclick="applyIdeaTemplate('comparison')">
+                                <div class="font-medium text-green-600">비교 분석</div>
+                                <div class="text-sm text-gray-600 mt-1">"A vs B: 완벽한 비교 분석"</div>
+                            </button>
+                            <button class="text-left p-4 bg-white rounded-lg hover:shadow-md transition" onclick="applyIdeaTemplate('trends')">
+                                <div class="font-medium text-purple-600">트렌드 리뷰</div>
+                                <div class="text-sm text-gray-600 mt-1">"2024년 [분야] 주요 트렌드"</div>
+                            </button>
+                        </div>
                     </div>
                     
                     <!-- 생성된 아이디어 목록 -->
@@ -3844,7 +4057,7 @@ app.get('/', (c) => {
                         <div class="text-center py-8 text-gray-500">
                             <i class="fas fa-lightbulb text-3xl mb-3"></i>
                             <p>아직 생성된 아이디어가 없습니다</p>
-                            <p class="text-sm">위 폼을 사용하여 콘텐츠 아이디어를 생성해보세요!</p>
+                            <p class="text-sm">위 폼을 사용하여 AI 기반 콘텐츠 아이디어를 생성해보세요!</p>
                         </div>
                     </div>
                 </div>
@@ -3858,8 +4071,154 @@ app.get('/', (c) => {
                         <h2 class="text-2xl font-bold text-gray-800">콘텐츠 성과 분석</h2>
                     </div>
                     
+                    <!-- 성과 요약 카드 -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                        <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 rounded-lg">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-blue-100 text-sm font-medium">총 조회수</p>
+                                    <p class="text-3xl font-bold" id="totalViews">124,567</p>
+                                </div>
+                                <i class="fas fa-eye text-2xl text-blue-200"></i>
+                            </div>
+                            <div class="mt-2 flex items-center text-sm">
+                                <i class="fas fa-arrow-up mr-1"></i>
+                                <span class="text-blue-100">+12% 이번 달</span>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-gradient-to-r from-green-500 to-green-600 text-white p-6 rounded-lg">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-green-100 text-sm font-medium">평균 SEO 점수</p>
+                                    <p class="text-3xl font-bold" id="avgSeoScore">87.3</p>
+                                </div>
+                                <i class="fas fa-search text-2xl text-green-200"></i>
+                            </div>
+                            <div class="mt-2 flex items-center text-sm">
+                                <i class="fas fa-arrow-up mr-1"></i>
+                                <span class="text-green-100">+5.2% 향상</span>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-6 rounded-lg">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-purple-100 text-sm font-medium">참여율</p>
+                                    <p class="text-3xl font-bold" id="engagementRate">67.8%</p>
+                                </div>
+                                <i class="fas fa-users text-2xl text-purple-200"></i>
+                            </div>
+                            <div class="mt-2 flex items-center text-sm">
+                                <i class="fas fa-arrow-up mr-1"></i>
+                                <span class="text-purple-100">+8.1% 증가</span>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-gradient-to-r from-orange-500 to-orange-600 text-white p-6 rounded-lg">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-orange-100 text-sm font-medium">변환율</p>
+                                    <p class="text-3xl font-bold" id="conversionRate">4.2%</p>
+                                </div>
+                                <i class="fas fa-chart-pie text-2xl text-orange-200"></i>
+                            </div>
+                            <div class="mt-2 flex items-center text-sm">
+                                <i class="fas fa-arrow-down mr-1"></i>
+                                <span class="text-orange-100">-1.3% 감소</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 차트 및 분석 -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                        <!-- 트래픽 추이 차트 -->
+                        <div class="bg-gray-50 rounded-lg p-6">
+                            <h3 class="text-lg font-semibold mb-4">
+                                <i class="fas fa-chart-area text-blue-600 mr-2"></i>트래픽 추이 (최근 30일)
+                            </h3>
+                            <div class="h-64 flex items-center justify-center border-2 border-dashed border-gray-300 rounded-lg">
+                                <div class="text-center text-gray-500">
+                                    <i class="fas fa-chart-line text-3xl mb-2"></i>
+                                    <p>차트가 여기에 표시됩니다</p>
+                                    <p class="text-sm">(Chart.js 연동 필요)</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 인기 콘텐츠 -->
+                        <div class="bg-gray-50 rounded-lg p-6">
+                            <h3 class="text-lg font-semibold mb-4">
+                                <i class="fas fa-fire text-red-600 mr-2"></i>인기 콘텐츠 TOP 5
+                            </h3>
+                            <div class="space-y-3" id="topContentList">
+                                <div class="flex items-center justify-between p-3 bg-white rounded-lg shadow-sm">
+                                    <div class="flex items-center">
+                                        <span class="bg-yellow-500 text-white text-xs font-bold px-2 py-1 rounded-full mr-3">1</span>
+                                        <div>
+                                            <p class="font-medium text-sm">React Hook 완전정복 가이드</p>
+                                            <p class="text-xs text-gray-500">조회수: 15,432</p>
+                                        </div>
+                                    </div>
+                                    <span class="text-green-600 text-xs font-bold">+23%</span>
+                                </div>
+                                
+                                <div class="flex items-center justify-between p-3 bg-white rounded-lg shadow-sm">
+                                    <div class="flex items-center">
+                                        <span class="bg-gray-400 text-white text-xs font-bold px-2 py-1 rounded-full mr-3">2</span>
+                                        <div>
+                                            <p class="font-medium text-sm">AI 블로그 작성 팁</p>
+                                            <p class="text-xs text-gray-500">조회수: 12,789</p>
+                                        </div>
+                                    </div>
+                                    <span class="text-green-600 text-xs font-bold">+18%</span>
+                                </div>
+                                
+                                <div class="flex items-center justify-between p-3 bg-white rounded-lg shadow-sm">
+                                    <div class="flex items-center">
+                                        <span class="bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full mr-3">3</span>
+                                        <div>
+                                            <p class="font-medium text-sm">JavaScript ES6 기초</p>
+                                            <p class="text-xs text-gray-500">조회수: 9,856</p>
+                                        </div>
+                                    </div>
+                                    <span class="text-green-600 text-xs font-bold">+12%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 키워드 성과 분석 -->
+                    <div class="bg-gray-50 rounded-lg p-6 mb-6">
+                        <h3 class="text-lg font-semibold mb-4">
+                            <i class="fas fa-tags text-purple-600 mr-2"></i>키워드 성과 분석
+                        </h3>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div class="bg-white p-4 rounded-lg text-center">
+                                <div class="text-2xl font-bold text-blue-600">React</div>
+                                <div class="text-sm text-gray-600 mt-1">검색량: 2,345</div>
+                                <div class="text-xs text-green-600 font-bold mt-1">SEO: 94</div>
+                            </div>
+                            <div class="bg-white p-4 rounded-lg text-center">
+                                <div class="text-2xl font-bold text-green-600">JavaScript</div>
+                                <div class="text-sm text-gray-600 mt-1">검색량: 1,897</div>
+                                <div class="text-xs text-blue-600 font-bold mt-1">SEO: 89</div>
+                            </div>
+                            <div class="bg-white p-4 rounded-lg text-center">
+                                <div class="text-2xl font-bold text-purple-600">AI</div>
+                                <div class="text-sm text-gray-600 mt-1">검색량: 1,654</div>
+                                <div class="text-xs text-orange-600 font-bold mt-1">SEO: 92</div>
+                            </div>
+                            <div class="bg-white p-4 rounded-lg text-center">
+                                <div class="text-2xl font-bold text-orange-600">블로그</div>
+                                <div class="text-sm text-gray-600 mt-1">검색량: 1,432</div>
+                                <div class="text-xs text-green-600 font-bold mt-1">SEO: 86</div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div id="analyticsContainer">
-                        <!-- 분석 데이터가 여기에 렌더링됩니다 -->
+                        <!-- 추가 분석 데이터가 여기에 동적으로 렌더링됩니다 -->
                     </div>
                 </div>
             </div>
@@ -3867,13 +4226,115 @@ app.get('/', (c) => {
             <!-- 예약 발행 탭 -->
             <div id="schedulingTab" class="tab-content hidden">
                 <div class="bg-white rounded-lg card-shadow p-6">
-                    <div class="flex items-center mb-6">
-                        <i class="fas fa-calendar-alt text-purple-600 text-xl mr-3"></i>
-                        <h2 class="text-2xl font-bold text-gray-800">콘텐츠 예약 발행</h2>
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-center">
+                            <i class="fas fa-calendar-alt text-purple-600 text-xl mr-3"></i>
+                            <h2 class="text-2xl font-bold text-gray-800">콘텐츠 예약 발행</h2>
+                        </div>
+                        <button id="createScheduleBtn" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg">
+                            <i class="fas fa-plus mr-2"></i>새 스케줄 등록
+                        </button>
+                    </div>
+                    
+                    <!-- 스케줄 필터 -->
+                    <div class="bg-gray-50 rounded-lg p-4 mb-6">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">상태 필터</label>
+                                <select id="scheduleStatusFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                                    <option value="">모든 상태</option>
+                                    <option value="scheduled">예약됨</option>
+                                    <option value="published">발행됨</option>
+                                    <option value="failed">실패</option>
+                                    <option value="cancelled">취소됨</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">플랫폼 필터</label>
+                                <select id="schedulePlatformFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                                    <option value="">모든 플랫폼</option>
+                                    <option value="blog">블로그</option>
+                                    <option value="social">소셜미디어</option>
+                                    <option value="newsletter">뉴스레터</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">기간 필터</label>
+                                <select id="scheduleDateFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                                    <option value="">전체 기간</option>
+                                    <option value="today">오늘</option>
+                                    <option value="week">이번 주</option>
+                                    <option value="month">이번 달</option>
+                                </select>
+                            </div>
+                            
+                            <div class="flex items-end">
+                                <button id="refreshSchedules" class="w-full bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg">
+                                    <i class="fas fa-sync-alt mr-2"></i>새로고침
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 스케줄 통계 -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                        <div class="bg-blue-50 p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-blue-600" id="scheduledCount">8</div>
+                            <div class="text-sm text-blue-800 font-medium">예약 대기</div>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-green-600" id="publishedCount">15</div>
+                            <div class="text-sm text-green-800 font-medium">발행 완료</div>
+                        </div>
+                        <div class="bg-orange-50 p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-orange-600" id="pendingCount">3</div>
+                            <div class="text-sm text-orange-800 font-medium">처리 중</div>
+                        </div>
+                        <div class="bg-red-50 p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-red-600" id="failedCount">1</div>
+                            <div class="text-sm text-red-800 font-medium">실패</div>
+                        </div>
+                    </div>
+                    
+                    <!-- 최적 발행 시간 추천 -->
+                    <div class="bg-gradient-to-r from-purple-100 to-blue-100 p-6 rounded-lg mb-6">
+                        <h3 class="text-lg font-semibold mb-3">
+                            <i class="fas fa-lightbulb text-yellow-600 mr-2"></i>최적 발행 시간 추천
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="bg-white p-4 rounded-lg">
+                                <div class="text-center">
+                                    <div class="text-lg font-bold text-purple-600">화요일 오후 2시</div>
+                                    <div class="text-sm text-gray-600 mt-1">블로그 포스트</div>
+                                    <div class="text-xs text-green-600 font-bold mt-1">참여도 +34%</div>
+                                </div>
+                            </div>
+                            <div class="bg-white p-4 rounded-lg">
+                                <div class="text-center">
+                                    <div class="text-lg font-bold text-blue-600">목요일 오전 9시</div>
+                                    <div class="text-sm text-gray-600 mt-1">소셜미디어</div>
+                                    <div class="text-xs text-green-600 font-bold mt-1">도달률 +28%</div>
+                                </div>
+                            </div>
+                            <div class="bg-white p-4 rounded-lg">
+                                <div class="text-center">
+                                    <div class="text-lg font-bold text-green-600">금요일 오후 6시</div>
+                                    <div class="text-sm text-gray-600 mt-1">뉴스레터</div>
+                                    <div class="text-xs text-green-600 font-bold mt-1">오픈율 +41%</div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     
                     <div id="schedulesContainer">
-                        <!-- 스케줄 목록이 여기에 렌더링됩니다 -->
+                        <!-- 스케줄 목록이 여기에 동적으로 렌더링됩니다 -->
+                        <div class="text-center py-8 text-gray-500">
+                            <i class="fas fa-calendar-plus text-3xl mb-3"></i>
+                            <p>등록된 스케줄이 없습니다</p>
+                            <p class="text-sm">새 스케줄을 등록하여 콘텐츠 발행을 자동화하세요!</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -3881,13 +4342,150 @@ app.get('/', (c) => {
             <!-- 태그 관리 탭 -->
             <div id="tagsTab" class="tab-content hidden">
                 <div class="bg-white rounded-lg card-shadow p-6">
-                    <div class="flex items-center mb-6">
-                        <i class="fas fa-tags text-orange-600 text-xl mr-3"></i>
-                        <h2 class="text-2xl font-bold text-gray-800">태그 관리 시스템</h2>
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-center">
+                            <i class="fas fa-tags text-orange-600 text-xl mr-3"></i>
+                            <h2 class="text-2xl font-bold text-gray-800">태그 관리 시스템</h2>
+                        </div>
+                        <div class="flex gap-2">
+                            <button id="suggestTagsBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">
+                                <i class="fas fa-magic mr-2"></i>AI 태그 추천
+                            </button>
+                            <button id="createTagBtn" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg">
+                                <i class="fas fa-plus mr-2"></i>새 태그 생성
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 태그 통계 및 필터 -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                        <!-- 태그 통계 -->
+                        <div class="lg:col-span-2">
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div class="bg-blue-50 p-4 rounded-lg text-center">
+                                    <div class="text-2xl font-bold text-blue-600" id="totalTagsCount">127</div>
+                                    <div class="text-sm text-blue-800 font-medium">전체 태그</div>
+                                </div>
+                                <div class="bg-green-50 p-4 rounded-lg text-center">
+                                    <div class="text-2xl font-bold text-green-600" id="activeTagsCount">89</div>
+                                    <div class="text-sm text-green-800 font-medium">활성 태그</div>
+                                </div>
+                                <div class="bg-purple-50 p-4 rounded-lg text-center">
+                                    <div class="text-2xl font-bold text-purple-600" id="avgSeoScore">91.3</div>
+                                    <div class="text-sm text-purple-800 font-medium">평균 SEO</div>
+                                </div>
+                                <div class="bg-orange-50 p-4 rounded-lg text-center">
+                                    <div class="text-2xl font-bold text-orange-600" id="avgTrendScore">87.5</div>
+                                    <div class="text-sm text-orange-800 font-medium">평균 트렌드</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 태그 필터 -->
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h3 class="font-semibold mb-3">
+                                <i class="fas fa-filter text-gray-600 mr-2"></i>태그 필터
+                            </h3>
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">카테고리</label>
+                                    <select id="tagCategoryFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                        <option value="">모든 카테고리</option>
+                                        <option value="topic">주제</option>
+                                        <option value="difficulty">난이도</option>
+                                        <option value="format">형식</option>
+                                        <option value="audience">대상</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">SEO 점수</label>
+                                    <select id="tagSeoFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                        <option value="">모든 점수</option>
+                                        <option value="90">90점 이상</option>
+                                        <option value="80">80점 이상</option>
+                                        <option value="70">70점 이상</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">정렬</label>
+                                    <select id="tagSortFilter" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                        <option value="usage">사용빈도순</option>
+                                        <option value="seo">SEO 점수순</option>
+                                        <option value="trend">트렌드 점수순</option>
+                                        <option value="name">이름순</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 태그 카테고리 탭 -->
+                    <div class="border-b border-gray-200 mb-6">
+                        <nav class="flex space-x-8">
+                            <button class="tag-category-tab border-b-2 border-orange-500 text-orange-600 py-2 px-1 text-sm font-medium active" data-category="all">
+                                전체 태그
+                            </button>
+                            <button class="tag-category-tab border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 py-2 px-1 text-sm font-medium" data-category="topic">
+                                주제 태그
+                            </button>
+                            <button class="tag-category-tab border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 py-2 px-1 text-sm font-medium" data-category="difficulty">
+                                난이도
+                            </button>
+                            <button class="tag-category-tab border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 py-2 px-1 text-sm font-medium" data-category="format">
+                                형식
+                            </button>
+                            <button class="tag-category-tab border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 py-2 px-1 text-sm font-medium" data-category="audience">
+                                대상
+                            </button>
+                        </nav>
+                    </div>
+                    
+                    <!-- 트렌딩 태그 -->
+                    <div class="bg-gradient-to-r from-orange-100 to-red-100 p-6 rounded-lg mb-6">
+                        <h3 class="text-lg font-semibold mb-3">
+                            <i class="fas fa-fire text-red-600 mr-2"></i>트렌딩 태그 TOP 10
+                        </h3>
+                        <div class="flex flex-wrap gap-2" id="trendingTagsList">
+                            <span class="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+                                #AI <span class="text-xs opacity-75">(↑45%)</span>
+                            </span>
+                            <span class="bg-orange-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+                                #React <span class="text-xs opacity-75">(↑38%)</span>
+                            </span>
+                            <span class="bg-yellow-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+                                #JavaScript <span class="text-xs opacity-75">(↑32%)</span>
+                            </span>
+                            <span class="bg-green-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+                                #웹개발 <span class="text-xs opacity-75">(↑28%)</span>
+                            </span>
+                            <span class="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+                                #튜토리얼 <span class="text-xs opacity-75">(↑25%)</span>
+                            </span>
+                            <span class="bg-indigo-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+                                #초보자 <span class="text-xs opacity-75">(↑22%)</span>
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <!-- AI 태그 추천 패널 -->
+                    <div id="tagSuggestionsPanel" class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6" style="display: none;">
+                        <h3 class="text-lg font-semibold mb-4">
+                            <i class="fas fa-robot text-blue-600 mr-2"></i>AI 태그 추천 결과
+                        </h3>
+                        <div id="suggestedTagsList" class="space-y-3">
+                            <!-- AI가 추천한 태그들이 여기에 표시됩니다 -->
+                        </div>
                     </div>
                     
                     <div id="tagsContainer">
-                        <!-- 태그 목록이 여기에 렌더링됩니다 -->
+                        <!-- 태그 목록이 여기에 동적으로 렌더링됩니다 -->
+                        <div class="text-center py-8 text-gray-500">
+                            <i class="fas fa-tags text-3xl mb-3"></i>
+                            <p>로딩 중입니다...</p>
+                            <p class="text-sm">태그 데이터를 불러오고 있습니다.</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -4230,6 +4828,29 @@ app.get('/', (c) => {
                 
                 console.log('🚀 AI 블로그 생성기 V3.1 - 스케줄링 & 태그 시스템 초기화 완료');
             });
+            
+            // 아이디어 템플릿 적용 함수
+            window.applyIdeaTemplate = function(templateType) {
+                const topic = document.getElementById('ideasTopic').value || '예시 주제';
+                let templateText = '';
+                
+                switch(templateType) {
+                    case 'howto':
+                        templateText = topic + '을 위한 단계별 가이드';
+                        document.getElementById('ideasContentType').value = 'tutorial';
+                        break;
+                    case 'comparison':
+                        templateText = topic + ' 완벽한 비교 분석';
+                        document.getElementById('ideasContentType').value = 'comparison';
+                        break;
+                    case 'trends':
+                        templateText = '2024년 ' + topic + ' 주요 트렌드';
+                        document.getElementById('ideasContentType').value = 'news';
+                        break;
+                }
+                
+                document.getElementById('ideasTopic').value = templateText;
+            };
         </script>
     </body>
     </html>
