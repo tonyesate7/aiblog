@@ -6,6 +6,7 @@ class BlogGenerator {
         this.currentProgress = 0;
         this.totalArticles = 10;
         this.environmentAlertShown = false; // 환경 변수 알림 중복 방지
+        this.demoWarningShown = false; // 데모 모드 경고 중복 방지
         this.init();
     }
 
@@ -535,6 +536,11 @@ class BlogGenerator {
         try {
             console.log(`📝 글 생성 시작: "${keyword}" (${index + 1}/${keywords.length})`);
             
+            // API 키를 로컬 스토리지에서 가져오기
+            const claudeKey = localStorage.getItem('claude_api_key');
+            const openaiKey = localStorage.getItem('openai_api_key');
+            const geminiKey = localStorage.getItem('gemini_api_key');
+            
             // 타임아웃 설정 (30초)
             const response = await axios.post('/api/generate-article', {
                 keyword: keyword,
@@ -543,7 +549,12 @@ class BlogGenerator {
                 contentLength: contentLength,
                 targetAudience: targetAudience
             }, {
-                timeout: 30000 // 30초 타임아웃
+                timeout: 30000, // 30초 타임아웃
+                headers: {
+                    'X-Claude-API-Key': claudeKey || '',
+                    'X-OpenAI-API-Key': openaiKey || '',
+                    'X-Gemini-API-Key': geminiKey || ''
+                }
             });
 
             if (response.data.success) {
@@ -551,9 +562,23 @@ class BlogGenerator {
                     ...response.data.article,
                     id: index + 1
                 };
+                
+                // 데모 모드인지 확인
+                if (response.data.demoMode) {
+                    console.log(`⚠️ 데모 모드로 생성: "${keyword}" - API 키 설정 필요`);
+                    this.updateProgressItem(index, 'demo');
+                    
+                    // 데모 모드 경고 메시지 (한 번만 표시)
+                    if (!this.demoWarningShown) {
+                        this.showAlert(response.data.message + '\n\n설정에서 API 키를 입력하면 실제 AI 생성을 사용할 수 있습니다.', 'warning');
+                        this.demoWarningShown = true;
+                    }
+                } else {
+                    console.log(`✅ AI 생성 완료: "${keyword}" (${this.generatedArticles.length + 1}/${keywords.length})`);
+                    this.updateProgressItem(index, 'completed');
+                }
+                
                 this.generatedArticles.push(article);
-                this.updateProgressItem(index, 'completed');
-                console.log(`✅ 글 생성 완료: "${keyword}" (${this.generatedArticles.length}/${keywords.length})`);
             } else {
                 this.updateProgressItem(index, 'error');
                 console.error(`❌ 글 생성 실패: "${keyword}" -`, response.data.error);
@@ -594,6 +619,11 @@ class BlogGenerator {
                 icon.className = 'fas fa-check-circle text-green-500 mr-3';
                 statusText.textContent = '완료';
                 statusText.className = 'text-xs text-green-500';
+                break;
+            case 'demo':
+                icon.className = 'fas fa-exclamation-triangle text-orange-500 mr-3';
+                statusText.textContent = '데모 완료 (API키 필요)';
+                statusText.className = 'text-xs text-orange-500';
                 break;
             case 'error':
                 icon.className = 'fas fa-times-circle text-red-500 mr-3';

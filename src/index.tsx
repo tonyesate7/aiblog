@@ -143,6 +143,98 @@ function validateApiKey(modelName: string, apiKey: string): boolean {
   }
 }
 
+// 데모 모드용 글 생성 함수
+function generateDemoArticle(keyword: string, targetAudience: string, contentStyle: string, contentLength: string): any {
+  const demoTitles = [
+    `${keyword} 완전 정복: 초보자를 위한 단계별 가이드`,
+    `${keyword}의 모든 것 - 전문가가 알려주는 핵심 포인트`,
+    `${keyword} 마스터하기: 실무에서 바로 써먹는 실용 가이드`,
+    `${keyword}로 성공하는 방법 - 검증된 전략과 팁`,
+    `${keyword} 완벽 가이드: 기초부터 고급까지 한 번에`
+  ]
+  
+  const audienceMap = {
+    general: '일반인',
+    beginner: '초보자',  
+    intermediate: '중급자',
+    expert: '전문가'
+  }
+  
+  const styleMap = {
+    informative: '정보성',
+    review: '리뷰',
+    guide: '가이드',
+    news: '뉴스',
+    tutorial: '튜토리얼'
+  }
+  
+  const randomTitle = demoTitles[Math.floor(Math.random() * demoTitles.length)]
+  
+  const demoContent = `# ${randomTitle}
+
+## 🎯 ${audienceMap[targetAudience] || '일반'}을 위한 ${keyword} ${styleMap[contentStyle] || '가이드'}
+
+**⚠️ 이 글은 데모 모드로 생성된 샘플입니다. 실제 AI 생성을 위해서는 API 키를 설정해주세요.**
+
+${keyword}에 대해 알아보는 시간을 가져보겠습니다. 이 주제는 많은 분들이 관심을 가지고 계시는 분야입니다.
+
+## 📋 주요 내용 개요
+
+1. **${keyword}의 기본 개념**
+   - 정의와 핵심 원리
+   - 왜 중요한지 이해하기
+
+2. **실무 적용 방법**
+   - 단계별 실행 가이드
+   - 주의사항과 팁
+
+3. **자주 묻는 질문**
+   - 초보자가 궁금해하는 포인트들
+   - 전문가 답변
+
+## 🚀 ${keyword} 시작하기
+
+### 1단계: 기본 이해
+${keyword}를 처음 접하는 ${audienceMap[targetAudience] || '분'}들도 쉽게 따라할 수 있도록 설명드리겠습니다.
+
+### 2단계: 실습 과정
+실제로 적용해보면서 익숙해지는 것이 중요합니다.
+
+### 3단계: 심화 학습
+기본기를 다진 후 더 깊이 있는 내용을 학습합니다.
+
+## 💡 핵심 포인트 요약
+
+- ✅ ${keyword}의 기본 개념 이해
+- ✅ 단계별 실행 가이드 숙지
+- ✅ 실무 적용을 통한 경험 쌓기
+- ✅ 지속적인 학습과 개선
+
+## 🎉 마무리
+
+${keyword}에 대한 이해가 깊어지셨기를 바랍니다. 이론과 실습을 병행하며 꾸준히 노력한다면 분명 좋은 결과를 얻으실 수 있을 것입니다.
+
+**📌 실제 AI 생성 기능을 사용하려면:**
+1. 설정 메뉴에서 API 키 입력
+2. Claude, OpenAI, 또는 Gemini API 키 설정
+3. 다시 글 생성 시도
+
+---
+
+*이 글은 데모 모드로 생성되었습니다. 실제 AI 모델을 사용하여 더욱 상세하고 전문적인 내용의 글을 생성할 수 있습니다.*`
+
+  return {
+    title: randomTitle,
+    keyword: keyword,
+    content: demoContent,
+    wordCount: Math.floor(parseInt(contentLength) * 0.8 + Math.random() * parseInt(contentLength) * 0.4),
+    createdAt: new Date().toISOString(),
+    usedModel: 'Demo Mode (API 키 설정 필요)',
+    targetAudience: audienceMap[targetAudience] || '일반인',
+    contentStyle: styleMap[contentStyle] || '가이드'
+  }
+}
+
 // 멀티 AI 모델 호출 시스템 (개선된 버전)
 async function callAIModel(
   modelName: string, 
@@ -1127,11 +1219,11 @@ app.post('/api/generate-article', async (c) => {
       return c.json({ error: 'keyword가 필요합니다' }, 400)
     }
 
-    // 환경 변수에서 API 키들 수집 및 검증
+    // 환경 변수와 헤더에서 API 키들 수집 및 검증
     const apiKeys = {
-      claude: c.env?.CLAUDE_API_KEY,
-      gemini: c.env?.GEMINI_API_KEY, 
-      openai: c.env?.OPENAI_API_KEY
+      claude: c.req.header('X-Claude-API-Key') || c.env?.CLAUDE_API_KEY,
+      gemini: c.req.header('X-Gemini-API-Key') || c.env?.GEMINI_API_KEY, 
+      openai: c.req.header('X-OpenAI-API-Key') || c.env?.OPENAI_API_KEY
     }
 
     // 사용 가능한 API 키 검사
@@ -1139,16 +1231,24 @@ app.post('/api/generate-article', async (c) => {
       .filter(([modelName, key]) => key && validateApiKey(modelName, key))
       .map(([modelName]) => modelName)
 
+    // API 키가 없는 경우 데모 모드로 작동
     if (validKeys.length === 0) {
+      console.log('🔧 API 키가 없어서 데모 모드로 작동합니다.')
+      
+      // 데모 모드에서 사용할 샘플 글 생성
+      const demoArticle = generateDemoArticle(keyword, targetAudience, contentStyle, contentLength)
+      
       return c.json({ 
-        error: '사용 가능한 API 키가 없습니다',
-        details: {
-          claude: apiKeys.claude ? '올바른 Claude API 키는 sk-ant-로 시작합니다' : 'API 키가 없습니다',
-          gemini: apiKeys.gemini ? '올바른 Gemini API 키를 입력해주세요' : 'API 키가 없습니다',
-          openai: apiKeys.openai ? '올바른 OpenAI API 키는 sk-로 시작합니다' : 'API 키가 없습니다'
-        },
-        suggestion: '설정에서 올바른 형식의 API 키를 입력해주세요'
-      }, 400)
+        success: true,
+        article: demoArticle,
+        demoMode: true,
+        message: '⚠️ 데모 모드로 작동 중입니다. 실제 AI 생성을 위해서는 API 키를 설정해주세요.',
+        keyStatus: {
+          claude: apiKeys.claude ? '형식 오류 (sk-ant-로 시작해야 함)' : '설정 필요',
+          gemini: apiKeys.gemini ? '형식 오류' : '설정 필요',
+          openai: apiKeys.openai ? '형식 오류 (sk-로 시작해야 함)' : '설정 필요'
+        }
+      })
     }
 
     console.log(`🔑 사용 가능한 API 키: ${validKeys.join(', ')}`)
@@ -2906,6 +3006,9 @@ app.get('/', (c) => {
                         <h1 class="text-xl font-bold">AI 블로그 자동 생성기</h1>
                     </div>
                     <div class="flex space-x-4">
+                        <button id="showApiKeyModal" class="hover:bg-white hover:bg-opacity-20 px-3 py-2 rounded transition">
+                            <i class="fas fa-key mr-2"></i>API 키 설정
+                        </button>
                         <button id="showProjectModal" class="hover:bg-white hover:bg-opacity-20 px-3 py-2 rounded transition">
                             <i class="fas fa-folder-open mr-2"></i>프로젝트 관리
                         </button>
@@ -4491,6 +4594,92 @@ app.get('/', (c) => {
             </div>
             </div>
 
+            <!-- API 키 설정 모달 -->
+            <div id="apiKeyModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                <div class="bg-white rounded-lg max-w-2xl w-full max-h-90vh overflow-y-auto">
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-xl font-bold text-gray-800">
+                                <i class="fas fa-key text-blue-600 mr-2"></i>API 키 설정
+                            </h3>
+                            <button id="closeApiKeyModal" class="text-gray-500 hover:text-gray-700">
+                                <i class="fas fa-times text-xl"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                            <p class="text-sm text-blue-800">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                AI 글 생성을 위해서는 최소 하나의 API 키를 설정해야 합니다. 
+                                API 키는 브라우저에만 저장되며 서버로 전송되지 않습니다.
+                            </p>
+                        </div>
+                        
+                        <form id="apiKeyForm" class="space-y-6">
+                            <!-- Claude API 키 -->
+                            <div>
+                                <div class="flex items-center justify-between mb-2">
+                                    <label class="block text-sm font-medium text-gray-700">
+                                        <i class="fab fa-anthropic text-purple-600 mr-2"></i>Claude API Key
+                                    </label>
+                                    <span id="claudeStatus" class="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600">미설정</span>
+                                </div>
+                                <input type="password" id="claudeApiKey" placeholder="sk-ant-..." 
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                <p class="text-xs text-gray-500 mt-1">Claude API 키는 sk-ant-로 시작합니다</p>
+                            </div>
+                            
+                            <!-- OpenAI API 키 -->
+                            <div>
+                                <div class="flex items-center justify-between mb-2">
+                                    <label class="block text-sm font-medium text-gray-700">
+                                        <i class="fas fa-robot text-green-600 mr-2"></i>OpenAI API Key
+                                    </label>
+                                    <span id="openaiStatus" class="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600">미설정</span>
+                                </div>
+                                <input type="password" id="openaiApiKey" placeholder="sk-..." 
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                <p class="text-xs text-gray-500 mt-1">OpenAI API 키는 sk-로 시작합니다</p>
+                            </div>
+                            
+                            <!-- Gemini API 키 -->
+                            <div>
+                                <div class="flex items-center justify-between mb-2">
+                                    <label class="block text-sm font-medium text-gray-700">
+                                        <i class="fab fa-google text-blue-600 mr-2"></i>Gemini API Key
+                                    </label>
+                                    <span id="geminiStatus" class="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600">미설정</span>
+                                </div>
+                                <input type="password" id="geminiApiKey" placeholder="AIza..." 
+                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                <p class="text-xs text-gray-500 mt-1">Google AI Studio에서 발급받은 API 키</p>
+                            </div>
+                            
+                            <div class="flex gap-3">
+                                <button type="button" id="saveApiKeys" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition">
+                                    <i class="fas fa-save mr-2"></i>저장
+                                </button>
+                                <button type="button" id="testApiKeys" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition">
+                                    <i class="fas fa-test-tube mr-2"></i>테스트
+                                </button>
+                                <button type="button" id="clearApiKeys" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-lg transition">
+                                    <i class="fas fa-trash mr-2"></i>초기화
+                                </button>
+                            </div>
+                        </form>
+                        
+                        <div class="mt-6 p-4 bg-gray-50 rounded-lg">
+                            <h4 class="font-medium text-gray-800 mb-2">API 키 발급 방법</h4>
+                            <ul class="text-sm text-gray-600 space-y-1">
+                                <li>• <strong>Claude:</strong> <a href="https://console.anthropic.com" target="_blank" class="text-blue-600 hover:underline">Anthropic Console</a>에서 발급</li>
+                                <li>• <strong>OpenAI:</strong> <a href="https://platform.openai.com/api-keys" target="_blank" class="text-blue-600 hover:underline">OpenAI Platform</a>에서 발급</li>
+                                <li>• <strong>Gemini:</strong> <a href="https://aistudio.google.com" target="_blank" class="text-blue-600 hover:underline">Google AI Studio</a>에서 발급</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- 시리즈 생성 모달 -->
             <div id="createSeriesModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
                 <div class="bg-white rounded-lg max-w-2xl w-full max-h-90vh overflow-y-auto">
@@ -4851,6 +5040,160 @@ app.get('/', (c) => {
                 
                 document.getElementById('ideasTopic').value = templateText;
             };
+            
+            // API 키 관리 시스템
+            window.ApiKeyManager = {
+                showModal: function() {
+                    document.getElementById('apiKeyModal').classList.remove('hidden');
+                    this.loadApiKeys();
+                },
+                
+                hideModal: function() {
+                    document.getElementById('apiKeyModal').classList.add('hidden');
+                },
+                
+                loadApiKeys: function() {
+                    const claudeKey = localStorage.getItem('claude_api_key');
+                    const openaiKey = localStorage.getItem('openai_api_key'); 
+                    const geminiKey = localStorage.getItem('gemini_api_key');
+                    
+                    document.getElementById('claudeApiKey').value = claudeKey || '';
+                    document.getElementById('openaiApiKey').value = openaiKey || '';
+                    document.getElementById('geminiApiKey').value = geminiKey || '';
+                    
+                    this.updateStatus('claude', claudeKey);
+                    this.updateStatus('openai', openaiKey);
+                    this.updateStatus('gemini', geminiKey);
+                },
+                
+                updateStatus: function(provider, apiKey) {
+                    const statusEl = document.getElementById(provider + 'Status');
+                    if (apiKey && apiKey.length > 10) {
+                        statusEl.textContent = '설정됨';
+                        statusEl.className = 'text-xs px-2 py-1 rounded-full bg-green-100 text-green-800';
+                    } else {
+                        statusEl.textContent = '미설정';
+                        statusEl.className = 'text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600';
+                    }
+                },
+                
+                saveApiKeys: function() {
+                    const claudeKey = document.getElementById('claudeApiKey').value.trim();
+                    const openaiKey = document.getElementById('openaiApiKey').value.trim();
+                    const geminiKey = document.getElementById('geminiApiKey').value.trim();
+                    
+                    // 형식 검증
+                    let errors = [];
+                    if (claudeKey && !claudeKey.startsWith('sk-ant-')) {
+                        errors.push('Claude API 키는 sk-ant-로 시작해야 합니다');
+                    }
+                    if (openaiKey && !openaiKey.startsWith('sk-')) {
+                        errors.push('OpenAI API 키는 sk-로 시작해야 합니다');
+                    }
+                    if (geminiKey && geminiKey.length < 20) {
+                        errors.push('Gemini API 키가 너무 짧습니다');
+                    }
+                    
+                    if (errors.length > 0) {
+                        alert('API 키 형식 오류:\\n' + errors.join('\\n'));
+                        return;
+                    }
+                    
+                    // 로컬 스토리지에 저장
+                    if (claudeKey) localStorage.setItem('claude_api_key', claudeKey);
+                    else localStorage.removeItem('claude_api_key');
+                    
+                    if (openaiKey) localStorage.setItem('openai_api_key', openaiKey);
+                    else localStorage.removeItem('openai_api_key');
+                    
+                    if (geminiKey) localStorage.setItem('gemini_api_key', geminiKey);
+                    else localStorage.removeItem('gemini_api_key');
+                    
+                    this.loadApiKeys();
+                    alert('API 키가 저장되었습니다! 이제 AI 글 생성을 사용할 수 있습니다.');
+                },
+                
+                clearApiKeys: function() {
+                    if (confirm('모든 API 키를 삭제하시겠습니까?')) {
+                        localStorage.removeItem('claude_api_key');
+                        localStorage.removeItem('openai_api_key');
+                        localStorage.removeItem('gemini_api_key');
+                        
+                        document.getElementById('claudeApiKey').value = '';
+                        document.getElementById('openaiApiKey').value = '';
+                        document.getElementById('geminiApiKey').value = '';
+                        
+                        this.loadApiKeys();
+                        alert('모든 API 키가 삭제되었습니다.');
+                    }
+                },
+                
+                testApiKeys: async function() {
+                    try {
+                        const response = await axios.get('/api/check-api-keys');
+                        if (response.data.configured) {
+                            alert('API 키 상태:\\n\\n' + response.data.details.claude + '\\n' + response.data.details.openai + '\\n' + response.data.details.gemini + '\\n\\n' + response.data.message);
+                        } else {
+                            alert('설정된 API 키가 없습니다. API 키를 입력하고 저장해주세요.');
+                        }
+                    } catch (error) {
+                        alert('API 키 테스트 중 오류가 발생했습니다.');
+                    }
+                }
+            };
+            
+            // API 키 모달 이벤트 리스너
+            document.addEventListener('DOMContentLoaded', function() {
+                // API 키 설정 버튼
+                const showApiKeyBtn = document.getElementById('showApiKeyModal');
+                if (showApiKeyBtn) {
+                    showApiKeyBtn.addEventListener('click', () => {
+                        window.ApiKeyManager.showModal();
+                    });
+                }
+                
+                // 모달 닫기
+                const closeApiKeyBtn = document.getElementById('closeApiKeyModal');
+                if (closeApiKeyBtn) {
+                    closeApiKeyBtn.addEventListener('click', () => {
+                        window.ApiKeyManager.hideModal();
+                    });
+                }
+                
+                // 저장 버튼
+                const saveApiKeysBtn = document.getElementById('saveApiKeys');
+                if (saveApiKeysBtn) {
+                    saveApiKeysBtn.addEventListener('click', () => {
+                        window.ApiKeyManager.saveApiKeys();
+                    });
+                }
+                
+                // 테스트 버튼
+                const testApiKeysBtn = document.getElementById('testApiKeys');
+                if (testApiKeysBtn) {
+                    testApiKeysBtn.addEventListener('click', () => {
+                        window.ApiKeyManager.testApiKeys();
+                    });
+                }
+                
+                // 초기화 버튼
+                const clearApiKeysBtn = document.getElementById('clearApiKeys');
+                if (clearApiKeysBtn) {
+                    clearApiKeysBtn.addEventListener('click', () => {
+                        window.ApiKeyManager.clearApiKeys();
+                    });
+                }
+                
+                // 모달 배경 클릭 시 닫기
+                const apiKeyModal = document.getElementById('apiKeyModal');
+                if (apiKeyModal) {
+                    apiKeyModal.addEventListener('click', (e) => {
+                        if (e.target === apiKeyModal) {
+                            window.ApiKeyManager.hideModal();
+                        }
+                    });
+                }
+            });
         </script>
     </body>
     </html>
