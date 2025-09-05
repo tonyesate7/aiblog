@@ -1645,26 +1645,16 @@ app.post('/api/generate', async (c) => {
     let finalApiKey = ''
     
     if (selectedModel === 'claude') {
-      finalApiKey = env.CLAUDE_API_KEY || apiKey
+      finalApiKey = env.CLAUDE_API_KEY || apiKey || ''
     } else if (selectedModel === 'gemini') {
-      finalApiKey = env.GEMINI_API_KEY || apiKey
+      finalApiKey = env.GEMINI_API_KEY || apiKey || ''
     } else if (selectedModel === 'openai') {
-      finalApiKey = env.OPENAI_API_KEY || apiKey
+      finalApiKey = env.OPENAI_API_KEY || apiKey || ''
     } else if (selectedModel === 'grok') {
-      finalApiKey = env.GROK_API_KEY || apiKey
+      finalApiKey = env.GROK_API_KEY || apiKey || ''
     }
-
-    // API 키가 없으면 데모 콘텐츠 생성
-    if (!finalApiKey) {
-      const demoContent = generateDemoContent(topic, audience, tone)
-      return c.json({
-        content: demoContent,
-        model: `${selectedModel} (데모 모드)`,
-        isDemo: true,
-        expertSelection,
-        message: 'API 키가 설정되지 않아 데모 콘텐츠를 생성했습니다.'
-      })
-    }
+    
+    console.log(`🔑 API Key Check: selectedModel=${selectedModel}, envKey=${!!env[selectedModel.toUpperCase() + '_API_KEY']}, userKey=${!!apiKey}, finalKey=${!!finalApiKey}`)
 
     // API 키가 없으면 데모 콘텐츠 생성
     if (!finalApiKey) {
