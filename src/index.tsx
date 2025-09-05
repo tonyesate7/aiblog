@@ -334,6 +334,327 @@ ${qualityStandards.map(item => `☐ ${item}`).join('\n')}
 이제 단계별로 생각하며 글을 작성해주세요:`
 }
 
+// ==================== SEO 최적화 시스템 ====================
+
+interface SEOOptions {
+  targetKeywords?: string[]
+  focusKeyword?: string
+  contentLength?: 'short' | 'medium' | 'long'
+  includeStructuredData?: boolean
+}
+
+interface SEOResult {
+  content: string
+  seoMetadata: {
+    title: string
+    metaDescription: string
+    keywords: string[]
+    focusKeyword: string
+    headings: Array<{ level: number; text: string }>
+    readingTime: number
+    wordCount: number
+  }
+  structuredData?: any
+  seoAnalysis: {
+    keywordDensity: number
+    readabilityScore: number
+    seoScore: number
+    recommendations: string[]
+  }
+}
+
+function generateSEOPrompt(topic: string, audience: string, tone: string, seoOptions: SEOOptions = {}): string {
+  const template = contentTemplates[audience]
+  const toneGuide = toneGuidelines[tone as keyof typeof toneGuidelines]
+  
+  const focusKeyword = seoOptions.focusKeyword || topic
+  const targetKeywords = seoOptions.targetKeywords || []
+  const contentLength = seoOptions.contentLength || 'medium'
+  
+  const lengthGuides = {
+    short: '1500-2000자, 빠른 읽기용',
+    medium: '2500-4000자, 균형잡힌 깊이',
+    long: '4000-6000자, 심층 분석용'
+  }
+
+  return `당신은 SEO 전문가이자 콘텐츠 마케터입니다. 검색엔진 최적화된 고품질 블로그 글을 작성해주세요.
+
+🎯 **SEO 목표 설정**
+- 주요 키워드: "${focusKeyword}"
+- 타겟 키워드: ${targetKeywords.length > 0 ? targetKeywords.join(', ') : '자동 추출'}
+- 콘텐츠 길이: ${lengthGuides[contentLength]}
+- 대상 독자: ${audience}
+- 글의 톤: ${tone}
+
+🔍 **SEO 키워드 전략**
+1. 주요 키워드 "${focusKeyword}"를 제목에 자연스럽게 포함
+2. 키워드 밀도 1-3% 유지 (과도한 사용 금지)
+3. 관련 LSI 키워드 5-10개 발굴하여 자연스럽게 포함
+4. 롱테일 키워드 3-5개 활용
+
+📝 **SEO 최적화 콘텐츠 구조**
+
+**제목 (H1)**: 
+- 50-60자 내외
+- 주요 키워드 포함
+- 클릭을 유도하는 매력적인 제목
+- 숫자나 파워워드 활용
+
+**메타 디스크립션용 요약**: 
+- 150-160자 내외
+- 주요 키워드 포함
+- 독자의 검색 의도 충족
+- 클릭 유도 문구 포함
+
+**본문 구조**:
+${template.structure.map((item, index) => `H${index <= 1 ? '2' : '3'}. ${item} (키워드 자연스럽게 포함)`).join('\n')}
+
+🏷️ **헤딩 태그 최적화 가이드**
+- H1: 메인 제목 (1개만)
+- H2: 주요 섹션 (3-5개)
+- H3: 하위 섹션 (필요시)
+- 각 헤딩에 키워드 자연스럽게 포함
+
+📊 **SEO 품질 체크리스트**
+✓ 키워드가 제목, 첫 문단, 마지막 문단에 포함
+✓ 내부 링크 제안 (관련 주제 3-5개)
+✓ 외부 권위 링크 제안 (신뢰할 만한 소스 2-3개)
+✓ 이미지 alt 텍스트 제안 (3-5개 이미지)
+✓ FAQ 섹션 포함 (검색 의도 충족)
+✓ 실행 가능한 결론 및 CTA
+
+🎨 **톤 & 스타일**
+- 문체: ${toneGuide.voice}
+- SEO 친화적이면서도 자연스러운 글쓰기
+- 독자 중심의 가치 제공
+
+📈 **추가 SEO 요소**
+1. **내부 링크 제안**: 관련 주제로 연결할 수 있는 앵커 텍스트 3-5개 제안
+2. **이미지 제안**: 포함할 이미지와 SEO 친화적 alt 텍스트 제안
+3. **FAQ 섹션**: 검색 의도에 맞는 자주 묻는 질문 3-5개
+4. **스키마 마크업**: Article 구조화 데이터 정보 제공
+
+---
+
+**중요**: 반드시 JSON 형식으로만 응답해주세요. 다른 설명은 포함하지 마세요.
+
+출력 형식:
+{
+  "title": "SEO 최적화된 제목 (50-60자)",
+  "metaDescription": "메타 디스크립션 (150-160자)",
+  "content": "마크다운 형식의 본문 (줄바꿈은 \\n으로)",
+  "keywords": ["주요키워드", "LSI키워드1", "LSI키워드2", "롱테일키워드1"],
+  "headings": [
+    {"level": 1, "text": "H1 제목"},
+    {"level": 2, "text": "H2 섹션 제목"}
+  ],
+  "internalLinks": [
+    {"anchor": "앵커 텍스트", "suggestedUrl": "관련 주제 URL 제안"}
+  ],
+  "images": [
+    {"description": "이미지 설명", "altText": "SEO 친화적 alt 텍스트"}
+  ],
+  "faq": [
+    {"question": "자주 묻는 질문", "answer": "간단한 답변"}
+  ],
+  "structuredData": {
+    "@type": "Article",
+    "headline": "제목",
+    "description": "메타 디스크립션",
+    "keywords": "키워드,리스트"
+  }
+}
+
+"${topic}"에 대한 SEO 최적화 콘텐츠를 위 JSON 형식으로만 생성해주세요:`
+}
+
+function parseSEOResult(aiResponse: string): SEOResult {
+  try {
+    // JSON 블록 추출 시도 (여러 패턴 지원)
+    let jsonText = aiResponse.trim()
+    
+    // ```json 블록이 있으면 추출
+    const codeBlockMatch = jsonText.match(/```json\s*([\s\S]*?)\s*```/)
+    if (codeBlockMatch) {
+      jsonText = codeBlockMatch[1]
+    }
+    
+    // 첫 번째 { 부터 마지막 } 까지 추출
+    const firstBrace = jsonText.indexOf('{')
+    const lastBrace = jsonText.lastIndexOf('}')
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      jsonText = jsonText.slice(firstBrace, lastBrace + 1)
+    }
+    
+    const parsed = JSON.parse(jsonText)
+      
+      // 기본값 설정
+      const content = parsed.content || aiResponse
+      const wordCount = content.replace(/[^\w\s가-힣]/g, '').split(/\s+/).length
+      const readingTime = Math.ceil(wordCount / 200) // 분당 200단어 기준
+      
+      return {
+        content: parsed.content || aiResponse,
+        seoMetadata: {
+          title: parsed.title || `${parsed.keywords?.[0] || '주제'}에 대한 완벽 가이드`,
+          metaDescription: parsed.metaDescription || content.slice(0, 150) + '...',
+          keywords: parsed.keywords || [],
+          focusKeyword: parsed.keywords?.[0] || '',
+          headings: parsed.headings || [],
+          readingTime,
+          wordCount
+        },
+        structuredData: parsed.structuredData || null,
+        seoAnalysis: {
+          keywordDensity: calculateKeywordDensity(content, parsed.keywords?.[0] || ''),
+          readabilityScore: calculateReadabilityScore(content),
+          seoScore: calculateSEOScore(parsed),
+          recommendations: generateSEORecommendations(parsed, content)
+        }
+      }
+    } catch (error) {
+      console.error('SEO 결과 파싱 오류:', error)
+    }
+  
+  // 파싱 실패시 기본 형태로 반환
+  const wordCount = aiResponse.replace(/[^\w\s가-힣]/g, '').split(/\s+/).length
+  return {
+    content: aiResponse,
+    seoMetadata: {
+      title: '블로그 제목',
+      metaDescription: aiResponse.slice(0, 150) + '...',
+      keywords: [],
+      focusKeyword: '',
+      headings: [],
+      readingTime: Math.ceil(wordCount / 200),
+      wordCount
+    },
+    structuredData: null,
+    seoAnalysis: {
+      keywordDensity: 0,
+      readabilityScore: 70,
+      seoScore: 60,
+      recommendations: ['SEO 데이터를 파싱할 수 없습니다.']
+    }
+  }
+}
+
+function calculateKeywordDensity(content: string, keyword: string): number {
+  if (!keyword) return 0
+  const words = content.toLowerCase().split(/\s+/)
+  const keywordCount = words.filter(word => word.includes(keyword.toLowerCase())).length
+  return Math.round((keywordCount / words.length) * 100 * 100) / 100 // 소수점 2자리
+}
+
+function calculateReadabilityScore(content: string): number {
+  const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 0)
+  const words = content.split(/\s+/)
+  const avgWordsPerSentence = words.length / sentences.length
+  
+  // 간단한 가독성 점수 (낮을수록 읽기 쉬움)
+  let score = 100
+  if (avgWordsPerSentence > 20) score -= 10
+  if (avgWordsPerSentence > 30) score -= 20
+  if (avgWordsPerSentence > 40) score -= 30
+  
+  return Math.max(score, 30)
+}
+
+function calculateSEOScore(parsed: any): number {
+  let score = 0
+  
+  // 제목 최적화 (20점)
+  if (parsed.title && parsed.title.length >= 30 && parsed.title.length <= 60) score += 20
+  else if (parsed.title) score += 10
+  
+  // 메타 디스크립션 (15점)
+  if (parsed.metaDescription && parsed.metaDescription.length >= 120 && parsed.metaDescription.length <= 160) score += 15
+  else if (parsed.metaDescription) score += 10
+  
+  // 키워드 (25점)
+  if (parsed.keywords && parsed.keywords.length >= 5) score += 25
+  else if (parsed.keywords && parsed.keywords.length >= 3) score += 15
+  
+  // 헤딩 구조 (20점)
+  if (parsed.headings && parsed.headings.length >= 3) score += 20
+  else if (parsed.headings && parsed.headings.length >= 1) score += 10
+  
+  // 내부 링크 (10점)
+  if (parsed.internalLinks && parsed.internalLinks.length >= 3) score += 10
+  else if (parsed.internalLinks && parsed.internalLinks.length >= 1) score += 5
+  
+  // FAQ (10점)
+  if (parsed.faq && parsed.faq.length >= 3) score += 10
+  else if (parsed.faq && parsed.faq.length >= 1) score += 5
+  
+  return Math.min(score, 100)
+}
+
+function generateSEORecommendations(parsed: any, content: string): string[] {
+  const recommendations = []
+  
+  if (!parsed.title || parsed.title.length < 30) {
+    recommendations.push('제목을 30-60자로 최적화하세요')
+  }
+  
+  if (!parsed.metaDescription || parsed.metaDescription.length < 120) {
+    recommendations.push('메타 디스크립션을 120-160자로 작성하세요')
+  }
+  
+  if (!parsed.keywords || parsed.keywords.length < 5) {
+    recommendations.push('관련 키워드를 5개 이상 포함하세요')
+  }
+  
+  if (!parsed.headings || parsed.headings.length < 3) {
+    recommendations.push('H2, H3 헤딩을 3개 이상 사용하세요')
+  }
+  
+  if (!parsed.internalLinks || parsed.internalLinks.length < 3) {
+    recommendations.push('내부 링크를 3개 이상 추가하세요')
+  }
+  
+  if (!parsed.faq || parsed.faq.length < 3) {
+    recommendations.push('FAQ 섹션을 추가하여 검색 의도를 충족하세요')
+  }
+  
+  return recommendations.length > 0 ? recommendations : ['SEO 최적화가 잘 되었습니다!']
+}
+
+function generateDemoSEOContent(topic: string, audience: string, tone: string): SEOResult {
+  const baseContent = generateDemoContent(topic, audience, tone)
+  
+  return {
+    content: baseContent,
+    seoMetadata: {
+      title: `${topic} 완벽 가이드 - ${audience}을 위한 실용적 조언`,
+      metaDescription: `${topic}에 대해 ${audience}도 쉽게 이해할 수 있는 실용적인 가이드입니다. 단계별 설명과 실생활 적용 방법을 제공합니다.`,
+      keywords: [topic, `${topic} 가이드`, `${topic} 방법`, `${topic} 팁`, `${topic} 초보자`],
+      focusKeyword: topic,
+      headings: [
+        { level: 1, text: `${topic} 완벽 가이드` },
+        { level: 2, text: `${topic}란 무엇인가요?` },
+        { level: 2, text: '왜 중요할까요?' },
+        { level: 2, text: '실생활 적용 방법' },
+        { level: 2, text: '마무리' }
+      ],
+      readingTime: 5,
+      wordCount: 800
+    },
+    structuredData: {
+      "@type": "Article",
+      "headline": `${topic} 완벽 가이드 - ${audience}을 위한 실용적 조언`,
+      "description": `${topic}에 대한 실용적인 가이드`,
+      "keywords": topic
+    },
+    seoAnalysis: {
+      keywordDensity: 2.5,
+      readabilityScore: 85,
+      seoScore: 75,
+      recommendations: ['데모 모드입니다. API 키를 설정하면 더 정확한 SEO 분석을 받을 수 있습니다.']
+    }
+  }
+}
+
 // 데모 콘텐츠 생성 함수 (API 키가 없을 때)
 function generateDemoContent(topic: string, audience: string, tone: string): string {
   const demoArticles = {
@@ -534,7 +855,68 @@ app.get('/api/keys/status', (c) => {
   })
 })
 
-// 블로그 글 생성
+// SEO 최적화 콘텐츠 생성
+app.post('/api/generate-seo', async (c) => {
+  try {
+    const { topic, audience, tone, aiModel, apiKey, seoOptions } = await c.req.json()
+    
+    if (!topic || !audience || !tone || !aiModel) {
+      return c.json({ error: '필수 필드가 누락되었습니다' }, 400)
+    }
+
+    // API 키 가져오기
+    const { env } = c
+    let finalApiKey = ''
+    
+    if (aiModel === 'claude') {
+      finalApiKey = env.CLAUDE_API_KEY || apiKey
+    } else if (aiModel === 'gemini') {
+      finalApiKey = env.GEMINI_API_KEY || apiKey
+    } else if (aiModel === 'openai') {
+      finalApiKey = env.OPENAI_API_KEY || apiKey
+    }
+
+    if (!finalApiKey) {
+      const demoContent = generateDemoSEOContent(topic, audience, tone)
+      return c.json({
+        ...demoContent,
+        model: `${aiModel} (데모 모드)`,
+        isDemo: true,
+        message: 'API 키가 설정되지 않아 데모 SEO 콘텐츠를 생성했습니다.'
+      })
+    }
+
+    // SEO 최적화 프롬프트 생성
+    const seoPrompt = generateSEOPrompt(topic, audience, tone, seoOptions)
+    
+    // AI 모델 호출
+    const result = await callAI(aiModel, seoPrompt, finalApiKey)
+    
+    // SEO 데이터 파싱
+    const seoData = parseSEOResult(result)
+    
+    return c.json({
+      ...seoData,
+      model: aiModels[aiModel].name,
+      isDemo: false
+    })
+
+  } catch (error: any) {
+    console.error('SEO 블로그 생성 오류:', error)
+    
+    const { topic, audience } = await c.req.json().catch(() => ({ topic: '일반적인 주제', audience: '일반인' }))
+    const demoContent = generateDemoSEOContent(topic, audience, '친근한')
+    
+    return c.json({
+      ...demoContent,
+      model: '데모 모드',
+      isDemo: true,
+      message: `API 호출 중 오류가 발생하여 데모 SEO 콘텐츠를 생성했습니다. (${error.message})`
+    })
+  }
+})
+
+// 기존 블로그 글 생성 (호환성 유지)
 app.post('/api/generate', async (c) => {
   try {
     const { topic, audience, tone, aiModel, apiKey } = await c.req.json()
@@ -726,15 +1108,68 @@ app.get('/', (c) => {
                             </div>
                         </div>
 
+                        <!-- SEO 최적화 옵션 섹션 -->
+                        <div class="bg-green-50 p-4 rounded-lg">
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="text-lg font-medium text-gray-800">
+                                    <i class="fas fa-search mr-2 text-green-600"></i>
+                                    SEO 최적화 (NEW! 🔥)
+                                </h3>
+                                <button type="button" id="toggleSeoOptions" class="text-green-600 hover:text-green-800">
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                            </div>
+                            
+                            <div id="seoOptionsSection" class="hidden space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">핵심 키워드</label>
+                                    <input type="text" id="focusKeyword" placeholder="예: 인공지능, 투자 방법, 건강 관리" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">추가 키워드 (쉼표로 구분)</label>
+                                    <input type="text" id="targetKeywords" placeholder="예: AI 기술, 머신러닝, 딥러닝" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">콘텐츠 길이</label>
+                                        <select id="contentLength" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                            <option value="short">짧게 (1500-2000자)</option>
+                                            <option value="medium" selected>보통 (2500-4000자)</option>
+                                            <option value="long">길게 (4000-6000자)</option>
+                                        </select>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <input type="checkbox" id="includeStructuredData" class="mr-2">
+                                        <label for="includeStructuredData" class="text-sm text-gray-700">구조화 데이터 포함</label>
+                                    </div>
+                                </div>
+                                <div class="text-sm text-green-600">
+                                    <i class="fas fa-info-circle mr-1"></i>
+                                    SEO 최적화로 검색 노출과 클릭률을 향상시킬 수 있습니다.
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- 생성 버튼 -->
-                        <button 
-                            type="submit" 
-                            id="generateBtn"
-                            class="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 px-6 rounded-lg font-semibold text-lg hover:from-blue-700 hover:to-purple-700 transition duration-300 shadow-lg"
-                        >
-                            <i class="fas fa-magic mr-2"></i>
-                            블로그 글 생성하기
-                        </button>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <button 
+                                type="button" 
+                                id="generateBtn"
+                                class="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 px-6 rounded-lg font-semibold text-lg hover:from-blue-700 hover:to-purple-700 transition duration-300 shadow-lg"
+                            >
+                                <i class="fas fa-magic mr-2"></i>
+                                일반 블로그 생성
+                            </button>
+                            
+                            <button 
+                                type="button" 
+                                id="generateSeoBtn"
+                                class="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-4 px-6 rounded-lg font-semibold text-lg hover:from-green-700 hover:to-emerald-700 transition duration-300 shadow-lg"
+                            >
+                                <i class="fas fa-search mr-2"></i>
+                                SEO 최적화 생성 🔥
+                            </button>
+                        </div>
                     </form>
                 </div>
 
@@ -752,6 +1187,87 @@ app.get('/', (c) => {
                     </div>
                     
                     <div id="generationInfo" class="mb-4 p-3 bg-blue-50 rounded-lg text-sm text-gray-700"></div>
+                    
+                    <!-- SEO 분석 정보 (SEO 모드일 때만 표시) -->
+                    <div id="seoAnalysisSection" class="hidden mb-6">
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                            <!-- SEO 점수 -->
+                            <div class="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-lg border">
+                                <h3 class="text-lg font-semibold text-gray-800 mb-2">
+                                    <i class="fas fa-chart-line mr-2 text-green-600"></i>
+                                    SEO 점수
+                                </h3>
+                                <div class="flex items-center">
+                                    <div id="seoScore" class="text-3xl font-bold text-green-600">0</div>
+                                    <div class="ml-2 text-gray-600">/100</div>
+                                    <div id="seoScoreBar" class="ml-4 flex-1 bg-gray-200 rounded-full h-3">
+                                        <div id="seoScoreProgress" class="bg-green-500 h-3 rounded-full" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 키워드 밀도 -->
+                            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border">
+                                <h3 class="text-lg font-semibold text-gray-800 mb-2">
+                                    <i class="fas fa-key mr-2 text-blue-600"></i>
+                                    키워드 밀도
+                                </h3>
+                                <div class="flex items-center">
+                                    <div id="keywordDensity" class="text-3xl font-bold text-blue-600">0%</div>
+                                    <div class="ml-2 text-sm text-gray-600">
+                                        <span id="focusKeywordDisplay"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 읽기 시간 -->
+                            <div class="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg border">
+                                <h3 class="text-lg font-semibold text-gray-800 mb-2">
+                                    <i class="fas fa-clock mr-2 text-purple-600"></i>
+                                    읽기 시간
+                                </h3>
+                                <div class="flex items-center">
+                                    <div id="readingTime" class="text-3xl font-bold text-purple-600">0</div>
+                                    <div class="ml-2 text-gray-600">분</div>
+                                    <div class="ml-4 text-sm text-gray-600">
+                                        <span id="wordCount">0</span> 단어
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- SEO 메타데이터 -->
+                        <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-3">
+                                <i class="fas fa-tags mr-2 text-gray-600"></i>
+                                SEO 메타데이터
+                            </h3>
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-600 mb-1">SEO 제목</label>
+                                    <div id="seoTitle" class="p-2 bg-white rounded border text-sm"></div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-600 mb-1">메타 디스크립션</label>
+                                    <div id="metaDescription" class="p-2 bg-white rounded border text-sm"></div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-600 mb-1">키워드</label>
+                                    <div id="seoKeywords" class="p-2 bg-white rounded border text-sm"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- SEO 권장사항 -->
+                        <div id="seoRecommendations" class="bg-yellow-50 p-4 rounded-lg">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-3">
+                                <i class="fas fa-lightbulb mr-2 text-yellow-600"></i>
+                                SEO 개선 권장사항
+                            </h3>
+                            <ul id="recommendationsList" class="space-y-2 text-sm">
+                            </ul>
+                        </div>
+                    </div>
                     
                     <div id="content" class="prose max-w-none bg-gray-50 p-6 rounded-lg border"></div>
                 </div>

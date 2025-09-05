@@ -19,6 +19,7 @@ class BlogGenerator {
         this.toneSelect = document.getElementById('tone')
         this.aiModelSelect = document.getElementById('aiModel')
         this.generateBtn = document.getElementById('generateBtn')
+        this.generateSeoBtn = document.getElementById('generateSeoBtn')
         
         // API 키 관련 요소들
         this.toggleApiKeysBtn = document.getElementById('toggleApiKeys')
@@ -27,19 +28,48 @@ class BlogGenerator {
         this.geminiApiKeyInput = document.getElementById('geminiApiKey')
         this.openaiApiKeyInput = document.getElementById('openaiApiKey')
         
+        // SEO 관련 요소들
+        this.toggleSeoOptionsBtn = document.getElementById('toggleSeoOptions')
+        this.seoOptionsSection = document.getElementById('seoOptionsSection')
+        this.focusKeywordInput = document.getElementById('focusKeyword')
+        this.targetKeywordsInput = document.getElementById('targetKeywords')
+        this.contentLengthSelect = document.getElementById('contentLength')
+        this.includeStructuredDataInput = document.getElementById('includeStructuredData')
+        
         // 결과 표시 요소들
         this.resultSection = document.getElementById('resultSection')
         this.contentDiv = document.getElementById('content')
         this.copyBtn = document.getElementById('copyBtn')
         this.generationInfo = document.getElementById('generationInfo')
+        
+        // SEO 분석 요소들
+        this.seoAnalysisSection = document.getElementById('seoAnalysisSection')
+        this.seoScore = document.getElementById('seoScore')
+        this.seoScoreProgress = document.getElementById('seoScoreProgress')
+        this.keywordDensity = document.getElementById('keywordDensity')
+        this.focusKeywordDisplay = document.getElementById('focusKeywordDisplay')
+        this.readingTime = document.getElementById('readingTime')
+        this.wordCount = document.getElementById('wordCount')
+        this.seoTitle = document.getElementById('seoTitle')
+        this.metaDescription = document.getElementById('metaDescription')
+        this.seoKeywords = document.getElementById('seoKeywords')
+        this.recommendationsList = document.getElementById('recommendationsList')
     }
 
     attachEventListeners() {
-        // 폼 제출 이벤트
-        if (this.form) {
-            this.form.addEventListener('submit', (e) => {
+        // 일반 블로그 생성 버튼
+        if (this.generateBtn) {
+            this.generateBtn.addEventListener('click', (e) => {
                 e.preventDefault()
                 this.generateBlog()
+            })
+        }
+
+        // SEO 최적화 블로그 생성 버튼
+        if (this.generateSeoBtn) {
+            this.generateSeoBtn.addEventListener('click', (e) => {
+                e.preventDefault()
+                this.generateSEOBlog()
             })
         }
 
@@ -47,6 +77,13 @@ class BlogGenerator {
         if (this.toggleApiKeysBtn) {
             this.toggleApiKeysBtn.addEventListener('click', () => {
                 this.toggleApiKeysSection()
+            })
+        }
+
+        // SEO 옵션 토글 버튼
+        if (this.toggleSeoOptionsBtn) {
+            this.toggleSeoOptionsBtn.addEventListener('click', () => {
+                this.toggleSeoOptionsSection()
             })
         }
 
@@ -78,6 +115,20 @@ class BlogGenerator {
             } else {
                 this.apiKeysSection.classList.add('hidden')
                 this.toggleApiKeysBtn.innerHTML = '<i class="fas fa-chevron-down"></i>'
+            }
+        }
+    }
+
+    toggleSeoOptionsSection() {
+        if (this.seoOptionsSection) {
+            const isHidden = this.seoOptionsSection.classList.contains('hidden')
+            
+            if (isHidden) {
+                this.seoOptionsSection.classList.remove('hidden')
+                this.toggleSeoOptionsBtn.innerHTML = '<i class="fas fa-chevron-up"></i>'
+            } else {
+                this.seoOptionsSection.classList.add('hidden')
+                this.toggleSeoOptionsBtn.innerHTML = '<i class="fas fa-chevron-down"></i>'
             }
         }
     }
@@ -193,6 +244,168 @@ class BlogGenerator {
         }
     }
 
+    async generateSEOBlog() {
+        const topic = this.topicInput?.value?.trim()
+        if (!topic) {
+            this.showError('주제를 입력해주세요.')
+            return
+        }
+
+        const audience = this.audienceSelect?.value || '일반인'
+        const tone = this.toneSelect?.value || '친근한'
+        const aiModel = this.aiModelSelect?.value || 'claude'
+
+        // SEO 옵션 수집
+        const seoOptions = {
+            focusKeyword: this.focusKeywordInput?.value?.trim() || topic,
+            targetKeywords: this.targetKeywordsInput?.value?.trim() 
+                ? this.targetKeywordsInput.value.split(',').map(k => k.trim()) 
+                : [],
+            contentLength: this.contentLengthSelect?.value || 'medium',
+            includeStructuredData: this.includeStructuredDataInput?.checked || false
+        }
+
+        // 로딩 상태 표시
+        this.setSeoLoadingState(true)
+        
+        try {
+            // API 키 가져오기
+            let apiKey = ''
+            if (aiModel === 'claude') {
+                apiKey = this.claudeApiKeyInput?.value || ''
+            } else if (aiModel === 'gemini') {
+                apiKey = this.geminiApiKeyInput?.value || ''
+            } else if (aiModel === 'openai') {
+                apiKey = this.openaiApiKeyInput?.value || ''
+            }
+
+            console.log(`🔍 SEO 최적화 ${aiModel} 모델로 블로그 생성 시작...`)
+            console.log(`📝 주제: ${topic}`)
+            console.log(`👥 대상: ${audience}`)
+            console.log(`🎨 톤: ${tone}`)
+            console.log(`🎯 SEO 옵션:`, seoOptions)
+
+            const response = await axios.post('/api/generate-seo', {
+                topic,
+                audience,
+                tone,
+                aiModel,
+                apiKey,
+                seoOptions
+            })
+
+            const result = response.data
+            this.displaySEOResult(result)
+            
+            console.log('✅ SEO 블로그 생성 완료:', result.model)
+
+        } catch (error) {
+            console.error('❌ SEO 블로그 생성 실패:', error)
+            this.showError('SEO 블로그 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')
+        } finally {
+            this.setSeoLoadingState(false)
+        }
+    }
+
+    setSeoLoadingState(isLoading) {
+        if (this.generateSeoBtn) {
+            if (isLoading) {
+                this.generateSeoBtn.disabled = true
+                this.generateSeoBtn.innerHTML = `
+                    <i class="fas fa-spinner fa-spin mr-2"></i>
+                    SEO 분석 중...
+                `
+                this.generateSeoBtn.classList.add('opacity-70')
+            } else {
+                this.generateSeoBtn.disabled = false
+                this.generateSeoBtn.innerHTML = `
+                    <i class="fas fa-search mr-2"></i>
+                    SEO 최적화 생성 🔥
+                `
+                this.generateSeoBtn.classList.remove('opacity-70')
+            }
+        }
+    }
+
+    displaySEOResult(result) {
+        if (!this.resultSection || !this.contentDiv || !this.generationInfo) {
+            console.error('결과 표시 요소를 찾을 수 없습니다.')
+            return
+        }
+
+        // 결과 섹션 표시
+        this.resultSection.classList.remove('hidden')
+        this.seoAnalysisSection.classList.remove('hidden')
+        
+        // 생성 정보 표시
+        let infoHtml = `<i class="fas fa-search mr-2 text-green-600"></i>SEO 최적화 모델: ${result.model}`
+        
+        if (result.isDemo) {
+            infoHtml += ` <span class="ml-2 px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded-full">데모 모드</span>`
+        }
+        
+        if (result.message) {
+            infoHtml += `<br><i class="fas fa-info-circle mr-2"></i>${result.message}`
+        }
+        
+        this.generationInfo.innerHTML = infoHtml
+
+        // SEO 분석 정보 표시
+        if (result.seoAnalysis && result.seoMetadata) {
+            this.displaySEOAnalysis(result.seoAnalysis, result.seoMetadata)
+        }
+
+        // 콘텐츠 표시
+        this.contentDiv.innerHTML = this.markdownToHtml(result.content)
+
+        // 결과 섹션으로 스크롤
+        this.resultSection.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'start' 
+        })
+    }
+
+    displaySEOAnalysis(analysis, metadata) {
+        // SEO 점수 표시
+        if (this.seoScore && this.seoScoreProgress) {
+            this.seoScore.textContent = analysis.seoScore || 0
+            this.seoScoreProgress.style.width = `${analysis.seoScore || 0}%`
+            
+            // 점수에 따른 색상 변경
+            const scoreColor = analysis.seoScore >= 80 ? 'bg-green-500' : 
+                             analysis.seoScore >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+            this.seoScoreProgress.className = `h-3 rounded-full ${scoreColor}`
+        }
+
+        // 키워드 밀도 표시
+        if (this.keywordDensity && this.focusKeywordDisplay) {
+            this.keywordDensity.textContent = `${analysis.keywordDensity || 0}%`
+            this.focusKeywordDisplay.textContent = metadata.focusKeyword || ''
+        }
+
+        // 읽기 시간 표시
+        if (this.readingTime && this.wordCount) {
+            this.readingTime.textContent = metadata.readingTime || 0
+            this.wordCount.textContent = metadata.wordCount || 0
+        }
+
+        // SEO 메타데이터 표시
+        if (this.seoTitle) this.seoTitle.textContent = metadata.title || ''
+        if (this.metaDescription) this.metaDescription.textContent = metadata.metaDescription || ''
+        if (this.seoKeywords) this.seoKeywords.textContent = metadata.keywords?.join(', ') || ''
+
+        // SEO 권장사항 표시
+        if (this.recommendationsList && analysis.recommendations) {
+            this.recommendationsList.innerHTML = ''
+            analysis.recommendations.forEach(rec => {
+                const li = document.createElement('li')
+                li.innerHTML = `<i class="fas fa-lightbulb mr-2 text-yellow-500"></i>${rec}`
+                li.className = 'text-gray-700'
+                this.recommendationsList.appendChild(li)
+            })
+        }
+    }
+
     setLoadingState(isLoading) {
         if (this.generateBtn) {
             if (isLoading) {
@@ -221,6 +434,10 @@ class BlogGenerator {
 
         // 결과 섹션 표시
         this.resultSection.classList.remove('hidden')
+        // SEO 분석 섹션 숨김 (일반 모드)
+        if (this.seoAnalysisSection) {
+            this.seoAnalysisSection.classList.add('hidden')
+        }
         
         // 생성 정보 표시
         let infoHtml = `<i class="fas fa-robot mr-2"></i>모델: ${result.model}`
