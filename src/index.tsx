@@ -139,6 +139,201 @@ async function callAI(model: string, prompt: string, apiKey: string, options: an
   throw lastError || new Error('AI 호출에 실패했습니다')
 }
 
+// ==================== 고급 프롬프트 엔지니어링 시스템 ====================
+
+interface ContentTemplate {
+  structure: string[]
+  keyElements: string[]
+  qualityCriteria: string[]
+  examples: string
+  specificGuidelines: string
+}
+
+// 독자층별 콘텐츠 템플릿
+const contentTemplates: Record<string, ContentTemplate> = {
+  '일반인': {
+    structure: [
+      "관심을 끄는 도입부 (문제 제기 또는 흥미로운 사실)",
+      "주제에 대한 쉬운 설명 (일상 비유 활용)",
+      "왜 중요한지 설명 (개인적 이익 중심)",
+      "실생활 적용 방법 (구체적 예시 3가지)",
+      "실행 가능한 첫 번째 단계 제안"
+    ],
+    keyElements: [
+      "일상생활 비유와 예시 활용",
+      "전문용어 최소화 및 쉬운 설명",
+      "독자의 개인적 이익 강조",
+      "즉시 실행 가능한 팁 제공"
+    ],
+    qualityCriteria: [
+      "중학생도 이해할 수 있는 난이도",
+      "구체적인 숫자와 사례 포함",
+      "읽는 재미와 유익함 동시 제공"
+    ],
+    examples: "예: '투자'라는 주제라면 → '매월 용돈 관리하기'부터 시작",
+    specificGuidelines: "복잡한 개념은 단계별로 나누어 설명하고, 각 단계마다 실생활 예시를 들어주세요."
+  },
+
+  '초보자': {
+    structure: [
+      "주제 소개 및 학습 목표 명시",
+      "기본 개념과 핵심 용어 정리 (용어집 형태)",
+      "단계별 학습 로드맵 (1단계→2단계→3단계)",
+      "각 단계별 실습 과제와 체크리스트",
+      "자주 하는 실수와 해결 방법",
+      "다음 학습 단계 가이드"
+    ],
+    keyElements: [
+      "체계적이고 순서가 있는 설명",
+      "용어 정의와 개념 정리",
+      "단계별 실습 가이드",
+      "초보자 관점에서의 주의사항"
+    ],
+    qualityCriteria: [
+      "논리적 순서와 체계성",
+      "실습 가능한 구체적 단계",
+      "진도 확인이 가능한 체크포인트"
+    ],
+    examples: "예: 각 섹션 끝에 '✅ 이해했다면 체크' 항목 추가",
+    specificGuidelines: "초보자가 중도 포기하지 않도록 작은 성취감을 느낄 수 있는 단계들로 구성해주세요."
+  },
+
+  '중급자': {
+    structure: [
+      "현재 트렌드와 업계 동향 분석",
+      "기존 방법의 한계점과 개선 방향",
+      "고급 기법과 최적화 전략",
+      "실제 케이스 스터디 (성공/실패 사례)",
+      "성과 측정 방법과 KPI",
+      "전문가 수준으로 발전하는 로드맵"
+    ],
+    keyElements: [
+      "심화된 기법과 전략",
+      "실제 데이터와 사례 분석",
+      "효율성과 최적화 중심",
+      "측정 가능한 성과 지표"
+    ],
+    qualityCriteria: [
+      "실무에 바로 적용 가능한 내용",
+      "구체적 수치와 데이터 근거",
+      "비교 분석과 장단점 평가"
+    ],
+    examples: "예: A/B 테스트 결과, ROI 계산, 전후 비교 데이터",
+    specificGuidelines: "이론보다는 실무 경험과 데이터를 바탕으로 한 인사이트를 제공해주세요."
+  },
+
+  '전문가': {
+    structure: [
+      "최신 연구 동향과 기술 발전",
+      "심층 분석 및 메타 분석",
+      "혁신적 접근법과 패러다임 변화",
+      "업계 리더들의 전략과 인사이트",
+      "미래 전망과 예측 분석",
+      "전략적 의사결정 가이드라인"
+    ],
+    keyElements: [
+      "최신성과 전문성",
+      "깊이 있는 분석과 통찰",
+      "전략적 관점과 거시적 시각",
+      "리더십과 의사결정 관점"
+    ],
+    qualityCriteria: [
+      "업계 최신 트렌드 반영",
+      "데이터 기반 심층 분석",
+      "전략적 가치와 통찰력"
+    ],
+    examples: "예: 시장 점유율 변화, 투자 동향, 기술 로드맵 분석",
+    specificGuidelines: "단순한 설명보다는 전략적 관점에서 해석하고 미래 방향을 제시해주세요."
+  }
+}
+
+// 톤별 문체 가이드라인
+const toneGuidelines = {
+  '친근한': {
+    voice: "친구와 대화하는 듯한 편안한 말투",
+    techniques: ["반말과 존댓말 적절히 섞기", "이모티콘과 이모지 활용", "공감 표현 자주 사용"],
+    avoid: ["너무 격식적인 표현", "딱딱한 전문용어", "거리감 있는 어투"]
+  },
+  '전문적': {
+    voice: "객관적이고 정확한 정보 전달",
+    techniques: ["데이터와 근거 제시", "논리적 구조", "명확한 결론"],
+    avoid: ["주관적 의견", "감정적 표현", "모호한 표현"]
+  },
+  '유머러스': {
+    voice: "재미있고 기억하기 쉬운 표현",
+    techniques: ["적절한 농담과 재치", "재미있는 비유", "유머러스한 예시"],
+    avoid: ["지나친 개그", "진부한 농담", "주제와 동떨어진 유머"]
+  },
+  '진지한': {
+    voice: "신중하고 깊이 있는 접근",
+    techniques: ["신중한 분석", "다각도 검토", "책임감 있는 제안"],
+    avoid: ["가벼운 표현", "성급한 결론", "피상적인 내용"]
+  }
+}
+
+// 품질 기준 체크리스트
+const qualityStandards = [
+  "제목이 주제를 명확히 표현하고 있는가?",
+  "도입부가 독자의 관심을 효과적으로 끄는가?",
+  "논리적 흐름이 자연스러운가?",
+  "구체적인 예시와 데이터가 포함되어 있는가?",
+  "실용적이고 실행 가능한 조언이 있는가?",
+  "결론이 명확하고 기억에 남는가?",
+  "독자가 다음에 무엇을 해야 할지 제시되어 있는가?"
+]
+
+function generateAdvancedPrompt(topic: string, audience: string, tone: string): string {
+  const template = contentTemplates[audience]
+  const toneGuide = toneGuidelines[tone as keyof typeof toneGuidelines]
+  
+  return `당신은 10년 경력의 전문 콘텐츠 크리에이터입니다. 다음 과정을 따라 단계별로 생각하며 최고 품질의 블로그 글을 작성해주세요.
+
+🎯 **주제 분석 단계**
+주제: "${topic}"
+대상 독자: ${audience}
+글의 톤: ${tone}
+
+먼저 다음을 분석해주세요:
+1. 이 주제에서 ${audience}이 가장 궁금해할 핵심 질문 3가지
+2. 독자가 이 글을 읽은 후 얻고 싶어할 구체적 이익
+3. 이 주제와 관련된 최신 트렌드나 이슈
+
+🏗️ **콘텐츠 구조 설계**
+다음 구조를 따라 작성해주세요:
+${template.structure.map((item, index) => `${index + 1}. ${item}`).join('\n')}
+
+📝 **핵심 요소 포함사항**
+${template.keyElements.map(item => `✓ ${item}`).join('\n')}
+
+🎨 **톤 & 스타일 가이드라인**
+- 문체: ${toneGuide.voice}
+- 기법: ${toneGuide.techniques.join(', ')}
+- 피할 것: ${toneGuide.avoid.join(', ')}
+
+⭐ **품질 기준**
+${template.qualityCriteria.map(item => `• ${item}`).join('\n')}
+
+📚 **작성 예시 참고**
+${template.examples}
+
+🔥 **특별 지침**
+${template.specificGuidelines}
+
+📋 **최종 체크리스트**
+작성 완료 후 다음을 확인해주세요:
+${qualityStandards.map(item => `☐ ${item}`).join('\n')}
+
+---
+
+위의 모든 가이드라인을 종합하여, "${topic}"에 대한 ${audience} 대상의 ${tone} 톤 블로그 글을 마크다운 형식으로 작성해주세요. 
+
+글의 분량: 2500-4000자
+언어: 한국어
+형식: 마크다운
+
+이제 단계별로 생각하며 글을 작성해주세요:`
+}
+
 // 데모 콘텐츠 생성 함수 (API 키가 없을 때)
 function generateDemoContent(topic: string, audience: string, tone: string): string {
   const demoArticles = {
@@ -371,37 +566,8 @@ app.post('/api/generate', async (c) => {
       })
     }
 
-    // 프롬프트 생성
-    const audienceMap = {
-      '일반인': '전문 지식이 없는 일반인도 쉽게 이해할 수 있도록',
-      '초보자': '해당 분야에 처음 입문하는 초보자가 체계적으로 학습할 수 있도록',
-      '중급자': '기본 지식을 갖춘 중급자가 심화 학습할 수 있도록',
-      '전문가': '해당 분야 전문가 수준의 깊이 있는 내용으로'
-    }
-
-    const toneMap = {
-      '친근한': '친근하고 대화하듯이',
-      '전문적': '전문적이고 객관적으로',
-      '유머러스': '유머를 섞어 재미있게',
-      '진지한': '진지하고 신중하게'
-    }
-
-    const prompt = `다음 주제로 ${audienceMap[audience as keyof typeof audienceMap]} ${toneMap[tone as keyof typeof toneMap]} 블로그 글을 작성해주세요.
-
-주제: ${topic}
-대상 독자: ${audience}
-글의 톤: ${tone}
-
-요구사항:
-1. 마크다운 형식으로 작성
-2. 적절한 제목과 소제목 사용
-3. 읽기 쉽고 이해하기 쉬운 구조
-4. ${audience} 수준에 맞는 내용 깊이
-5. ${tone} 톤에 맞는 문체
-6. 한국어로 작성
-7. 2000-3000자 정도의 분량
-
-블로그 글:`
+    // 고급 프롬프트 시스템 생성
+    const prompt = generateAdvancedPrompt(topic, audience, tone)
 
     // AI 모델 호출
     const content = await callAI(aiModel, prompt, finalApiKey)
