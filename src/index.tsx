@@ -50,14 +50,12 @@ const aiModels: Record<string, AIModel> = {
   
   gemini: {
     name: 'Gemini 1.5 Flash',
-    endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent',
+    endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-002:generateContent',
     headers: (apiKey: string) => ({
-      'Content-Type': 'application/json'
+      'content-type': 'application/json'
     }),
     formatRequest: (prompt: string, options = {}) => ({
-      contents: [{
-        parts: [{ text: prompt }]
-      }],
+      contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         maxOutputTokens: options.maxTokens || 3000,
         temperature: 0.7
@@ -65,15 +63,15 @@ const aiModels: Record<string, AIModel> = {
     }),
     parseResponse: (response: any) => response.candidates?.[0]?.content?.parts?.[0]?.text || '',
     maxRetries: 3,
-    timeoutMs: 25000
+    timeoutMs: 30000
   },
-
+  
   openai: {
     name: 'GPT-4o-mini',
     endpoint: 'https://api.openai.com/v1/chat/completions',
     headers: (apiKey: string) => ({
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json'
+      'authorization': `Bearer ${apiKey}`,
+      'content-type': 'application/json'
     }),
     formatRequest: (prompt: string, options = {}) => ({
       model: 'gpt-4o-mini',
@@ -87,184 +85,238 @@ const aiModels: Record<string, AIModel> = {
   }
 }
 
-// AI 요청 처리 함수
-async function callAI(
-  modelName: string, 
-  prompt: string, 
-  apiKeys: Record<string, string>, 
-  options?: any
-): Promise<string> {
-  const model = aiModels[modelName]
-  if (!model) {
-    throw new Error(`지원하지 않는 모델: ${modelName}`)
+// AI API 호출 함수
+async function callAI(model: string, prompt: string, apiKey: string, options: any = {}): Promise<string> {
+  const aiModel = aiModels[model]
+  if (!aiModel) {
+    throw new Error(`지원하지 않는 AI 모델: ${model}`)
   }
 
-  const apiKey = apiKeys[modelName]
-  if (!apiKey) {
-    // 데모 모드: API 키가 없을 때 샘플 콘텐츠 반환
-    console.log(`🎭 ${model.name} 데모 모드 활성화`)
-    return generateDemoContent(modelName, prompt)
+  const url = model === 'gemini' ? `${aiModel.endpoint}?key=${apiKey}` : aiModel.endpoint
+  const headers = aiModel.headers(apiKey)
+  const body = aiModel.formatRequest(prompt, options)
+
+  let lastError: Error | null = null
+  
+  for (let attempt = 1; attempt <= aiModel.maxRetries; attempt++) {
+    try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), aiModel.timeoutMs)
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+        signal: controller.signal
+      })
+      
+      clearTimeout(timeoutId)
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`API 호출 실패 (${response.status}): ${errorText}`)
+      }
+      
+      const result = await response.json()
+      const content = aiModel.parseResponse(result)
+      
+      if (!content) {
+        throw new Error('AI 응답이 비어있습니다')
+      }
+      
+      return content
+      
+    } catch (error) {
+      lastError = error as Error
+      console.error(`AI 호출 시도 ${attempt}/${aiModel.maxRetries} 실패:`, error)
+      
+      if (attempt < aiModel.maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt))
+      }
+    }
   }
-
-  try {
-    console.log(`🤖 ${model.name}로 요청 시작`)
-    
-    const requestBody = model.formatRequest(prompt, options)
-    let url = model.endpoint
-    
-    // Gemini API는 URL에 API 키를 포함
-    if (modelName === 'gemini') {
-      url += `?key=${apiKey}`
-    }
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: model.headers(apiKey),
-      body: JSON.stringify(requestBody)
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error(`❌ ${model.name} API 오류:`, response.status, errorText)
-      throw new Error(`${model.name} API 오류: ${response.status}`)
-    }
-
-    const data = await response.json()
-    const content = model.parseResponse(data)
-    
-    if (!content) {
-      console.error(`❌ ${model.name} 응답 파싱 실패:`, data)
-      throw new Error(`${model.name} 응답 파싱 실패`)
-    }
-
-    console.log(`✅ ${model.name} 응답 성공 (${content.length}자)`)
-    return content
-
-  } catch (error: any) {
-    console.error(`❌ ${model.name} 호출 실패:`, error.message)
-    // 오류 시 데모 콘텐츠 반환
-    return generateDemoContent(modelName, prompt)
-  }
+  
+  throw lastError || new Error('AI 호출에 실패했습니다')
 }
 
-// 데모 콘텐츠 생성 함수
-function generateDemoContent(modelName: string, prompt: string): string {
-  const demoArticles = [
-    {
-      title: "인공지능과 미래 사회",
-      content: `
-# 인공지능과 미래 사회
+// 데모 콘텐츠 생성 함수 (API 키가 없을 때)
+function generateDemoContent(topic: string, audience: string, tone: string): string {
+  const demoArticles = {
+    '일반인': `# ${topic}에 대해 알아보기
 
-인공지능 기술의 급속한 발전은 우리 사회에 혁신적인 변화를 가져오고 있습니다.
+안녕하세요! 오늘은 **${topic}**에 대해 쉽게 알아보는 시간을 가져보겠습니다.
 
-## 주요 변화 영역
+## ${topic}란 무엇인가요?
 
-### 1. 업무 자동화
-- 반복적인 업무의 자동화
-- 새로운 직업군의 출현
-- 인간과 AI의 협업 증대
+${topic}는 일상생활에서 자주 접할 수 있는 개념입니다. 복잡해 보일 수 있지만, 실제로는 우리 주변에서 쉽게 찾아볼 수 있는 것들과 관련이 있어요.
 
-### 2. 개인화된 서비스
-- 맞춤형 추천 시스템
-- 개인화된 교육 프로그램
-- 정밀 의료 서비스
+## 왜 중요할까요?
 
-### 3. 창의적 작업 지원
-- AI 기반 콘텐츠 생성
-- 예술과 기술의 융합
-- 새로운 창작 도구의 등장
+${topic}를 이해하면 다음과 같은 장점이 있습니다:
 
-## 미래 전망
-
-인공지능은 단순히 인간을 대체하는 것이 아니라, 인간의 능력을 확장하고 보완하는 역할을 할 것입니다. 중요한 것은 이러한 변화에 능동적으로 적응하며, AI와 함께 성장하는 미래를 준비하는 것입니다.
-      `
-    },
-    {
-      title: "지속 가능한 환경을 위한 실천 방법",
-      content: `
-# 지속 가능한 환경을 위한 실천 방법
-
-환경 보호는 더 이상 선택이 아닌 필수입니다. 일상 생활에서 실천할 수 있는 방법들을 알아보겠습니다.
-
-## 개인 차원의 실천
-
-### 1. 에너지 절약
-- LED 전구 사용하기
-- 전자기기 대기전력 차단
-- 자연 채광 활용하기
-
-### 2. 친환경 교통 이용
-- 대중교통 이용하기
-- 자전거 타기
-- 전기차 고려하기
-
-### 3. 폐기물 줄이기
-- 일회용품 사용 줄이기
-- 분리수거 철저히 하기
-- 재활용품 활용하기
-
-## 공동체 차원의 노력
-
-### 1. 지역 환경 보호 활동
-- 플로깅(쓰레기 줍기 조깅) 참여
-- 지역 환경 단체 활동
-- 환경 교육 프로그램 참여
-
-### 2. 친환경 소비
-- 로컬 푸드 구매
-- 친환경 제품 선택
-- 공유경제 활용
-
-## 결론
-
-작은 실천이 모여 큰 변화를 만듭니다. 지속 가능한 미래를 위해 오늘부터 시작해보세요.
-      `
-    },
-    {
-      title: "디지털 웰빙과 균형잡힌 삶",
-      content: `
-# 디지털 웰빙과 균형잡힌 삶
-
-현대인의 삶에서 디지털 기기는 필수가 되었지만, 건강한 사용법을 익히는 것이 중요합니다.
-
-## 디지털 피로의 원인
-
-### 1. 과도한 스크린 시간
-- 눈의 피로와 시력 저하
-- 수면 패턴 교란
-- 집중력 감소
-
-### 2. 정보 과부하
-- 끊임없는 알림과 메시지
-- 소셜 미디어 중독
-- FOMO(Fear of Missing Out) 현상
-
-## 디지털 웰빙 실천법
-
-### 1. 스크린 타임 관리
-- 일정한 사용 시간 설정
-- 취침 전 디지털 디톡스
-- 20-20-20 규칙 적용 (20분마다 20초간 20피트 거리 보기)
-
-### 2. 의식적인 사용
-- 필요한 앱만 설치하기
-- 알림 설정 최소화
-- 오프라인 활동 시간 확보
-
-### 3. 건강한 관계 유지
-- 대면 소통 시간 늘리기
-- 온라인과 오프라인 균형 맞추기
-- 가족과 함께하는 디지털 프리 시간
+- 💡 **더 나은 이해**: 관련 개념들을 더 쉽게 파악할 수 있어요
+- 🚀 **실용적 활용**: 일상에서 직접 적용해볼 수 있습니다
+- 🎯 **문제 해결**: 관련 문제를 더 효과적으로 해결할 수 있어요
 
 ## 마무리
 
-디지털 기술은 도구일 뿐입니다. 우리가 기술을 통제하며 균형잡힌 삶을 살아가는 것이 중요합니다.
-      `
-    }
-  ]
+${topic}에 대해 기본적인 내용을 살펴보았습니다. 더 자세한 내용은 관련 자료를 찾아보시기 바랍니다!
 
-  const randomArticle = demoArticles[Math.floor(Math.random() * demoArticles.length)]
-  return `# ${randomArticle.title}\n\n${randomArticle.content.trim()}`
+*이 글이 도움이 되셨다면 공유해주세요! 📤*`,
+
+    '초보자': `# ${topic} 초보자 가이드
+
+${topic}에 처음 입문하시는 분들을 위한 상세한 가이드입니다.
+
+## 🔰 시작하기 전에
+
+${topic}를 처음 접하는 분들이 알아두면 좋은 기본 개념들을 정리해보겠습니다.
+
+### 기본 용어 정리
+- **핵심 개념 1**: ${topic}의 가장 기본이 되는 요소
+- **핵심 개념 2**: 실제 적용 시 중요한 포인트
+- **핵심 개념 3**: 초보자가 자주 놓치는 부분
+
+## 📚 단계별 학습 방법
+
+### 1단계: 기초 이해
+${topic}의 기본 원리를 파악하세요. 복잡한 이론보다는 실용적인 관점에서 접근하는 것이 좋습니다.
+
+### 2단계: 실습 해보기
+작은 예제부터 시작해서 점진적으로 난이도를 높여나가세요.
+
+### 3단계: 응용 학습
+기본기가 탄탄해지면 다양한 상황에 적용해보세요.
+
+## ⚠️ 주의사항
+
+초보자들이 자주 실수하는 부분들을 미리 알아두시면 도움이 됩니다:
+
+1. 기초를 건너뛰고 고급 내용으로 바로 넘어가지 마세요
+2. 이론만 공부하지 말고 실습을 병행하세요
+3. 막힐 때는 주저하지 말고 도움을 요청하세요
+
+## 🎯 다음 단계
+
+이제 ${topic}의 기초를 익혔다면, 중급 수준의 내용도 도전해보세요!`,
+
+    '중급자': `# ${topic} 중급 활용법
+
+기본 개념을 익힌 중급자를 위한 심화 내용입니다.
+
+## 🎯 중급자를 위한 핵심 포인트
+
+이미 ${topic}의 기초를 알고 계신 분들을 위해, 더 효과적인 활용 방법을 제시하겠습니다.
+
+### 고급 기법들
+
+#### 1. 최적화 전략
+- **성능 향상**: 기존 방법보다 30% 더 효율적인 접근법
+- **리소스 관리**: 제한된 자원으로 최대 효과를 내는 방법
+- **확장성 고려**: 미래 변화에 대비한 설계 방법
+
+#### 2. 실전 응용 사례
+실제 프로젝트에서 ${topic}를 어떻게 활용할 수 있는지 구체적인 예시를 들어보겠습니다.
+
+**사례 1: 복합적 문제 해결**
+- 문제 상황: 다양한 변수가 얽힌 복잡한 상황
+- 해결 과정: ${topic}의 핵심 원리를 단계적으로 적용
+- 결과 분석: 기대 효과와 실제 결과의 비교
+
+**사례 2: 효율성 개선**
+- 기존 방식의 한계점 분석
+- ${topic}를 활용한 개선 방안
+- 측정 가능한 성과 지표
+
+### 🔍 트러블슈팅
+
+중급자 수준에서 자주 마주치는 문제들과 해결 방법:
+
+1. **성능 병목 현상**: 원인 분석과 해결 방안
+2. **확장성 문제**: 스케일링 시 고려해야 할 요소들
+3. **호환성 이슈**: 다른 시스템과의 연동 시 주의점
+
+## 📈 전문가로 가는 길
+
+중급에서 전문가 수준으로 발전하기 위한 로드맵을 제시합니다.`,
+
+    '전문가': `# ${topic} 전문가 관점에서의 심층 분석
+
+${topic} 분야의 전문가를 위한 고급 분석과 인사이트를 제공합니다.
+
+## 🎯 전문가급 핵심 인사이트
+
+### 최신 동향 및 발전 방향
+
+${topic} 분야는 현재 다음과 같은 방향으로 발전하고 있습니다:
+
+#### 1. 기술적 혁신
+- **혁신 동력**: 최신 기술 트렌드가 ${topic}에 미치는 영향
+- **패러다임 변화**: 기존 접근법의 한계와 새로운 대안
+- **미래 전망**: 향후 5-10년간 예상되는 변화
+
+#### 2. 산업 생태계 분석
+- **시장 동향**: 주요 플레이어들의 전략 분석
+- **경쟁 구도**: 기술적 우위와 시장 점유율 변화
+- **투자 동향**: VC 및 기업 투자 패턴 분석
+
+### 🔬 심층 기술 분석
+
+#### 아키텍처 설계 원칙
+```
+핵심 설계 철학:
+- 확장성(Scalability): 대용량 데이터 처리 능력
+- 안정성(Reliability): 99.9% 이상의 가용성 보장
+- 성능(Performance): 지연시간 최소화 및 처리량 최적화
+```
+
+#### 성능 최적화 전략
+전문가 수준에서 고려해야 할 성능 최적화 요소들:
+
+1. **알고리즘 복잡도 최적화**
+   - 시간 복잡도: O(n log n) → O(n) 개선 사례
+   - 공간 복잡도: 메모리 사용량 50% 절감 기법
+
+2. **시스템 레벨 최적화**
+   - 캐싱 전략: 다층 캐시 구조 설계
+   - 병렬 처리: 멀티스레딩 및 분산 처리 패턴
+
+### 📊 데이터 기반 의사결정
+
+#### KPI 및 메트릭 설계
+${topic} 프로젝트의 성공을 측정하기 위한 핵심 지표:
+
+- **정량적 지표**: 처리량, 응답시간, 에러율
+- **정성적 지표**: 사용자 만족도, 시스템 안정성
+- **비즈니스 지표**: ROI, 시장 점유율, 고객 유지율
+
+#### A/B 테스트 설계
+- **가설 설정**: 통계적으로 유의미한 가설 수립
+- **실험 설계**: 편향을 최소화하는 실험 구조
+- **결과 해석**: 통계적 유의성과 실용적 의미 구분
+
+### 🚀 차세대 기술 전망
+
+전문가로서 주목해야 할 신기술들:
+
+1. **인공지능 융합**: ${topic}과 AI/ML의 시너지 효과
+2. **블록체인 응용**: 탈중앙화 패러다임의 적용 가능성
+3. **양자 컴퓨팅**: 기존 한계를 뛰어넘는 새로운 가능성
+
+## 🎯 리더십과 전략적 사고
+
+### 기술 리더십
+- **팀 빌딩**: 고성능 개발팀 구성 전략
+- **기술 의사결정**: 트레이드오프 분석과 최적 선택
+- **지식 전파**: 조직 내 기술 역량 향상 방안
+
+### 전략적 로드맵
+${topic} 분야에서 지속적인 경쟁 우위를 유지하기 위한 장기 전략을 수립해보겠습니다.
+
+이러한 전문가급 관점에서의 분석이 업계 발전과 개인 성장에 도움이 되기를 바랍니다.`
+  }
+
+  return demoArticles[audience as keyof typeof demoArticles] || demoArticles['일반인']
 }
 
 // ==================== API 엔드포인트 ====================
@@ -272,223 +324,109 @@ function generateDemoContent(modelName: string, prompt: string): string {
 // 헬스 체크
 app.get('/api/health', (c) => {
   return c.json({ 
-    status: 'OK', 
+    status: 'healthy', 
     timestamp: new Date().toISOString(),
-    version: '1.0'
+    version: '2.0'
   })
 })
 
 // API 키 상태 확인
 app.get('/api/keys/status', (c) => {
-  const env = c.env
+  const { env } = c
   
-  const keyStatus = {
+  return c.json({
     claude: !!env.CLAUDE_API_KEY,
     gemini: !!env.GEMINI_API_KEY,
     openai: !!env.OPENAI_API_KEY
-  }
-
-  const availableModels = Object.entries(keyStatus)
-    .filter(([_, hasKey]) => hasKey)
-    .map(([model, _]) => model)
-
-  return c.json({
-    keys: keyStatus,
-    availableModels,
-    totalAvailable: availableModels.length,
-    demoMode: availableModels.length === 0
   })
 })
 
-// 서브 키워드 생성
-app.post('/api/generate/subkeywords', async (c) => {
-  try {
-    const { keyword } = await c.req.json()
-    
-    if (!keyword) {
-      return c.json({ error: '키워드가 필요합니다.' }, 400)
-    }
-
-    const env = c.env
-    const apiKeys = {
-      claude: env.CLAUDE_API_KEY || '',
-      gemini: env.GEMINI_API_KEY || '',
-      openai: env.OPENAI_API_KEY || ''
-    }
-
-    const prompt = `
-다음 키워드와 관련된 10개의 서브 키워드를 생성해주세요: "${keyword}"
-
-요구사항:
-- 각 키워드는 2-4단어로 구성
-- 검색량이 높을만한 실용적인 키워드들
-- 서로 다른 관점에서 접근
-- 한국어로 작성
-
-형식: 각 줄에 하나씩 나열 (번호 없이)
-`
-
-    // 사용 가능한 모델 중 첫 번째 선택 (우선순위: Claude > Gemini > OpenAI)
-    let selectedModel = 'claude'
-    if (!apiKeys.claude && apiKeys.gemini) selectedModel = 'gemini'
-    else if (!apiKeys.claude && !apiKeys.gemini && apiKeys.openai) selectedModel = 'openai'
-
-    const content = await callAI(selectedModel, prompt, apiKeys)
-    
-    // 키워드 파싱
-    const subkeywords = content
-      .split('\n')
-      .map(line => line.trim())
-      .filter(line => line && !line.match(/^[#\-\*\d]/))
-      .slice(0, 10)
-
-    return c.json({
-      mainKeyword: keyword,
-      subkeywords,
-      model: selectedModel,
-      demoMode: !apiKeys[selectedModel]
-    })
-
-  } catch (error: any) {
-    console.error('서브키워드 생성 오류:', error)
-    return c.json({ 
-      error: '서브키워드 생성 중 오류가 발생했습니다.',
-      details: error.message 
-    }, 500)
-  }
-})
-
 // 블로그 글 생성
-app.post('/api/generate/blog', async (c) => {
+app.post('/api/generate', async (c) => {
   try {
-    const { 
-      keyword, 
-      subkeywords = [], 
-      targetAudience = '일반인',
-      articleCount = 1,
-      model = 'claude'
-    } = await c.req.json()
+    const { topic, audience, tone, aiModel, apiKey } = await c.req.json()
     
-    if (!keyword) {
-      return c.json({ error: '키워드가 필요합니다.' }, 400)
+    if (!topic || !audience || !tone || !aiModel) {
+      return c.json({ error: '필수 필드가 누락되었습니다' }, 400)
     }
 
-    const env = c.env
-    const apiKeys = {
-      claude: env.CLAUDE_API_KEY || '',
-      gemini: env.GEMINI_API_KEY || '',
-      openai: env.OPENAI_API_KEY || ''
+    // API 키 가져오기 (환경변수 우선, 없으면 클라이언트에서 전달받은 키 사용)
+    const { env } = c
+    let finalApiKey = ''
+    
+    if (aiModel === 'claude') {
+      finalApiKey = env.CLAUDE_API_KEY || apiKey
+    } else if (aiModel === 'gemini') {
+      finalApiKey = env.GEMINI_API_KEY || apiKey
+    } else if (aiModel === 'openai') {
+      finalApiKey = env.OPENAI_API_KEY || apiKey
     }
 
-    // 타겟 독자별 글쓰기 스타일 설정
-    const audienceStyles = {
-      '일반인': {
-        tone: '친근하고 이해하기 쉬운',
-        complexity: '기본적인',
-        examples: '일상생활 예시를 포함한'
-      },
-      '초보자': {
-        tone: '차근차근 설명하는',
-        complexity: '단계별로 자세한',
-        examples: '구체적인 실습 예시가 포함된'
-      },
-      '중급자': {
-        tone: '전문적이면서도 접근하기 쉬운',
-        complexity: '심화된 내용을 포함한',
-        examples: '실무 활용 사례가 담긴'
-      },
-      '전문가': {
-        tone: '전문적이고 깊이 있는',
-        complexity: '고급 개념과 이론을 다룬',
-        examples: '최신 연구 결과와 트렌드를 반영한'
-      }
+    // API 키가 없으면 데모 콘텐츠 생성
+    if (!finalApiKey) {
+      const demoContent = generateDemoContent(topic, audience, tone)
+      return c.json({
+        content: demoContent,
+        model: `${aiModel} (데모 모드)`,
+        isDemo: true,
+        message: 'API 키가 설정되지 않아 데모 콘텐츠를 생성했습니다.'
+      })
     }
 
-    const style = audienceStyles[targetAudience] || audienceStyles['일반인']
-    
-    const articles = []
-    
-    for (let i = 0; i < Math.min(articleCount, 10); i++) {
-      const currentKeyword = subkeywords[i] || keyword
-      
-      const prompt = `
-"${currentKeyword}"에 대한 블로그 글을 작성해주세요.
+    // 프롬프트 생성
+    const audienceMap = {
+      '일반인': '전문 지식이 없는 일반인도 쉽게 이해할 수 있도록',
+      '초보자': '해당 분야에 처음 입문하는 초보자가 체계적으로 학습할 수 있도록',
+      '중급자': '기본 지식을 갖춘 중급자가 심화 학습할 수 있도록',
+      '전문가': '해당 분야 전문가 수준의 깊이 있는 내용으로'
+    }
 
-타겟 독자: ${targetAudience}
-글 스타일: ${style.tone} 톤으로 ${style.complexity} 내용을 담은 ${style.examples} 글
+    const toneMap = {
+      '친근한': '친근하고 대화하듯이',
+      '전문적': '전문적이고 객관적으로',
+      '유머러스': '유머를 섞어 재미있게',
+      '진지한': '진지하고 신중하게'
+    }
+
+    const prompt = `다음 주제로 ${audienceMap[audience as keyof typeof audienceMap]} ${toneMap[tone as keyof typeof toneMap]} 블로그 글을 작성해주세요.
+
+주제: ${topic}
+대상 독자: ${audience}
+글의 톤: ${tone}
 
 요구사항:
-1. 제목: SEO에 최적화된 매력적인 제목
-2. 구조: 서론-본론(3-5개 섹션)-결론
-3. 길이: 1500-2000자 내외
-4. 마크다운 형식으로 작성
-5. 실용적인 정보와 팁 포함
-6. 읽기 쉬운 문단 구성
+1. 마크다운 형식으로 작성
+2. 적절한 제목과 소제목 사용
+3. 읽기 쉽고 이해하기 쉬운 구조
+4. ${audience} 수준에 맞는 내용 깊이
+5. ${tone} 톤에 맞는 문체
+6. 한국어로 작성
+7. 2000-3000자 정도의 분량
 
-메인 키워드: ${keyword}
-현재 키워드: ${currentKeyword}
-관련 키워드들: ${subkeywords.join(', ')}
-`
+블로그 글:`
 
-      try {
-        console.log(`📝 ${i + 1}번째 글 생성 시작: ${currentKeyword}`)
-        const content = await callAI(model, prompt, apiKeys)
-        
-        // 제목 추출
-        const lines = content.split('\n')
-        const titleLine = lines.find(line => line.startsWith('#'))
-        const title = titleLine ? titleLine.replace(/^#+\s*/, '') : `${currentKeyword} 완전 가이드`
-        
-        articles.push({
-          id: i + 1,
-          title,
-          keyword: currentKeyword,
-          content: content.trim(),
-          targetAudience,
-          model,
-          createdAt: new Date().toISOString(),
-          wordCount: content.length,
-          demoMode: !apiKeys[model]
-        })
-        
-        console.log(`✅ ${i + 1}번째 글 생성 완료`)
-        
-      } catch (error: any) {
-        console.error(`❌ ${i + 1}번째 글 생성 실패:`, error.message)
-        
-        // 오류 시 기본 콘텐츠 생성
-        const fallbackContent = generateDemoContent(model, currentKeyword)
-        articles.push({
-          id: i + 1,
-          title: `${currentKeyword} 가이드`,
-          keyword: currentKeyword,
-          content: fallbackContent,
-          targetAudience,
-          model: 'demo',
-          createdAt: new Date().toISOString(),
-          wordCount: fallbackContent.length,
-          demoMode: true,
-          error: '생성 중 오류 발생, 샘플 콘텐츠로 대체됨'
-        })
-      }
-    }
-
+    // AI 모델 호출
+    const content = await callAI(aiModel, prompt, finalApiKey)
+    
     return c.json({
-      success: true,
-      articles,
-      totalGenerated: articles.length,
-      keyword,
-      targetAudience,
-      model,
-      demoMode: !apiKeys[model]
+      content,
+      model: aiModels[aiModel].name,
+      isDemo: false
     })
 
   } catch (error: any) {
     console.error('블로그 생성 오류:', error)
-    return c.json({ 
-      error: '블로그 글 생성 중 오류가 발생했습니다.',
-      details: error.message 
-    }, 500)
+    
+    // 에러 시 데모 콘텐츠 반환
+    const { topic, audience } = await c.req.json().catch(() => ({ topic: '일반적인 주제', audience: '일반인' }))
+    const demoContent = generateDemoContent(topic, audience, '친근한')
+    
+    return c.json({
+      content: demoContent,
+      model: '데모 모드',
+      isDemo: true,
+      message: `API 호출 중 오류가 발생하여 데모 콘텐츠를 생성했습니다. (${error.message})`
+    })
   }
 })
 
@@ -503,179 +441,160 @@ app.get('/', (c) => {
         <title>AI 블로그 생성기</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
-        <script>
-            tailwind.config = {
-                theme: {
-                    extend: {
-                        colors: {
-                            primary: '#3B82F6',
-                            secondary: '#10B981'
-                        }
-                    }
-                }
-            }
-        </script>
+        <link href="/static/styles.css" rel="stylesheet">
     </head>
-    <body class="bg-gray-50 font-sans">
-        <div class="min-h-screen">
+    <body class="bg-gray-50 min-h-screen">
+        <div class="container mx-auto px-4 py-8">
             <!-- 헤더 -->
-            <header class="bg-white shadow-sm border-b">
-                <div class="max-w-6xl mx-auto px-4 py-4">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center space-x-3">
-                            <div class="bg-gradient-to-r from-blue-600 to-emerald-600 p-2 rounded-lg">
-                                <i class="fas fa-robot text-white text-xl"></i>
-                            </div>
-                            <div>
-                                <h1 class="text-2xl font-bold text-gray-800">AI 블로그 생성기</h1>
-                                <p class="text-sm text-gray-600">스마트한 콘텐츠 제작 도구</p>
-                            </div>
-                        </div>
-                        <div class="flex items-center space-x-4">
-                            <div id="apiStatus" class="flex items-center space-x-2 text-sm">
-                                <div class="flex items-center space-x-1">
-                                    <div class="w-2 h-2 bg-gray-400 rounded-full"></div>
-                                    <span class="text-gray-600">API 상태 확인 중...</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+            <div class="text-center mb-12">
+                <h1 class="text-4xl font-bold text-gray-800 mb-4">
+                    <i class="fas fa-robot mr-3 text-blue-600"></i>
+                    AI 블로그 생성기
+                </h1>
+                <p class="text-xl text-gray-600">
+                    AI의 힘으로 고품질 블로그 콘텐츠를 손쉽게 생성하세요
+                </p>
+                <div class="mt-4 flex justify-center space-x-4 text-sm text-gray-500">
+                    <span><i class="fas fa-check text-green-500 mr-1"></i>3개의 AI 모델 지원</span>
+                    <span><i class="fas fa-check text-green-500 mr-1"></i>4단계 난이도 조절</span>
+                    <span><i class="fas fa-check text-green-500 mr-1"></i>다양한 톤 지원</span>
                 </div>
-            </header>
+            </div>
 
             <!-- 메인 콘텐츠 -->
-            <main class="max-w-6xl mx-auto px-4 py-8">
-                <!-- 키워드 입력 섹션 -->
-                <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
-                    <div class="flex items-center space-x-3 mb-6">
-                        <div class="bg-blue-100 p-2 rounded-lg">
-                            <i class="fas fa-search text-blue-600"></i>
-                        </div>
-                        <h2 class="text-xl font-bold text-gray-800">키워드 설정</h2>
-                    </div>
-
-                    <div class="grid md:grid-cols-2 gap-6">
+            <div class="max-w-4xl mx-auto">
+                <!-- 블로그 생성 폼 -->
+                <div class="bg-white rounded-xl shadow-lg p-8 mb-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">
+                        <i class="fas fa-edit mr-2 text-blue-600"></i>
+                        블로그 글 생성
+                    </h2>
+                    
+                    <form id="blogForm" class="space-y-6">
+                        <!-- 주제 입력 -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">
-                                <i class="fas fa-key mr-2"></i>메인 키워드
+                                <i class="fas fa-lightbulb mr-2 text-yellow-500"></i>
+                                주제
                             </label>
                             <input 
                                 type="text" 
-                                id="mainKeyword" 
-                                placeholder="예: 인공지능, 블로그 마케팅, 요리 레시피"
+                                id="topic" 
+                                placeholder="예: 인공지능의 미래, 건강한 식습관, 투자 초보자 가이드"
                                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                required
                             >
-                            <p class="text-xs text-gray-500 mt-1">블로그 주제가 될 핵심 키워드를 입력하세요</p>
                         </div>
 
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">
-                                <i class="fas fa-users mr-2"></i>타겟 독자
-                            </label>
-                            <select id="targetAudience" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                                <option value="일반인">일반인 - 쉽고 친근한 설명</option>
-                                <option value="초보자">초보자 - 단계별 자세한 가이드</option>
-                                <option value="중급자">중급자 - 실무 활용 중심</option>
-                                <option value="전문가">전문가 - 깊이 있는 전문 내용</option>
-                            </select>
-                        </div>
-                    </div>
+                        <!-- 옵션들 -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <!-- 대상 독자 -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-users mr-2 text-green-500"></i>
+                                    대상 독자
+                                </label>
+                                <select id="audience" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    <option value="일반인">일반인 (쉽게)</option>
+                                    <option value="초보자">초보자 (체계적으로)</option>
+                                    <option value="중급자">중급자 (심화)</option>
+                                    <option value="전문가">전문가 (전문적으로)</option>
+                                </select>
+                            </div>
 
-                    <div class="flex flex-wrap gap-3 mt-6">
-                        <button id="generateSubKeywords" class="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2">
-                            <i class="fas fa-lightbulb"></i>
-                            <span>서브 키워드 생성</span>
-                        </button>
-                    </div>
-                </div>
+                            <!-- 글의 톤 -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-palette mr-2 text-purple-500"></i>
+                                    글의 톤
+                                </label>
+                                <select id="tone" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    <option value="친근한">친근한</option>
+                                    <option value="전문적">전문적</option>
+                                    <option value="유머러스">유머러스</option>
+                                    <option value="진지한">진지한</option>
+                                </select>
+                            </div>
 
-                <!-- 서브 키워드 표시 -->
-                <div id="subKeywordsSection" class="bg-white rounded-xl shadow-lg p-6 mb-8 hidden">
-                    <div class="flex items-center space-x-3 mb-4">
-                        <div class="bg-emerald-100 p-2 rounded-lg">
-                            <i class="fas fa-tags text-emerald-600"></i>
+                            <!-- AI 모델 -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-brain mr-2 text-red-500"></i>
+                                    AI 모델
+                                </label>
+                                <select id="aiModel" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    <option value="claude">Claude 3.5 Haiku</option>
+                                    <option value="gemini">Gemini 1.5 Flash</option>
+                                    <option value="openai">GPT-4o-mini</option>
+                                </select>
+                            </div>
                         </div>
-                        <h3 class="text-lg font-bold text-gray-800">생성된 서브 키워드</h3>
-                    </div>
-                    <div id="subKeywordsList" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
-                        <!-- 서브키워드들이 여기에 표시됩니다 -->
-                    </div>
-                    <p class="text-sm text-gray-600 mb-4">체크된 키워드들로 블로그 글이 생성됩니다. (최대 10개)</p>
-                    
-                    <div class="flex flex-wrap gap-3">
-                        <div class="flex items-center space-x-3">
-                            <label class="text-sm font-medium text-gray-700">글 개수:</label>
-                            <input type="number" id="articleCount" value="3" min="1" max="10" class="w-20 px-3 py-2 border rounded-lg">
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <label class="text-sm font-medium text-gray-700">AI 모델:</label>
-                            <select id="aiModel" class="px-3 py-2 border rounded-lg">
-                                <option value="claude">Claude 3.5 Haiku</option>
-                                <option value="gemini">Gemini 1.5 Flash</option>
-                                <option value="openai">GPT-4o-mini</option>
-                            </select>
-                        </div>
-                        <button id="startGeneration" class="bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2">
-                            <i class="fas fa-play"></i>
-                            <span>블로그 생성 시작</span>
-                        </button>
-                    </div>
-                </div>
 
-                <!-- 진행 상황 -->
-                <div id="progressSection" class="bg-white rounded-xl shadow-lg p-6 mb-8 hidden">
-                    <div class="flex items-center space-x-3 mb-4">
-                        <div class="bg-purple-100 p-2 rounded-lg">
-                            <i class="fas fa-cogs text-purple-600"></i>
-                        </div>
-                        <h3 class="text-lg font-bold text-gray-800">생성 진행 상황</h3>
-                    </div>
-                    
-                    <div class="mb-4">
-                        <div class="flex justify-between items-center mb-2">
-                            <span id="progressText" class="text-sm font-medium text-gray-700">준비 중...</span>
-                            <span id="progressPercent" class="text-sm text-gray-500">0%</span>
-                        </div>
-                        <div class="w-full bg-gray-200 rounded-full h-3">
-                            <div id="progressBar" class="bg-gradient-to-r from-purple-600 to-blue-600 h-3 rounded-full transition-all duration-500" style="width: 0%"></div>
-                        </div>
-                    </div>
-                    
-                    <div id="progressDetails" class="text-sm text-gray-600">
-                        <!-- 상세 진행 상황이 여기에 표시됩니다 -->
-                    </div>
-                </div>
-
-                <!-- 생성된 글 목록 -->
-                <div id="resultsSection" class="hidden">
-                    <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
-                        <div class="flex items-center justify-between mb-6">
-                            <div class="flex items-center space-x-3">
-                                <div class="bg-green-100 p-2 rounded-lg">
-                                    <i class="fas fa-check-circle text-green-600"></i>
+                        <!-- API 키 설정 섹션 -->
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="text-lg font-medium text-gray-800">
+                                    <i class="fas fa-key mr-2 text-blue-600"></i>
+                                    API 키 설정
+                                </h3>
+                                <button type="button" id="toggleApiKeys" class="text-blue-600 hover:text-blue-800">
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                            </div>
+                            
+                            <div id="apiKeysSection" class="hidden space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Claude API Key</label>
+                                    <input type="password" id="claudeApiKey" placeholder="sk-ant-..." class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                                 </div>
-                                <h3 class="text-xl font-bold text-gray-800">생성 완료</h3>
-                            </div>
-                            <div class="flex space-x-3">
-                                <button id="downloadPDF" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2">
-                                    <i class="fas fa-file-pdf"></i>
-                                    <span>PDF 다운로드</span>
-                                </button>
-                                <button id="downloadWord" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2">
-                                    <i class="fas fa-file-word"></i>
-                                    <span>Word 다운로드</span>
-                                </button>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Gemini API Key</label>
+                                    <input type="password" id="geminiApiKey" placeholder="AIza..." class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">OpenAI API Key</label>
+                                    <input type="password" id="openaiApiKey" placeholder="sk-proj-..." class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                </div>
+                                <div class="text-sm text-gray-600">
+                                    <i class="fas fa-info-circle mr-1"></i>
+                                    API 키가 없어도 데모 모드로 이용할 수 있습니다.
+                                </div>
                             </div>
                         </div>
-                        
-                        <div id="articlesList">
-                            <!-- 생성된 글들이 여기에 표시됩니다 -->
-                        </div>
-                    </div>
+
+                        <!-- 생성 버튼 -->
+                        <button 
+                            type="submit" 
+                            id="generateBtn"
+                            class="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 px-6 rounded-lg font-semibold text-lg hover:from-blue-700 hover:to-purple-700 transition duration-300 shadow-lg"
+                        >
+                            <i class="fas fa-magic mr-2"></i>
+                            블로그 글 생성하기
+                        </button>
+                    </form>
                 </div>
-            </main>
+
+                <!-- 생성된 콘텐츠 표시 영역 -->
+                <div id="resultSection" class="hidden bg-white rounded-xl shadow-lg p-8">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800">
+                            <i class="fas fa-file-alt mr-2 text-green-600"></i>
+                            생성된 블로그 글
+                        </h2>
+                        <button id="copyBtn" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition duration-300">
+                            <i class="fas fa-copy mr-2"></i>
+                            복사
+                        </button>
+                    </div>
+                    
+                    <div id="generationInfo" class="mb-4 p-3 bg-blue-50 rounded-lg text-sm text-gray-700"></div>
+                    
+                    <div id="content" class="prose max-w-none bg-gray-50 p-6 rounded-lg border"></div>
+                </div>
+            </div>
         </div>
 
+        <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
         <script src="/static/app.js"></script>
     </body>
     </html>

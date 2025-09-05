@@ -1,534 +1,391 @@
-// AI 블로그 생성기 클라이언트
+// ==================== AI 블로그 생성기 v2.0 ====================
+// 기본 블로그 생성 기능만 포함한 간소화된 버전
 
 class BlogGenerator {
     constructor() {
-        this.generatedArticles = [];
-        this.currentProgress = 0;
-        this.totalArticles = 0;
-        this.init();
+        this.initializeElements()
+        this.attachEventListeners()
+        this.loadApiKeys()
+        this.checkApiKeyStatus()
+        
+        console.log('🚀 AI 블로그 생성기 v2.0 초기화 완료')
     }
 
-    init() {
-        this.bindEvents();
-        this.checkApiKeyStatus();
+    initializeElements() {
+        // 폼 요소들
+        this.form = document.getElementById('blogForm')
+        this.topicInput = document.getElementById('topic')
+        this.audienceSelect = document.getElementById('audience')
+        this.toneSelect = document.getElementById('tone')
+        this.aiModelSelect = document.getElementById('aiModel')
+        this.generateBtn = document.getElementById('generateBtn')
+        
+        // API 키 관련 요소들
+        this.toggleApiKeysBtn = document.getElementById('toggleApiKeys')
+        this.apiKeysSection = document.getElementById('apiKeysSection')
+        this.claudeApiKeyInput = document.getElementById('claudeApiKey')
+        this.geminiApiKeyInput = document.getElementById('geminiApiKey')
+        this.openaiApiKeyInput = document.getElementById('openaiApiKey')
+        
+        // 결과 표시 요소들
+        this.resultSection = document.getElementById('resultSection')
+        this.contentDiv = document.getElementById('content')
+        this.copyBtn = document.getElementById('copyBtn')
+        this.generationInfo = document.getElementById('generationInfo')
     }
 
-    bindEvents() {
-        // 서브 키워드 생성
-        const generateSubKeywordsBtn = document.getElementById('generateSubKeywords');
-        if (generateSubKeywordsBtn) {
-            generateSubKeywordsBtn.addEventListener('click', () => {
-                this.generateSubKeywords();
-            });
+    attachEventListeners() {
+        // 폼 제출 이벤트
+        if (this.form) {
+            this.form.addEventListener('submit', (e) => {
+                e.preventDefault()
+                this.generateBlog()
+            })
         }
 
-        // 블로그 글 생성 시작
-        const startGenerationBtn = document.getElementById('startGeneration');
-        if (startGenerationBtn) {
-            startGenerationBtn.addEventListener('click', () => {
-                this.startBlogGeneration();
-            });
+        // API 키 토글 버튼
+        if (this.toggleApiKeysBtn) {
+            this.toggleApiKeysBtn.addEventListener('click', () => {
+                this.toggleApiKeysSection()
+            })
         }
 
-        // 파일 다운로드
-        const downloadPDFBtn = document.getElementById('downloadPDF');
-        if (downloadPDFBtn) {
-            downloadPDFBtn.addEventListener('click', () => {
-                this.downloadPDF();
-            });
+        // 복사 버튼
+        if (this.copyBtn) {
+            this.copyBtn.addEventListener('click', () => {
+                this.copyContent()
+            })
         }
 
-        const downloadWordBtn = document.getElementById('downloadWord');
-        if (downloadWordBtn) {
-            downloadWordBtn.addEventListener('click', () => {
-                this.downloadWord();
-            });
+        // API 키 입력 시 자동 저장
+        const apiKeyInputs = [this.claudeApiKeyInput, this.geminiApiKeyInput, this.openaiApiKeyInput]
+        apiKeyInputs.forEach(input => {
+            if (input) {
+                input.addEventListener('change', () => {
+                    this.saveApiKeys()
+                })
+            }
+        })
+    }
+
+    toggleApiKeysSection() {
+        if (this.apiKeysSection) {
+            const isHidden = this.apiKeysSection.classList.contains('hidden')
+            
+            if (isHidden) {
+                this.apiKeysSection.classList.remove('hidden')
+                this.toggleApiKeysBtn.innerHTML = '<i class="fas fa-chevron-up"></i>'
+            } else {
+                this.apiKeysSection.classList.add('hidden')
+                this.toggleApiKeysBtn.innerHTML = '<i class="fas fa-chevron-down"></i>'
+            }
         }
     }
 
-    // API 키 상태 확인
+    loadApiKeys() {
+        try {
+            const savedKeys = localStorage.getItem('aiApiKeys')
+            if (savedKeys) {
+                const keys = JSON.parse(savedKeys)
+                
+                if (this.claudeApiKeyInput && keys.claude) {
+                    this.claudeApiKeyInput.value = keys.claude
+                }
+                if (this.geminiApiKeyInput && keys.gemini) {
+                    this.geminiApiKeyInput.value = keys.gemini
+                }
+                if (this.openaiApiKeyInput && keys.openai) {
+                    this.openaiApiKeyInput.value = keys.openai
+                }
+                
+                console.log('💾 저장된 API 키 로드 완료')
+            }
+        } catch (error) {
+            console.error('API 키 로드 실패:', error)
+        }
+    }
+
+    saveApiKeys() {
+        try {
+            const keys = {
+                claude: this.claudeApiKeyInput?.value || '',
+                gemini: this.geminiApiKeyInput?.value || '',
+                openai: this.openaiApiKeyInput?.value || ''
+            }
+            
+            localStorage.setItem('aiApiKeys', JSON.stringify(keys))
+            console.log('💾 API 키 저장 완료')
+        } catch (error) {
+            console.error('API 키 저장 실패:', error)
+        }
+    }
+
     async checkApiKeyStatus() {
         try {
-            console.log('🔍 API 키 상태 확인 중...');
-            const response = await fetch('/api/keys/status');
+            const response = await axios.get('/api/keys/status')
+            const status = response.data
             
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
+            console.log('🔑 API 키 상태:', status)
             
-            const data = await response.json();
-            console.log('📊 API 키 상태:', data);
-            
-            this.updateApiStatus(data);
-            
-        } catch (error) {
-            console.error('❌ API 키 상태 확인 실패:', error);
-            this.updateApiStatus({
-                keys: { claude: false, gemini: false, openai: false },
-                availableModels: [],
-                totalAvailable: 0,
-                demoMode: true
-            });
-        }
-    }
-
-    // API 상태 UI 업데이트
-    updateApiStatus(data) {
-        const statusElement = document.getElementById('apiStatus');
-        if (!statusElement) return;
-
-        const { keys, availableModels, totalAvailable, demoMode } = data;
-        
-        let statusHtml = '';
-        
-        if (demoMode) {
-            statusHtml = `
-                <div class="flex items-center space-x-2">
-                    <div class="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
-                    <span class="text-yellow-600 font-medium">데모 모드</span>
-                    <i class="fas fa-info-circle text-yellow-500 cursor-help" 
-                       title="API 키가 설정되지 않았습니다. 샘플 콘텐츠가 제공됩니다."></i>
-                </div>
-            `;
-        } else {
-            statusHtml = `
-                <div class="flex items-center space-x-4">
-                    <div class="flex items-center space-x-2">
-                        <div class="w-2 h-2 bg-green-400 rounded-full"></div>
-                        <span class="text-green-600 font-medium">${totalAvailable}개 모델 활성</span>
-                    </div>
-                    <div class="flex space-x-1">
-                        ${Object.entries(keys).map(([model, hasKey]) => `
-                            <div class="flex items-center space-x-1 text-xs ${hasKey ? 'text-green-600' : 'text-gray-400'}">
-                                <div class="w-1.5 h-1.5 rounded-full ${hasKey ? 'bg-green-400' : 'bg-gray-300'}"></div>
-                                <span class="uppercase">${model}</span>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-        }
-        
-        statusElement.innerHTML = statusHtml;
-
-        // AI 모델 선택 옵션 업데이트
-        this.updateModelOptions(availableModels);
-    }
-
-    // AI 모델 선택 옵션 업데이트
-    updateModelOptions(availableModels) {
-        const modelSelect = document.getElementById('aiModel');
-        if (!modelSelect) return;
-
-        // 모든 옵션을 일단 비활성화
-        Array.from(modelSelect.options).forEach(option => {
-            const isAvailable = availableModels.includes(option.value);
-            option.disabled = !isAvailable;
-            option.text = option.text.replace(' (데모)', '');
-            if (!isAvailable) {
-                option.text += ' (데모)';
-            }
-        });
-
-        // 사용 가능한 첫 번째 모델 선택
-        if (availableModels.length > 0) {
-            modelSelect.value = availableModels[0];
-        }
-    }
-
-    // 서브 키워드 생성
-    async generateSubKeywords() {
-        const mainKeyword = document.getElementById('mainKeyword').value.trim();
-        
-        if (!mainKeyword) {
-            this.showAlert('메인 키워드를 입력해주세요.', 'warning');
-            return;
-        }
-
-        const btn = document.getElementById('generateSubKeywords');
-        const originalText = btn.innerHTML;
-        
-        try {
-            // 버튼 로딩 상태
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>생성 중...';
-            btn.disabled = true;
-
-            console.log('🔄 서브키워드 생성 시작:', mainKeyword);
-
-            const response = await fetch('/api/generate/subkeywords', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    keyword: mainKeyword
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error(`서버 오류: ${response.status}`);
-            }
-
-            const data = await response.json();
-            console.log('✅ 서브키워드 생성 완료:', data);
-
-            this.displaySubKeywords(data);
-            
-            if (data.demoMode) {
-                this.showAlert('데모 모드로 샘플 키워드가 생성되었습니다.', 'info');
-            }
-
-        } catch (error) {
-            console.error('❌ 서브키워드 생성 실패:', error);
-            this.showAlert('서브키워드 생성에 실패했습니다: ' + error.message, 'error');
-        } finally {
-            // 버튼 복원
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-        }
-    }
-
-    // 서브 키워드 표시
-    displaySubKeywords(data) {
-        const section = document.getElementById('subKeywordsSection');
-        const list = document.getElementById('subKeywordsList');
-        
-        if (!section || !list) return;
-
-        // 서브키워드 리스트 생성
-        list.innerHTML = data.subkeywords.map((keyword, index) => `
-            <label class="flex items-center space-x-2 p-3 border border-gray-200 rounded-lg hover:border-emerald-300 hover:bg-emerald-50 cursor-pointer transition-all duration-200">
-                <input type="checkbox" 
-                       class="subkeyword-checkbox w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500" 
-                       value="${keyword}" 
-                       ${index < 5 ? 'checked' : ''}>
-                <span class="text-sm text-gray-700 select-none">${keyword}</span>
-            </label>
-        `).join('');
-
-        section.classList.remove('hidden');
-        section.scrollIntoView({ behavior: 'smooth' });
-    }
-
-    // 블로그 생성 시작
-    async startBlogGeneration() {
-        const mainKeyword = document.getElementById('mainKeyword').value.trim();
-        const targetAudience = document.getElementById('targetAudience').value;
-        const articleCount = parseInt(document.getElementById('articleCount').value) || 3;
-        const aiModel = document.getElementById('aiModel').value;
-        
-        // 선택된 서브키워드들
-        const selectedSubkeywords = Array.from(document.querySelectorAll('.subkeyword-checkbox:checked'))
-            .map(cb => cb.value);
-
-        if (!mainKeyword) {
-            this.showAlert('메인 키워드를 입력해주세요.', 'warning');
-            return;
-        }
-
-        if (selectedSubkeywords.length === 0) {
-            this.showAlert('생성할 서브키워드를 최소 1개 선택해주세요.', 'warning');
-            return;
-        }
-
-        const actualCount = Math.min(articleCount, selectedSubkeywords.length);
-        this.totalArticles = actualCount;
-        this.currentProgress = 0;
-        this.generatedArticles = [];
-
-        try {
-            this.showProgressSection();
-            this.updateProgress(0, '블로그 생성 준비 중...');
-
-            console.log('📝 블로그 생성 시작:', {
-                mainKeyword,
-                subkeywords: selectedSubkeywords.slice(0, actualCount),
-                targetAudience,
-                articleCount: actualCount,
-                model: aiModel
-            });
-
-            const response = await fetch('/api/generate/blog', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    keyword: mainKeyword,
-                    subkeywords: selectedSubkeywords.slice(0, actualCount),
-                    targetAudience,
-                    articleCount: actualCount,
-                    model: aiModel
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error(`서버 오류: ${response.status}`);
-            }
-
-            const data = await response.json();
-            console.log('✅ 블로그 생성 완료:', data);
-
-            this.generatedArticles = data.articles;
-            this.updateProgress(100, '생성 완료!');
-            
-            setTimeout(() => {
-                this.displayResults(data);
-            }, 500);
-
-            if (data.demoMode) {
-                this.showAlert('데모 모드로 샘플 콘텐츠가 생성되었습니다.', 'info');
-            }
-
-        } catch (error) {
-            console.error('❌ 블로그 생성 실패:', error);
-            this.showAlert('블로그 생성에 실패했습니다: ' + error.message, 'error');
-            this.hideProgressSection();
-        }
-    }
-
-    // 진행 상황 섹션 표시
-    showProgressSection() {
-        const section = document.getElementById('progressSection');
-        if (section) {
-            section.classList.remove('hidden');
-            section.scrollIntoView({ behavior: 'smooth' });
-        }
-    }
-
-    // 진행 상황 섹션 숨김
-    hideProgressSection() {
-        const section = document.getElementById('progressSection');
-        if (section) {
-            section.classList.add('hidden');
-        }
-    }
-
-    // 진행 상황 업데이트
-    updateProgress(percent, message, details = '') {
-        const progressBar = document.getElementById('progressBar');
-        const progressText = document.getElementById('progressText');
-        const progressPercent = document.getElementById('progressPercent');
-        const progressDetails = document.getElementById('progressDetails');
-
-        if (progressBar) progressBar.style.width = `${percent}%`;
-        if (progressText) progressText.textContent = message;
-        if (progressPercent) progressPercent.textContent = `${Math.round(percent)}%`;
-        if (progressDetails && details) progressDetails.innerHTML = details;
-
-        this.currentProgress = percent;
-    }
-
-    // 결과 표시
-    displayResults(data) {
-        const section = document.getElementById('resultsSection');
-        const list = document.getElementById('articlesList');
-        
-        if (!section || !list) return;
-
-        list.innerHTML = data.articles.map((article, index) => `
-            <div class="border border-gray-200 rounded-lg p-6 mb-4">
-                <div class="flex items-start justify-between mb-4">
-                    <div class="flex-1">
-                        <div class="flex items-center space-x-2 mb-2">
-                            <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                                ${index + 1}번 글
-                            </span>
-                            <span class="bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                                ${article.keyword}
-                            </span>
-                            <span class="bg-emerald-100 text-emerald-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                                ${article.targetAudience}
-                            </span>
-                            ${article.demoMode ? '<span class="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded-full">데모</span>' : ''}
-                        </div>
-                        <h4 class="text-lg font-bold text-gray-800 mb-2">${article.title}</h4>
-                        <div class="flex items-center space-x-4 text-sm text-gray-500">
-                            <span><i class="fas fa-clock mr-1"></i>${new Date(article.createdAt).toLocaleString()}</span>
-                            <span><i class="fas fa-font mr-1"></i>${article.wordCount.toLocaleString()}자</span>
-                            <span><i class="fas fa-robot mr-1"></i>${article.model}</span>
-                        </div>
-                    </div>
-                    <button onclick="blogGenerator.toggleArticleContent(${index})" 
-                            class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors">
-                        <i id="toggleIcon${index}" class="fas fa-chevron-down"></i>
-                        <span class="ml-1">내용 보기</span>
-                    </button>
-                </div>
+            // 환경변수에 설정된 키가 있으면 표시
+            if (status.claude || status.gemini || status.openai) {
+                const configuredKeys = []
+                if (status.claude) configuredKeys.push('Claude')
+                if (status.gemini) configuredKeys.push('Gemini')
+                if (status.openai) configuredKeys.push('OpenAI')
                 
-                <div id="articleContent${index}" class="hidden">
-                    <div class="bg-gray-50 rounded-lg p-4 overflow-auto max-h-96">
-                        <div class="prose prose-sm max-w-none" id="articleText${index}">
-                            ${this.formatMarkdownToHTML(article.content)}
-                        </div>
-                    </div>
-                    <div class="flex justify-end space-x-2 mt-3">
-                        <button onclick="blogGenerator.copyToClipboard(${index})" 
-                                class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded text-sm font-medium transition-colors">
-                            <i class="fas fa-copy mr-1"></i>복사
-                        </button>
-                        <button onclick="blogGenerator.downloadSingle(${index})" 
-                                class="bg-green-100 hover:bg-green-200 text-green-700 px-3 py-2 rounded text-sm font-medium transition-colors">
-                            <i class="fas fa-download mr-1"></i>다운로드
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `).join('');
-
-        this.hideProgressSection();
-        section.classList.remove('hidden');
-        section.scrollIntoView({ behavior: 'smooth' });
-    }
-
-    // 글 내용 토글
-    toggleArticleContent(index) {
-        const content = document.getElementById(`articleContent${index}`);
-        const icon = document.getElementById(`toggleIcon${index}`);
-        
-        if (content && icon) {
-            if (content.classList.contains('hidden')) {
-                content.classList.remove('hidden');
-                icon.className = 'fas fa-chevron-up';
-            } else {
-                content.classList.add('hidden');
-                icon.className = 'fas fa-chevron-down';
+                console.log(`✅ 서버에 구성된 API 키: ${configuredKeys.join(', ')}`)
             }
-        }
-    }
-
-    // 클립보드 복사
-    async copyToClipboard(index) {
-        const article = this.generatedArticles[index];
-        if (!article) return;
-
-        try {
-            await navigator.clipboard.writeText(article.content);
-            this.showAlert('클립보드에 복사되었습니다!', 'success');
+            
         } catch (error) {
-            console.error('복사 실패:', error);
-            this.showAlert('복사에 실패했습니다.', 'error');
+            console.error('API 키 상태 확인 실패:', error)
         }
     }
 
-    // 개별 글 다운로드
-    downloadSingle(index) {
-        const article = this.generatedArticles[index];
-        if (!article) return;
+    async generateBlog() {
+        const topic = this.topicInput?.value?.trim()
+        if (!topic) {
+            this.showError('주제를 입력해주세요.')
+            return
+        }
 
-        const content = `# ${article.title}\n\n${article.content}`;
-        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
+        const audience = this.audienceSelect?.value || '일반인'
+        const tone = this.toneSelect?.value || '친근한'
+        const aiModel = this.aiModelSelect?.value || 'claude'
+
+        // 로딩 상태 표시
+        this.setLoadingState(true)
         
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${article.title}.txt`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    }
-
-    // PDF 다운로드
-    downloadPDF() {
-        if (this.generatedArticles.length === 0) {
-            this.showAlert('다운로드할 글이 없습니다.', 'warning');
-            return;
-        }
-
-        // PDF 라이브러리가 없으므로 텍스트 파일로 대체
-        this.downloadAllAsText('pdf');
-    }
-
-    // Word 다운로드
-    downloadWord() {
-        if (this.generatedArticles.length === 0) {
-            this.showAlert('다운로드할 글이 없습니다.', 'warning');
-            return;
-        }
-
-        // Word 라이브러리가 없으므로 텍스트 파일로 대체
-        this.downloadAllAsText('docx');
-    }
-
-    // 전체 텍스트 파일 다운로드
-    downloadAllAsText(format) {
-        const content = this.generatedArticles.map((article, index) => 
-            `${'='.repeat(50)}\n글 ${index + 1}: ${article.title}\n키워드: ${article.keyword}\n타겟: ${article.targetAudience}\n생성일: ${new Date(article.createdAt).toLocaleString()}\n${'='.repeat(50)}\n\n${article.content}\n\n`
-        ).join('\n');
-
-        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `AI블로그_모음집_${new Date().toISOString().slice(0, 10)}.${format === 'pdf' ? 'txt' : 'txt'}`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        this.showAlert(`모든 글이 ${format.toUpperCase()} 형식으로 다운로드되었습니다.`, 'success');
-    }
-
-    // 마크다운을 HTML로 변환 (간단한 변환)
-    formatMarkdownToHTML(markdown) {
-        return markdown
-            .replace(/^### (.*$)/gim, '<h3 class="text-lg font-bold mt-4 mb-2">$1</h3>')
-            .replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold mt-6 mb-3">$1</h2>')
-            .replace(/^# (.*$)/gim, '<h1 class="text-2xl font-bold mt-6 mb-4">$1</h1>')
-            .replace(/^\- (.*$)/gim, '<li class="ml-4">• $1</li>')
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*(.*?)\*/g, '<em>$1</em>')
-            .replace(/\n\n/g, '</p><p class="mb-3">')
-            .replace(/\n/g, '<br>')
-            .replace(/^(.*)$/, '<p class="mb-3">$1</p>');
-    }
-
-    // 알림 표시
-    showAlert(message, type = 'info') {
-        const colors = {
-            success: 'bg-green-100 border-green-400 text-green-700',
-            error: 'bg-red-100 border-red-400 text-red-700',
-            warning: 'bg-yellow-100 border-yellow-400 text-yellow-700',
-            info: 'bg-blue-100 border-blue-400 text-blue-700'
-        };
-
-        const icons = {
-            success: 'fas fa-check-circle',
-            error: 'fas fa-exclamation-circle',
-            warning: 'fas fa-exclamation-triangle',
-            info: 'fas fa-info-circle'
-        };
-
-        const alertDiv = document.createElement('div');
-        alertDiv.className = `fixed top-4 right-4 max-w-sm p-4 border rounded-lg shadow-lg z-50 ${colors[type]}`;
-        alertDiv.innerHTML = `
-            <div class="flex items-center space-x-2">
-                <i class="${icons[type]}"></i>
-                <span class="font-medium">${message}</span>
-                <button onclick="this.parentElement.parentElement.remove()" class="ml-auto">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-        `;
-
-        document.body.appendChild(alertDiv);
-
-        // 5초 후 자동 제거
-        setTimeout(() => {
-            if (alertDiv.parentElement) {
-                alertDiv.remove();
+        try {
+            // API 키 가져오기
+            let apiKey = ''
+            if (aiModel === 'claude') {
+                apiKey = this.claudeApiKeyInput?.value || ''
+            } else if (aiModel === 'gemini') {
+                apiKey = this.geminiApiKeyInput?.value || ''
+            } else if (aiModel === 'openai') {
+                apiKey = this.openaiApiKeyInput?.value || ''
             }
-        }, 5000);
+
+            console.log(`🤖 ${aiModel} 모델로 블로그 생성 시작...`)
+            console.log(`📝 주제: ${topic}`)
+            console.log(`👥 대상: ${audience}`)
+            console.log(`🎨 톤: ${tone}`)
+
+            const response = await axios.post('/api/generate', {
+                topic,
+                audience,
+                tone,
+                aiModel,
+                apiKey
+            })
+
+            const result = response.data
+            this.displayResult(result)
+            
+            console.log('✅ 블로그 생성 완료:', result.model)
+
+        } catch (error) {
+            console.error('❌ 블로그 생성 실패:', error)
+            this.showError('블로그 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')
+        } finally {
+            this.setLoadingState(false)
+        }
+    }
+
+    setLoadingState(isLoading) {
+        if (this.generateBtn) {
+            if (isLoading) {
+                this.generateBtn.disabled = true
+                this.generateBtn.innerHTML = `
+                    <i class="fas fa-spinner fa-spin mr-2"></i>
+                    생성 중...
+                `
+                this.generateBtn.classList.add('opacity-70')
+            } else {
+                this.generateBtn.disabled = false
+                this.generateBtn.innerHTML = `
+                    <i class="fas fa-magic mr-2"></i>
+                    블로그 글 생성하기
+                `
+                this.generateBtn.classList.remove('opacity-70')
+            }
+        }
+    }
+
+    displayResult(result) {
+        if (!this.resultSection || !this.contentDiv || !this.generationInfo) {
+            console.error('결과 표시 요소를 찾을 수 없습니다.')
+            return
+        }
+
+        // 결과 섹션 표시
+        this.resultSection.classList.remove('hidden')
+        
+        // 생성 정보 표시
+        let infoHtml = `<i class="fas fa-robot mr-2"></i>모델: ${result.model}`
+        
+        if (result.isDemo) {
+            infoHtml += ` <span class="ml-2 px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded-full">데모 모드</span>`
+        }
+        
+        if (result.message) {
+            infoHtml += `<br><i class="fas fa-info-circle mr-2"></i>${result.message}`
+        }
+        
+        this.generationInfo.innerHTML = infoHtml
+
+        // 콘텐츠 표시 (마크다운을 HTML로 변환)
+        this.contentDiv.innerHTML = this.markdownToHtml(result.content)
+
+        // 결과 섹션으로 스크롤
+        this.resultSection.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'start' 
+        })
+    }
+
+    markdownToHtml(markdown) {
+        let html = markdown
+
+        // 제목 변환
+        html = html.replace(/^### (.*$)/gim, '<h3 class="text-xl font-semibold text-gray-800 mt-6 mb-3">$1</h3>')
+        html = html.replace(/^## (.*$)/gim, '<h2 class="text-2xl font-bold text-gray-800 mt-8 mb-4">$1</h2>')
+        html = html.replace(/^# (.*$)/gim, '<h1 class="text-3xl font-bold text-gray-900 mb-6">$1</h1>')
+
+        // 굵은 글씨
+        html = html.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-gray-900">$1</strong>')
+
+        // 기울임체
+        html = html.replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
+
+        // 링크
+        html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-600 hover:text-blue-800 underline" target="_blank">$1</a>')
+
+        // 코드 블록
+        html = html.replace(/```([^`]+)```/g, '<pre class="bg-gray-100 p-4 rounded-lg overflow-x-auto mb-4"><code>$1</code></pre>')
+
+        // 인라인 코드
+        html = html.replace(/`([^`]+)`/g, '<code class="bg-gray-100 px-2 py-1 rounded text-sm">$1</code>')
+
+        // 리스트 변환
+        html = html.replace(/^\* (.+$)/gim, '<li class="mb-2">$1</li>')
+        html = html.replace(/^- (.+$)/gim, '<li class="mb-2">$1</li>')
+        html = html.replace(/^\d+\. (.+$)/gim, '<li class="mb-2">$1</li>')
+
+        // 리스트 감싸기
+        html = html.replace(/(<li class="mb-2">.*<\/li>)/gs, '<ul class="list-disc list-inside mb-4 space-y-1">$1</ul>')
+
+        // 문단 변환
+        html = html.replace(/\n\n/g, '</p><p class="mb-4">')
+        html = '<p class="mb-4">' + html + '</p>'
+
+        // 빈 문단 제거
+        html = html.replace(/<p class="mb-4"><\/p>/g, '')
+
+        // 줄바꿈 변환
+        html = html.replace(/\n/g, '<br>')
+
+        return html
+    }
+
+    copyContent() {
+        if (!this.contentDiv) return
+
+        const content = this.contentDiv.textContent || this.contentDiv.innerText
+        
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(content).then(() => {
+                this.showSuccess('콘텐츠가 클립보드에 복사되었습니다!')
+            }).catch(() => {
+                this.fallbackCopy(content)
+            })
+        } else {
+            this.fallbackCopy(content)
+        }
+    }
+
+    fallbackCopy(text) {
+        const textArea = document.createElement('textarea')
+        textArea.value = text
+        textArea.style.position = 'fixed'
+        textArea.style.opacity = '0'
+        document.body.appendChild(textArea)
+        textArea.select()
+        
+        try {
+            document.execCommand('copy')
+            this.showSuccess('콘텐츠가 클립보드에 복사되었습니다!')
+        } catch (err) {
+            this.showError('복사에 실패했습니다.')
+        }
+        
+        document.body.removeChild(textArea)
+    }
+
+    showSuccess(message) {
+        this.showNotification(message, 'success')
+    }
+
+    showError(message) {
+        this.showNotification(message, 'error')
+    }
+
+    showNotification(message, type = 'info') {
+        // 기존 알림 제거
+        const existingNotification = document.getElementById('notification')
+        if (existingNotification) {
+            existingNotification.remove()
+        }
+
+        // 새 알림 생성
+        const notification = document.createElement('div')
+        notification.id = 'notification'
+        
+        const bgColor = type === 'success' ? 'bg-green-500' : 
+                       type === 'error' ? 'bg-red-500' : 'bg-blue-500'
+        
+        const icon = type === 'success' ? 'fa-check-circle' : 
+                    type === 'error' ? 'fa-exclamation-triangle' : 'fa-info-circle'
+
+        notification.className = `fixed top-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-50 transform transition-all duration-300 translate-x-full`
+        notification.innerHTML = `
+            <div class="flex items-center">
+                <i class="fas ${icon} mr-2"></i>
+                <span>${message}</span>
+            </div>
+        `
+
+        document.body.appendChild(notification)
+
+        // 애니메이션으로 표시
+        setTimeout(() => {
+            notification.classList.remove('translate-x-full')
+        }, 100)
+
+        // 3초 후 자동 제거
+        setTimeout(() => {
+            notification.classList.add('translate-x-full')
+            setTimeout(() => {
+                if (notification && notification.parentNode) {
+                    notification.parentNode.removeChild(notification)
+                }
+            }, 300)
+        }, 3000)
     }
 }
 
-// 전역 변수로 인스턴스 생성
-let blogGenerator;
+// ==================== 초기화 ====================
 
-// DOM 로드 후 초기화
+// DOM 로드 완료 시 초기화
 document.addEventListener('DOMContentLoaded', function() {
-    blogGenerator = new BlogGenerator();
-    console.log('✅ AI 블로그 생성기 초기화 완료');
-});
+    // 블로그 생성기 초기화
+    window.blogGenerator = new BlogGenerator()
+    
+    console.log('📱 AI 블로그 생성기 v2.0 시작!')
+    console.log('✨ 기능: 기본 블로그 생성')
+    console.log('🤖 지원 모델: Claude, Gemini, OpenAI')
+})
+
+// 전역 함수로 내보내기 (디버깅용)
+window.BlogGenerator = BlogGenerator
