@@ -6,6 +6,7 @@ type Bindings = {
   OPENAI_API_KEY?: string
   CLAUDE_API_KEY?: string
   GEMINI_API_KEY?: string
+  GROK_API_KEY?: string
 }
 
 const app = new Hono<{ Bindings: Bindings }>()
@@ -82,6 +83,25 @@ const aiModels: Record<string, AIModel> = {
     parseResponse: (response: any) => response.choices?.[0]?.message?.content || '',
     maxRetries: 3,
     timeoutMs: 30000
+  },
+
+  grok: {
+    name: 'Grok-2 Beta',
+    endpoint: 'https://api.x.ai/v1/chat/completions',
+    headers: (apiKey: string) => ({
+      'authorization': `Bearer ${apiKey}`,
+      'content-type': 'application/json'
+    }),
+    formatRequest: (prompt: string, options = {}) => ({
+      model: 'grok-2-1212',
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: options.maxTokens || 3000,
+      temperature: 0.8, // GROK은 창의성을 위해 약간 높은 temperature
+      stream: false
+    }),
+    parseResponse: (response: any) => response.choices?.[0]?.message?.content || '',
+    maxRetries: 3,
+    timeoutMs: 45000 // GROK은 조금 더 긴 타임아웃
   }
 }
 
@@ -193,6 +213,19 @@ const aiExperts: Record<string, AIExpert> = {
     },
     promptStyle: '친근하고 자연스러운 대화체',
     reasoning: '독자와의 감정적 연결과 자연스러운 소통을 통해 친근하고 매력적인 콘텐츠 생성'
+  },
+
+  grok: {
+    name: 'Grok-2 Beta - 트렌드 & 창의성 전문가',
+    strengths: ['실시간 트렌드 반영', '창의적 아이디어', '유머러스한 표현', '자유로운 사고', '바이럴 요소'],
+    expertise: ['소셜미디어 콘텐츠', '트렌드 분석', '바이럴 마케팅', '창의적 스토리텔링', '젊은층 소통'],
+    optimalFor: {
+      audiences: ['일반인', '젊은층'],
+      topics: ['트렌드', '소셜미디어', '엔터테인먼트', '스타트업', '기술 트렌드', '문화', '유머', '바이럴', '최신'],
+      contentTypes: ['바이럴 콘텐츠', '소셜미디어 포스트', '트렌드 분석', '창의적 에세이', '인플루언서 콘텐츠']
+    },
+    promptStyle: '재치있고 트렌디한 창의적 접근',
+    reasoning: '실시간 트렌드와 최신 정보를 활용해 젊은층에게 어필하는 창의적이고 바이럴 가능성 높은 콘텐츠 생성'
   }
 }
 
@@ -204,7 +237,7 @@ function selectExpertModel(topic: string, audience: string, tone: string): {
   reasoning: string
 } {
   const topicLower = topic.toLowerCase()
-  const scores: Record<string, number> = { claude: 0, gemini: 0, openai: 0 }
+  const scores: Record<string, number> = { claude: 0, gemini: 0, openai: 0, grok: 0 }
   
   // 1. 독자층 기반 점수 (40%)
   Object.entries(aiExperts).forEach(([model, expert]) => {
@@ -224,9 +257,14 @@ function selectExpertModel(topic: string, audience: string, tone: string): {
   // 3. 톤 매칭 (15%)
   if (tone === '전문적' || tone === '진지한') {
     scores.claude += 15
-  } else if (tone === '친근한' || tone === '유머러스') {
-    scores.openai += 15
+  } else if (tone === '친근한') {
+    scores.openai += 12
     scores.gemini += 10
+    scores.grok += 8
+  } else if (tone === '유머러스') {
+    scores.grok += 15  // GROK이 유머에 최적화
+    scores.openai += 12
+    scores.gemini += 8
   }
   
   // 4. 전문 영역 매칭 (10%)
@@ -236,6 +274,38 @@ function selectExpertModel(topic: string, audience: string, tone: string): {
     )
     if (expertiseMatch) scores[model] += 10
   })
+
+  // 5. GROK 특화 점수 (추가 보너스)
+  // 트렌드/실시간성 키워드
+  const trendKeywords = ['트렌드', '최신', '요즘', '화제', '인기', '바이럴', '실시간', '지금', '현재']
+  const hasTrendKeywords = trendKeywords.some(keyword => topicLower.includes(keyword))
+  if (hasTrendKeywords) {
+    scores.grok += 25
+  }
+
+  // 소셜미디어/젊은층 키워드
+  const socialKeywords = ['소셜미디어', 'sns', '인스타', '틱톡', 'mz세대', 'z세대', '젊은', '20대', '30대']
+  const hasSocialKeywords = socialKeywords.some(keyword => topicLower.includes(keyword))
+  if (hasSocialKeywords) {
+    scores.grok += 20
+  }
+
+  // 창의성/엔터테인먼트 키워드
+  const creativeKeywords = ['창의', '아이디어', '재미', '유머', '엔터테인먼트', '문화', '예술', '콘텐츠']
+  const hasCreativeKeywords = creativeKeywords.some(keyword => topicLower.includes(keyword))
+  if (hasCreativeKeywords) {
+    scores.grok += 15
+  }
+
+  // 일반인 + 유머러스 조합 시 GROK 추가 보너스
+  if (audience === '일반인' && tone === '유머러스') {
+    scores.grok += 20
+  }
+
+  // 젊은층 타겟팅 시 추가 보너스
+  if (audience === '일반인' || audience === '초보자') {
+    scores.grok += 10
+  }
   
   // 최고 점수 모델 선택
   const bestModel = Object.entries(scores).reduce((a, b) => 
@@ -406,7 +476,8 @@ function generateAdvancedPrompt(topic: string, audience: string, tone: string, s
   const rolePrompts = {
     claude: `당신은 ${expert.name}입니다. ${expert.strengths.join(', ')}에 특화된 전문 분석가로서, 데이터 기반의 객관적이고 논리적인 분석을 통해 깊이 있는 인사이트를 제공합니다.`,
     gemini: `당신은 ${expert.name}입니다. ${expert.strengths.join(', ')}에 특화된 교육 전문가로서, 복잡한 내용을 체계적으로 정리하여 단계별로 이해하기 쉽게 설명합니다.`,
-    openai: `당신은 ${expert.name}입니다. ${expert.strengths.join(', ')}에 특화된 콘텐츠 크리에이터로서, 독자와의 자연스러운 소통을 통해 매력적이고 공감대가 형성되는 글을 작성합니다.`
+    openai: `당신은 ${expert.name}입니다. ${expert.strengths.join(', ')}에 특화된 콘텐츠 크리에이터로서, 독자와의 자연스러운 소통을 통해 매력적이고 공감대가 형성되는 글을 작성합니다.`,
+    grok: `당신은 ${expert.name}입니다. ${expert.strengths.join(', ')}에 특화된 트렌드 분석가이자 창의적 콘텐츠 전문가로서, 최신 트렌드를 반영하고 젊은층에게 어필하는 재치있고 바이럴 가능성 높은 콘텐츠를 생성합니다.`
   }
   
   return `${rolePrompts[selectedModel as keyof typeof rolePrompts] || rolePrompts.claude}
@@ -510,7 +581,8 @@ function generateSEOPrompt(topic: string, audience: string, tone: string, seoOpt
   const seoRolePrompts = {
     claude: `당신은 SEO 분석 전문가입니다. 데이터 기반의 논리적 분석을 통해 검색엔진 최적화된 전문적인 콘텐츠를 작성합니다.`,
     gemini: `당신은 SEO 교육 전문가입니다. 체계적이고 구조화된 접근으로 검색엔진과 사용자 모두에게 최적화된 학습 친화적 콘텐츠를 작성합니다.`,
-    openai: `당신은 SEO 콘텐츠 마케터입니다. 자연스럽고 매력적인 표현으로 검색엔진 최적화와 사용자 경험을 모두 만족하는 콘텐츠를 작성합니다.`
+    openai: `당신은 SEO 콘텐츠 마케터입니다. 자연스럽고 매력적인 표현으로 검색엔진 최적화와 사용자 경험을 모두 만족하는 콘텐츠를 작성합니다.`,
+    grok: `당신은 바이럴 SEO 전문가입니다. 최신 트렌드를 반영하고 젊은층의 검색 패턴을 분석하여 바이럴 가능성과 검색엔진 최적화를 동시에 만족하는 창의적 콘텐츠를 작성합니다.`
   }
 
   return `${seoRolePrompts[selectedModel as keyof typeof seoRolePrompts] || seoRolePrompts.claude}
@@ -1206,7 +1278,8 @@ app.get('/api/keys/status', (c) => {
   return c.json({
     claude: !!env.CLAUDE_API_KEY,
     gemini: !!env.GEMINI_API_KEY,
-    openai: !!env.OPENAI_API_KEY
+    openai: !!env.OPENAI_API_KEY,
+    grok: !!env.GROK_API_KEY
   })
 })
 
@@ -1229,6 +1302,8 @@ app.post('/api/generate-seo', async (c) => {
       finalApiKey = env.GEMINI_API_KEY || apiKey
     } else if (aiModel === 'openai') {
       finalApiKey = env.OPENAI_API_KEY || apiKey
+    } else if (aiModel === 'grok') {
+      finalApiKey = env.GROK_API_KEY || apiKey
     }
 
     if (!finalApiKey) {
@@ -1259,6 +1334,8 @@ app.post('/api/generate-seo', async (c) => {
       seoApiKey = env.GEMINI_API_KEY || apiKey
     } else if (selectedModel === 'openai') {
       seoApiKey = env.OPENAI_API_KEY || apiKey
+    } else if (selectedModel === 'grok') {
+      seoApiKey = env.GROK_API_KEY || apiKey
     }
 
     if (!seoApiKey) {
@@ -1347,6 +1424,8 @@ app.post('/api/generate-qa', async (c) => {
       finalApiKey = env.GEMINI_API_KEY || apiKey
     } else if (selectedModel === 'openai') {
       finalApiKey = env.OPENAI_API_KEY || apiKey
+    } else if (selectedModel === 'grok') {
+      finalApiKey = env.GROK_API_KEY || apiKey
     }
 
     if (!finalApiKey) {
@@ -1543,6 +1622,8 @@ app.post('/api/generate', async (c) => {
       finalApiKey = env.GEMINI_API_KEY || apiKey
     } else if (selectedModel === 'openai') {
       finalApiKey = env.OPENAI_API_KEY || apiKey
+    } else if (selectedModel === 'grok') {
+      finalApiKey = env.GROK_API_KEY || apiKey
     }
 
     // API 키가 없으면 데모 콘텐츠 생성
@@ -1625,8 +1706,8 @@ app.get('/', (c) => {
                 </p>
                 <div class="mt-4 flex justify-center space-x-4 text-sm text-gray-500">
                     <span><i class="fas fa-check text-green-500 mr-1"></i>🛡️ 3단계 품질 검증</span>
-                    <span><i class="fas fa-check text-green-500 mr-1"></i>🧠 AI 전문가 시스템</span>
-                    <span><i class="fas fa-check text-green-500 mr-1"></i>🔍 SEO 최적화</span>
+                    <span><i class="fas fa-check text-green-500 mr-1"></i>🧠 4-AI 전문가 시스템</span>
+                    <span><i class="fas fa-check text-green-500 mr-1"></i>🔥 GROK 트렌드 분석</span>
                 </div>
             </div>
 
@@ -1696,6 +1777,7 @@ app.get('/', (c) => {
                                     <option value="claude">🔬 Claude 3.5 Haiku (분석 전문가)</option>
                                     <option value="gemini">🎓 Gemini 1.5 Flash (교육 전문가)</option>
                                     <option value="openai">💬 GPT-4o-mini (소통 전문가)</option>
+                                    <option value="grok">🔥 Grok-2 Beta (트렌드 & 창의성 전문가) - NEW!</option>
                                 </select>
                             </div>
                         </div>
@@ -1724,6 +1806,10 @@ app.get('/', (c) => {
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">OpenAI API Key</label>
                                     <input type="password" id="openaiApiKey" placeholder="sk-proj-..." class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Grok API Key (NEW! 🔥)</label>
+                                    <input type="password" id="grokApiKey" placeholder="xai-..." class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                                 </div>
                                 <div class="text-sm text-gray-600">
                                     <i class="fas fa-info-circle mr-1"></i>
@@ -1770,6 +1856,30 @@ app.get('/', (c) => {
                                 <div class="text-sm text-green-600">
                                     <i class="fas fa-info-circle mr-1"></i>
                                     SEO 최적화로 검색 노출과 클릭률을 향상시킬 수 있습니다.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- GROK 신규 추가 안내 -->
+                        <div class="bg-gradient-to-r from-orange-50 to-red-50 p-4 rounded-lg border border-orange-200 mb-4">
+                            <div class="flex items-center mb-3">
+                                <h3 class="text-lg font-medium text-gray-800">
+                                    <i class="fas fa-fire mr-2 text-orange-600"></i>
+                                    🔥 GROK-2 Beta 신규 추가! (NEW!)
+                                </h3>
+                            </div>
+                            <div class="text-sm text-gray-600 space-y-2">
+                                <div class="flex items-center">
+                                    <i class="fas fa-chart-line mr-2 text-orange-500"></i>
+                                    <span><strong>실시간 트렌드 반영:</strong> X(Twitter) 기반 최신 화제 분석</span>
+                                </div>
+                                <div class="flex items-center">
+                                    <i class="fas fa-lightbulb mr-2 text-yellow-500"></i>
+                                    <span><strong>창의적 콘텐츠:</strong> 바이럴 가능성 높은 재치있는 글쓰기</span>
+                                </div>
+                                <div class="flex items-center">
+                                    <i class="fas fa-users mr-2 text-blue-500"></i>
+                                    <span><strong>젊은층 특화:</strong> Z세대, 밀레니얼 맞춤 톤 & 스타일</span>
                                 </div>
                             </div>
                         </div>

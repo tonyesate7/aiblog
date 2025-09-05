@@ -27,6 +27,7 @@ class BlogGenerator {
         this.claudeApiKeyInput = document.getElementById('claudeApiKey')
         this.geminiApiKeyInput = document.getElementById('geminiApiKey')
         this.openaiApiKeyInput = document.getElementById('openaiApiKey')
+        this.grokApiKeyInput = document.getElementById('grokApiKey')
         
         // SEO 관련 요소들
         this.toggleSeoOptionsBtn = document.getElementById('toggleSeoOptions')
@@ -123,7 +124,7 @@ class BlogGenerator {
         }
 
         // API 키 입력 시 자동 저장
-        const apiKeyInputs = [this.claudeApiKeyInput, this.geminiApiKeyInput, this.openaiApiKeyInput]
+        const apiKeyInputs = [this.claudeApiKeyInput, this.geminiApiKeyInput, this.openaiApiKeyInput, this.grokApiKeyInput]
         apiKeyInputs.forEach(input => {
             if (input) {
                 input.addEventListener('change', () => {
@@ -176,6 +177,9 @@ class BlogGenerator {
                 if (this.openaiApiKeyInput && keys.openai) {
                     this.openaiApiKeyInput.value = keys.openai
                 }
+                if (this.grokApiKeyInput && keys.grok) {
+                    this.grokApiKeyInput.value = keys.grok
+                }
                 
                 console.log('💾 저장된 API 키 로드 완료')
             }
@@ -189,7 +193,8 @@ class BlogGenerator {
             const keys = {
                 claude: this.claudeApiKeyInput?.value || '',
                 gemini: this.geminiApiKeyInput?.value || '',
-                openai: this.openaiApiKeyInput?.value || ''
+                openai: this.openaiApiKeyInput?.value || '',
+                grok: this.grokApiKeyInput?.value || ''
             }
             
             localStorage.setItem('aiApiKeys', JSON.stringify(keys))
@@ -207,11 +212,12 @@ class BlogGenerator {
             console.log('🔑 API 키 상태:', status)
             
             // 환경변수에 설정된 키가 있으면 표시
-            if (status.claude || status.gemini || status.openai) {
+            if (status.claude || status.gemini || status.openai || status.grok) {
                 const configuredKeys = []
                 if (status.claude) configuredKeys.push('Claude')
                 if (status.gemini) configuredKeys.push('Gemini')
                 if (status.openai) configuredKeys.push('OpenAI')
+                if (status.grok) configuredKeys.push('Grok')
                 
                 console.log(`✅ 서버에 구성된 API 키: ${configuredKeys.join(', ')}`)
             }
@@ -244,6 +250,8 @@ class BlogGenerator {
                 apiKey = this.geminiApiKeyInput?.value || ''
             } else if (aiModel === 'openai') {
                 apiKey = this.openaiApiKeyInput?.value || ''
+            } else if (aiModel === 'grok') {
+                apiKey = this.grokApiKeyInput?.value || ''
             }
 
             console.log(`🤖 ${aiModel} 모델로 블로그 생성 시작...`)
@@ -305,6 +313,8 @@ class BlogGenerator {
                 apiKey = this.geminiApiKeyInput?.value || ''
             } else if (aiModel === 'openai') {
                 apiKey = this.openaiApiKeyInput?.value || ''
+            } else if (aiModel === 'grok') {
+                apiKey = this.grokApiKeyInput?.value || ''
             }
 
             console.log(`🔍 SEO 최적화 ${aiModel} 모델로 블로그 생성 시작...`)
@@ -364,6 +374,8 @@ class BlogGenerator {
             apiKey = this.geminiApiKeyInput?.value || ''
         } else if (aiModel === 'openai') {
             apiKey = this.openaiApiKeyInput?.value || ''
+        } else if (aiModel === 'grok') {
+            apiKey = this.grokApiKeyInput?.value || ''
         }
 
         if (!apiKey && aiModel !== 'auto') {
