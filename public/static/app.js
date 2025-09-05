@@ -42,6 +42,12 @@ class BlogGenerator {
         this.copyBtn = document.getElementById('copyBtn')
         this.generationInfo = document.getElementById('generationInfo')
         
+        // 전문가 시스템 요소들
+        this.expertSystemInfo = document.getElementById('expertSystemInfo')
+        this.selectedExpert = document.getElementById('selectedExpert')
+        this.confidence = document.getElementById('confidence')
+        this.expertReasoning = document.getElementById('expertReasoning')
+        
         // SEO 분석 요소들
         this.seoAnalysisSection = document.getElementById('seoAnalysisSection')
         this.seoScore = document.getElementById('seoScore')
@@ -350,6 +356,9 @@ class BlogGenerator {
         
         this.generationInfo.innerHTML = infoHtml
 
+        // 전문가 시스템 정보 표시
+        this.displayExpertSystemInfo(result.expertSelection)
+
         // SEO 분석 정보 표시
         if (result.seoAnalysis && result.seoMetadata) {
             this.displaySEOAnalysis(result.seoAnalysis, result.seoMetadata)
@@ -406,6 +415,35 @@ class BlogGenerator {
         }
     }
 
+    displayExpertSystemInfo(expertSelection) {
+        if (!expertSelection || !this.expertSystemInfo) {
+            // 전문가 시스템 정보가 없으면 숨김
+            if (this.expertSystemInfo) {
+                this.expertSystemInfo.classList.add('hidden')
+            }
+            return
+        }
+
+        // 전문가 시스템 정보 표시
+        this.expertSystemInfo.classList.remove('hidden')
+        
+        if (this.selectedExpert) {
+            this.selectedExpert.textContent = expertSelection.expert.name
+        }
+        
+        if (this.confidence) {
+            this.confidence.textContent = expertSelection.confidence
+        }
+        
+        if (this.expertReasoning) {
+            // 개행을 <br>로 변환하여 표시
+            const formattedReasoning = expertSelection.reasoning.replace(/\n/g, '<br>')
+            this.expertReasoning.innerHTML = formattedReasoning
+        }
+        
+        console.log('🧠 전문가 시스템 정보 표시:', expertSelection)
+    }
+
     setLoadingState(isLoading) {
         if (this.generateBtn) {
             if (isLoading) {
@@ -451,6 +489,9 @@ class BlogGenerator {
         }
         
         this.generationInfo.innerHTML = infoHtml
+
+        // 전문가 시스템 정보 표시
+        this.displayExpertSystemInfo(result.expertSelection)
 
         // 콘텐츠 표시 (마크다운을 HTML로 변환)
         this.contentDiv.innerHTML = this.markdownToHtml(result.content)

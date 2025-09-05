@@ -139,6 +139,121 @@ async function callAI(model: string, prompt: string, apiKey: string, options: an
   throw lastError || new Error('AI 호출에 실패했습니다')
 }
 
+// ==================== AI 전문가 시스템 ====================
+
+interface AIExpert {
+  name: string
+  strengths: string[]
+  expertise: string[]
+  optimalFor: {
+    audiences: string[]
+    topics: string[]
+    contentTypes: string[]
+  }
+  promptStyle: string
+  reasoning: string
+}
+
+// AI 모델별 전문가 프로필
+const aiExperts: Record<string, AIExpert> = {
+  claude: {
+    name: 'Claude 3.5 Haiku - 분석 전문가',
+    strengths: ['논리적 분석', '구조화된 사고', '객관적 설명', '데이터 기반 해석'],
+    expertise: ['비즈니스 분석', '기술 리서치', '학술 연구', '전략 수립', '데이터 분석'],
+    optimalFor: {
+      audiences: ['전문가', '중급자'],
+      topics: ['기술', '비즈니스', '투자', '분석', '연구', '전략', 'AI', '데이터', '경제'],
+      contentTypes: ['분석 리포트', '기술 문서', '연구 논문', '시장 분석', '전략 가이드']
+    },
+    promptStyle: '체계적이고 논리적인 분석 중심',
+    reasoning: '깊이 있는 분석과 객관적 데이터 해석에 특화되어 전문적인 인사이트 제공'
+  },
+  
+  gemini: {
+    name: 'Gemini 1.5 Flash - 교육 전문가', 
+    strengths: ['체계적 설명', '단계별 가이드', '구조화된 학습', '실용적 접근'],
+    expertise: ['교육 콘텐츠', '튜토리얼', '방법론', '프로세스 설계', '학습 가이드'],
+    optimalFor: {
+      audiences: ['초보자', '중급자'],
+      topics: ['학습', '교육', '방법', '가이드', '튜토리얼', '프로세스', '단계', '시스템'],
+      contentTypes: ['하우투 가이드', '단계별 튜토리얼', '학습 로드맵', '실용 가이드', '방법론']
+    },
+    promptStyle: '체계적이고 교육적인 단계별 접근',
+    reasoning: '복잡한 내용을 체계적으로 정리하여 학습하기 쉬운 형태로 구조화하는 데 특화'
+  },
+  
+  openai: {
+    name: 'GPT-4o-mini - 소통 전문가',
+    strengths: ['자연스러운 대화', '창의적 표현', '감정적 소통', '스토리텔링'],
+    expertise: ['콘텐츠 마케팅', '라이프스타일', '개인 경험', '창의적 글쓰기', '일상 소통'],
+    optimalFor: {
+      audiences: ['일반인', '초보자'],
+      topics: ['라이프스타일', '취미', '여행', '음식', '건강', '관계', '일상', '문화', '엔터테인먼트'],
+      contentTypes: ['블로그 포스트', '개인 경험담', '라이프스타일 글', '마케팅 콘텐츠', '스토리']
+    },
+    promptStyle: '친근하고 자연스러운 대화체',
+    reasoning: '독자와의 감정적 연결과 자연스러운 소통을 통해 친근하고 매력적인 콘텐츠 생성'
+  }
+}
+
+// 전문가 모델 선택 로직
+function selectExpertModel(topic: string, audience: string, tone: string): { 
+  model: string
+  expert: AIExpert
+  confidence: number
+  reasoning: string
+} {
+  const topicLower = topic.toLowerCase()
+  const scores: Record<string, number> = { claude: 0, gemini: 0, openai: 0 }
+  
+  // 1. 독자층 기반 점수 (40%)
+  Object.entries(aiExperts).forEach(([model, expert]) => {
+    if (expert.optimalFor.audiences.includes(audience)) {
+      scores[model] += 40
+    }
+  })
+  
+  // 2. 주제 키워드 매칭 (35%)
+  Object.entries(aiExperts).forEach(([model, expert]) => {
+    const matchCount = expert.optimalFor.topics.filter(keyword => 
+      topicLower.includes(keyword)
+    ).length
+    scores[model] += matchCount * 8 // 키워드당 8점
+  })
+  
+  // 3. 톤 매칭 (15%)
+  if (tone === '전문적' || tone === '진지한') {
+    scores.claude += 15
+  } else if (tone === '친근한' || tone === '유머러스') {
+    scores.openai += 15
+    scores.gemini += 10
+  }
+  
+  // 4. 전문 영역 매칭 (10%)
+  Object.entries(aiExperts).forEach(([model, expert]) => {
+    const expertiseMatch = expert.expertise.some(area => 
+      topicLower.includes(area.toLowerCase())
+    )
+    if (expertiseMatch) scores[model] += 10
+  })
+  
+  // 최고 점수 모델 선택
+  const bestModel = Object.entries(scores).reduce((a, b) => 
+    scores[a[0]] > scores[b[0]] ? a : b
+  )[0] as keyof typeof aiExperts
+  
+  const confidence = Math.min(scores[bestModel], 100)
+  const expert = aiExperts[bestModel]
+  
+  // 선택 이유 생성
+  let reasoning = `${expert.name} 선택 이유:\n`
+  reasoning += `• 대상 독자 "${audience}"에 최적화\n`
+  reasoning += `• 주제 "${topic}"에 대한 전문성\n`
+  reasoning += `• ${expert.reasoning}`
+  
+  return { model: bestModel, expert, confidence, reasoning }
+}
+
 // ==================== 고급 프롬프트 엔지니어링 시스템 ====================
 
 interface ContentTemplate {
@@ -282,11 +397,24 @@ const qualityStandards = [
   "독자가 다음에 무엇을 해야 할지 제시되어 있는가?"
 ]
 
-function generateAdvancedPrompt(topic: string, audience: string, tone: string): string {
+function generateAdvancedPrompt(topic: string, audience: string, tone: string, selectedModel: string = 'claude'): string {
   const template = contentTemplates[audience]
   const toneGuide = toneGuidelines[tone as keyof typeof toneGuidelines]
+  const expert = aiExperts[selectedModel]
   
-  return `당신은 10년 경력의 전문 콘텐츠 크리에이터입니다. 다음 과정을 따라 단계별로 생각하며 최고 품질의 블로그 글을 작성해주세요.
+  // 모델별 최적화된 역할 설정
+  const rolePrompts = {
+    claude: `당신은 ${expert.name}입니다. ${expert.strengths.join(', ')}에 특화된 전문 분석가로서, 데이터 기반의 객관적이고 논리적인 분석을 통해 깊이 있는 인사이트를 제공합니다.`,
+    gemini: `당신은 ${expert.name}입니다. ${expert.strengths.join(', ')}에 특화된 교육 전문가로서, 복잡한 내용을 체계적으로 정리하여 단계별로 이해하기 쉽게 설명합니다.`,
+    openai: `당신은 ${expert.name}입니다. ${expert.strengths.join(', ')}에 특화된 콘텐츠 크리에이터로서, 독자와의 자연스러운 소통을 통해 매력적이고 공감대가 형성되는 글을 작성합니다.`
+  }
+  
+  return `${rolePrompts[selectedModel as keyof typeof rolePrompts] || rolePrompts.claude}
+
+🎯 **전문 영역 활용**: ${expert.expertise.join(', ')}
+💡 **핵심 역량**: ${expert.reasoning}
+
+다음 과정을 따라 단계별로 생각하며 당신의 전문성을 최대한 활용한 최고 품질의 블로그 글을 작성해주세요.
 
 🎯 **주제 분석 단계**
 주제: "${topic}"
@@ -363,7 +491,7 @@ interface SEOResult {
   }
 }
 
-function generateSEOPrompt(topic: string, audience: string, tone: string, seoOptions: SEOOptions = {}): string {
+function generateSEOPrompt(topic: string, audience: string, tone: string, seoOptions: SEOOptions = {}, selectedModel: string = 'claude'): string {
   const template = contentTemplates[audience]
   const toneGuide = toneGuidelines[tone as keyof typeof toneGuidelines]
   
@@ -377,7 +505,20 @@ function generateSEOPrompt(topic: string, audience: string, tone: string, seoOpt
     long: '4000-6000자, 심층 분석용'
   }
 
-  return `당신은 SEO 전문가이자 콘텐츠 마케터입니다. 검색엔진 최적화된 고품질 블로그 글을 작성해주세요.
+  const expert = aiExperts[selectedModel]
+  
+  const seoRolePrompts = {
+    claude: `당신은 SEO 분석 전문가입니다. 데이터 기반의 논리적 분석을 통해 검색엔진 최적화된 전문적인 콘텐츠를 작성합니다.`,
+    gemini: `당신은 SEO 교육 전문가입니다. 체계적이고 구조화된 접근으로 검색엔진과 사용자 모두에게 최적화된 학습 친화적 콘텐츠를 작성합니다.`,
+    openai: `당신은 SEO 콘텐츠 마케터입니다. 자연스럽고 매력적인 표현으로 검색엔진 최적화와 사용자 경험을 모두 만족하는 콘텐츠를 작성합니다.`
+  }
+
+  return `${seoRolePrompts[selectedModel as keyof typeof seoRolePrompts] || seoRolePrompts.claude}
+
+🎯 **전문 영역**: ${expert.expertise.join(', ')}
+💡 **특화 역량**: ${expert.reasoning}
+
+당신의 전문성을 활용하여 검색엔진 최적화된 고품질 블로그 글을 작성해주세요.
 
 🎯 **SEO 목표 설정**
 - 주요 키워드: "${focusKeyword}"
@@ -886,19 +1027,52 @@ app.post('/api/generate-seo', async (c) => {
       })
     }
 
-    // SEO 최적화 프롬프트 생성
-    const seoPrompt = generateSEOPrompt(topic, audience, tone, seoOptions)
+    // 전문가 시스템: 최적 모델 자동 선택 (사용자가 선택하지 않은 경우)
+    let selectedModel = aiModel
+    let expertSelection = null
+    
+    if (aiModel === 'auto' || !aiModel) {
+      expertSelection = selectExpertModel(topic, audience, tone)
+      selectedModel = expertSelection.model
+      console.log(`🔍 SEO 전문가 시스템이 ${expertSelection.model}을 선택 (신뢰도: ${expertSelection.confidence}%)`)
+    }
+
+    // API 키 가져오기 (선택된 모델 기준)  
+    let seoApiKey = ''
+    if (selectedModel === 'claude') {
+      seoApiKey = env.CLAUDE_API_KEY || apiKey
+    } else if (selectedModel === 'gemini') {
+      seoApiKey = env.GEMINI_API_KEY || apiKey
+    } else if (selectedModel === 'openai') {
+      seoApiKey = env.OPENAI_API_KEY || apiKey
+    }
+
+    if (!seoApiKey) {
+      const demoContent = generateDemoSEOContent(topic, audience, tone)
+      return c.json({
+        ...demoContent,
+        model: `${selectedModel} (데모 모드)`,
+        isDemo: true,
+        expertSelection,
+        message: 'API 키가 설정되지 않아 데모 SEO 콘텐츠를 생성했습니다.'
+      })
+    }
+
+    // SEO 최적화 프롬프트 생성 (선택된 모델 기준)
+    const seoPrompt = generateSEOPrompt(topic, audience, tone, seoOptions, selectedModel)
     
     // AI 모델 호출
-    const result = await callAI(aiModel, seoPrompt, finalApiKey)
+    const result = await callAI(selectedModel, seoPrompt, seoApiKey)
     
     // SEO 데이터 파싱
     const seoData = parseSEOResult(result)
     
     return c.json({
       ...seoData,
-      model: aiModels[aiModel].name,
-      isDemo: false
+      model: aiModels[selectedModel].name,
+      isDemo: false,
+      expertSelection,
+      selectedModel
     })
 
   } catch (error: any) {
@@ -921,19 +1095,29 @@ app.post('/api/generate', async (c) => {
   try {
     const { topic, audience, tone, aiModel, apiKey } = await c.req.json()
     
-    if (!topic || !audience || !tone || !aiModel) {
+    if (!topic || !audience || !tone) {
       return c.json({ error: '필수 필드가 누락되었습니다' }, 400)
     }
 
-    // API 키 가져오기 (환경변수 우선, 없으면 클라이언트에서 전달받은 키 사용)
+    // 전문가 시스템: 최적 모델 자동 선택 (사용자가 선택하지 않은 경우)
+    let selectedModel = aiModel
+    let expertSelection = null
+    
+    if (aiModel === 'auto' || !aiModel) {
+      expertSelection = selectExpertModel(topic, audience, tone)
+      selectedModel = expertSelection.model
+      console.log(`🧠 전문가 시스템이 ${expertSelection.model}을 선택 (신뢰도: ${expertSelection.confidence}%)`)
+    }
+
+    // API 키 가져오기 (선택된 모델 기준)
     const { env } = c
     let finalApiKey = ''
     
-    if (aiModel === 'claude') {
+    if (selectedModel === 'claude') {
       finalApiKey = env.CLAUDE_API_KEY || apiKey
-    } else if (aiModel === 'gemini') {
+    } else if (selectedModel === 'gemini') {
       finalApiKey = env.GEMINI_API_KEY || apiKey
-    } else if (aiModel === 'openai') {
+    } else if (selectedModel === 'openai') {
       finalApiKey = env.OPENAI_API_KEY || apiKey
     }
 
@@ -942,22 +1126,37 @@ app.post('/api/generate', async (c) => {
       const demoContent = generateDemoContent(topic, audience, tone)
       return c.json({
         content: demoContent,
-        model: `${aiModel} (데모 모드)`,
+        model: `${selectedModel} (데모 모드)`,
         isDemo: true,
+        expertSelection,
         message: 'API 키가 설정되지 않아 데모 콘텐츠를 생성했습니다.'
       })
     }
 
-    // 고급 프롬프트 시스템 생성
-    const prompt = generateAdvancedPrompt(topic, audience, tone)
+    // API 키가 없으면 데모 콘텐츠 생성
+    if (!finalApiKey) {
+      const demoContent = generateDemoContent(topic, audience, tone)
+      return c.json({
+        content: demoContent,
+        model: `${selectedModel} (데모 모드)`,
+        isDemo: true,
+        expertSelection,
+        message: 'API 키가 설정되지 않아 데모 콘텐츠를 생성했습니다.'
+      })
+    }
+
+    // 모델별 최적화된 프롬프트 생성
+    const prompt = generateAdvancedPrompt(topic, audience, tone, selectedModel)
 
     // AI 모델 호출
-    const content = await callAI(aiModel, prompt, finalApiKey)
+    const content = await callAI(selectedModel, prompt, finalApiKey)
     
     return c.json({
       content,
-      model: aiModels[aiModel].name,
-      isDemo: false
+      model: aiModels[selectedModel].name,
+      isDemo: false,
+      expertSelection,
+      selectedModel
     })
 
   } catch (error: any) {
@@ -1069,9 +1268,10 @@ app.get('/', (c) => {
                                     AI 모델
                                 </label>
                                 <select id="aiModel" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                    <option value="claude">Claude 3.5 Haiku</option>
-                                    <option value="gemini">Gemini 1.5 Flash</option>
-                                    <option value="openai">GPT-4o-mini</option>
+                                    <option value="auto">🧠 자동 선택 (전문가 시스템) - 권장!</option>
+                                    <option value="claude">🔬 Claude 3.5 Haiku (분석 전문가)</option>
+                                    <option value="gemini">🎓 Gemini 1.5 Flash (교육 전문가)</option>
+                                    <option value="openai">💬 GPT-4o-mini (소통 전문가)</option>
                                 </select>
                             </div>
                         </div>
@@ -1187,6 +1387,25 @@ app.get('/', (c) => {
                     </div>
                     
                     <div id="generationInfo" class="mb-4 p-3 bg-blue-50 rounded-lg text-sm text-gray-700"></div>
+                    
+                    <!-- 전문가 시스템 정보 (자동 선택시만 표시) -->
+                    <div id="expertSystemInfo" class="hidden mb-4 p-4 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg border border-purple-200">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2">
+                            <i class="fas fa-robot mr-2 text-purple-600"></i>
+                            🧠 AI 전문가 시스템
+                        </h3>
+                        <div id="expertDetails" class="space-y-2 text-sm">
+                            <div class="flex items-center">
+                                <span class="font-medium text-gray-700">선택된 전문가:</span>
+                                <span id="selectedExpert" class="ml-2 px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium"></span>
+                                <span class="ml-2 text-gray-600">신뢰도: <span id="confidence" class="font-medium"></span>%</span>
+                            </div>
+                            <div class="text-gray-600">
+                                <span class="font-medium">선택 이유:</span>
+                                <div id="expertReasoning" class="mt-1 text-xs bg-white p-2 rounded border"></div>
+                            </div>
+                        </div>
+                    </div>
                     
                     <!-- SEO 분석 정보 (SEO 모드일 때만 표시) -->
                     <div id="seoAnalysisSection" class="hidden mb-6">
