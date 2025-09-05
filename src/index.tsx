@@ -1275,11 +1275,39 @@ app.get('/api/health', (c) => {
 app.get('/api/keys/status', (c) => {
   const { env } = c
   
-  return c.json({
+  const keys = {
     claude: !!env.CLAUDE_API_KEY,
     gemini: !!env.GEMINI_API_KEY,
     openai: !!env.OPENAI_API_KEY,
     grok: !!env.GROK_API_KEY
+  }
+  
+  const availableCount = Object.values(keys).filter(Boolean).length
+  const availableModels = Object.entries(keys)
+    .filter(([_, hasKey]) => hasKey)
+    .map(([model]) => {
+      const modelNames = {
+        claude: 'Claude',
+        gemini: 'Gemini',
+        openai: 'OpenAI',  
+        grok: 'GROK'
+      }
+      return modelNames[model] || model
+    })
+  
+  return c.json({
+    ...keys,
+    availableCount,
+    availableModels,
+    canUseDirectly: availableCount > 0,
+    freeUsage: {
+      enabled: true,
+      dailyLimit: 10,  // 일일 무료 사용량 10회
+      note: '무료 사용량: 일일 10회 (개별 API 키 사용 시 무제한)'
+    },
+    message: availableCount > 0 
+      ? `✅ ${availableModels.join(', ')} 모델을 API 키 설정 없이 바로 사용하실 수 있습니다! (일일 10회 무료)`
+      : '❌ 서버에 구성된 API 키가 없습니다. 개별 API 키를 설정해주세요.'
   })
 })
 
@@ -1699,15 +1727,39 @@ app.get('/', (c) => {
             <div class="text-center mb-12">
                 <h1 class="text-4xl font-bold text-gray-800 mb-4">
                     <i class="fas fa-robot mr-3 text-blue-600"></i>
-                    AI 블로그 생성기 v3.0
+                    AI 블로그 생성기 v3.1
                 </h1>
                 <p class="text-xl text-gray-600">
-                    고급 AI 품질 검증 시스템으로 전문가 수준의 블로그 콘텐츠를 생성하세요
+                    4-AI 전문가 시스템과 스마트 가이드로 최적의 콘텐츠를 생성하세요
                 </p>
                 <div class="mt-4 flex justify-center space-x-4 text-sm text-gray-500">
                     <span><i class="fas fa-check text-green-500 mr-1"></i>🛡️ 3단계 품질 검증</span>
                     <span><i class="fas fa-check text-green-500 mr-1"></i>🧠 4-AI 전문가 시스템</span>
                     <span><i class="fas fa-check text-green-500 mr-1"></i>🔥 GROK 트렌드 분석</span>
+                    <span><i class="fas fa-check text-green-500 mr-1"></i>💡 스마트 사용자 가이드</span>
+                </div>
+                
+                <!-- 튜토리얼 및 빠른 시작 버튼들 -->
+                <div class="mt-6 flex justify-center flex-wrap gap-3">
+                    <button id="startTutorialBtn" class="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all shadow-md hover:shadow-lg">
+                        <i class="fas fa-graduation-cap mr-2"></i>사용법 가이드
+                    </button>
+                    
+                    <!-- 빠른 템플릿 버튼들 -->
+                    <div class="flex flex-wrap gap-2">
+                        <button data-template="tech" class="quick-template px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm hover:bg-blue-200 transition-all">
+                            📱 IT/기술
+                        </button>
+                        <button data-template="business" class="quick-template px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm hover:bg-green-200 transition-all">
+                            💼 비즈니스
+                        </button>
+                        <button data-template="lifestyle" class="quick-template px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm hover:bg-purple-200 transition-all">
+                            🌿 라이프스타일
+                        </button>
+                        <button data-template="trending" class="quick-template px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm hover:bg-red-200 transition-all">
+                            🔥 트렌드/바이럴
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -1787,7 +1839,7 @@ app.get('/', (c) => {
                             <div class="flex items-center justify-between mb-3">
                                 <h3 class="text-lg font-medium text-gray-800">
                                     <i class="fas fa-key mr-2 text-blue-600"></i>
-                                    API 키 설정
+                                    API 키 설정 (선택사항)
                                 </h3>
                                 <button type="button" id="toggleApiKeys" class="text-blue-600 hover:text-blue-800">
                                     <i class="fas fa-chevron-down"></i>
@@ -1811,9 +1863,21 @@ app.get('/', (c) => {
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Grok API Key (NEW! 🔥)</label>
                                     <input type="password" id="grokApiKey" placeholder="xai-..." class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                                 </div>
-                                <div class="text-sm text-gray-600">
-                                    <i class="fas fa-info-circle mr-1"></i>
-                                    API 키가 없어도 데모 모드로 이용할 수 있습니다.
+                                <div class="text-sm text-gray-600 bg-white p-3 rounded border">
+                                    <div class="space-y-2">
+                                        <div class="flex items-start">
+                                            <i class="fas fa-check-circle text-green-500 mr-2 mt-0.5"></i>
+                                            <span><strong>서버 API 키 구성됨!</strong> Claude, Gemini, OpenAI 모델을 바로 사용하실 수 있습니다.</span>
+                                        </div>
+                                        <div class="flex items-start">
+                                            <i class="fas fa-info-circle text-blue-500 mr-2 mt-0.5"></i>
+                                            <span>개별 API 키를 입력하면 더 많은 사용량과 개인화된 설정이 가능합니다.</span>
+                                        </div>
+                                        <div class="flex items-start">
+                                            <i class="fas fa-lightbulb text-yellow-500 mr-2 mt-0.5"></i>
+                                            <span>GROK 모델 사용을 위해서는 X.AI API 키가 필요합니다.</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1856,6 +1920,36 @@ app.get('/', (c) => {
                                 <div class="text-sm text-green-600">
                                     <i class="fas fa-info-circle mr-1"></i>
                                     SEO 최적화로 검색 노출과 클릭률을 향상시킬 수 있습니다.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 스마트 사용 가이드 시스템 -->
+                        <div id="smartGuideSection" class="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200 mb-4">
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="text-lg font-medium text-gray-800">
+                                    <i class="fas fa-graduation-cap mr-2 text-blue-600"></i>
+                                    🎯 스마트 사용 가이드 (맞춤 추천)
+                                </h3>
+                                <button type="button" id="toggleGuide" class="text-blue-600 hover:text-blue-800 text-sm">
+                                    <i class="fas fa-lightbulb mr-1"></i>도움말
+                                </button>
+                            </div>
+                            
+                            <div id="dynamicGuide" class="space-y-3">
+                                <!-- 동적으로 업데이트되는 가이드 내용 -->
+                                <div id="topicGuide" class="hidden bg-white p-3 rounded-lg border-l-4 border-blue-500">
+                                    <div class="flex items-center mb-2">
+                                        <i class="fas fa-robot mr-2 text-blue-600"></i>
+                                        <span class="font-medium text-gray-800">AI 추천:</span>
+                                        <span id="recommendedAI" class="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"></span>
+                                    </div>
+                                    <p id="guideReason" class="text-sm text-gray-600"></p>
+                                </div>
+                                
+                                <div id="optimizationTips" class="hidden bg-green-50 p-3 rounded-lg">
+                                    <h4 class="font-medium text-green-800 mb-2">💡 최적화 팁</h4>
+                                    <ul id="tipsList" class="text-sm text-green-700 space-y-1"></ul>
                                 </div>
                             </div>
                         </div>
@@ -1938,6 +2032,103 @@ app.get('/', (c) => {
                             </button>
                         </div>
                     </form>
+                </div>
+
+                <!-- 성공 사례 쇼케이스 -->
+                <div class="bg-white rounded-xl shadow-lg p-8 mb-8">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800">
+                            <i class="fas fa-star mr-2 text-yellow-500"></i>
+                            성공 사례 & 템플릿
+                        </h2>
+                        <button type="button" id="toggleExamples" class="text-gray-600 hover:text-gray-800">
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                    </div>
+                    
+                    <div id="examplesSection" class="hidden space-y-6">
+                        <!-- AI별 최적 사용 예시 -->
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <!-- GROK 예시 -->
+                            <div class="bg-gradient-to-r from-orange-50 to-red-50 p-4 rounded-lg border border-orange-200">
+                                <h3 class="font-bold text-gray-800 mb-3">
+                                    🔥 GROK - 바이럴 콘텐츠
+                                </h3>
+                                <div class="space-y-2 text-sm">
+                                    <div class="bg-white p-3 rounded">
+                                        <strong>주제:</strong> "2025년 MZ세대가 열광하는 AI 트렌드"<br>
+                                        <strong>독자:</strong> 일반인 | <strong>톤:</strong> 유머러스<br>
+                                        <span class="text-green-600">→ GROK 100% 선택, 바이럴 효과 극대화</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Claude 예시 -->
+                            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
+                                <h3 class="font-bold text-gray-800 mb-3">
+                                    🔬 Claude - 전문 분석
+                                </h3>
+                                <div class="space-y-2 text-sm">
+                                    <div class="bg-white p-3 rounded">
+                                        <strong>주제:</strong> "2025년 AI 투자 시장 분석 및 전략"<br>
+                                        <strong>독자:</strong> 전문가 | <strong>톤:</strong> 전문적<br>
+                                        <span class="text-blue-600">→ Claude 90% 선택, 심층 분석 제공</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Gemini 예시 -->
+                            <div class="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-lg border border-green-200">
+                                <h3 class="font-bold text-gray-800 mb-3">
+                                    🎓 Gemini - 학습 가이드
+                                </h3>
+                                <div class="space-y-2 text-sm">
+                                    <div class="bg-white p-3 rounded">
+                                        <strong>주제:</strong> "프로그래밍 초보자를 위한 단계별 학습법"<br>
+                                        <strong>독자:</strong> 초보자 | <strong>톤:</strong> 친근한<br>
+                                        <span class="text-green-600">→ Gemini 85% 선택, 체계적 가이드</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- OpenAI 예시 -->
+                            <div class="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg border border-purple-200">
+                                <h3 class="font-bold text-gray-800 mb-3">
+                                    💬 OpenAI - 라이프스타일
+                                </h3>
+                                <div class="space-y-2 text-sm">
+                                    <div class="bg-white p-3 rounded">
+                                        <strong>주제:</strong> "건강한 아침 루틴으로 하루 시작하기"<br>
+                                        <strong>독자:</strong> 일반인 | <strong>톤:</strong> 친근한<br>
+                                        <span class="text-purple-600">→ OpenAI 88% 선택, 공감대 형성</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 퀵 템플릿 -->
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h3 class="font-bold text-gray-800 mb-3">⚡ 퀵 템플릿 (클릭하면 자동 입력)</h3>
+                            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                                <button class="quick-template bg-white p-3 rounded text-sm hover:bg-blue-50 transition" 
+                                        data-topic="최신 AI 트렌드 분석" data-audience="전문가" data-tone="전문적">
+                                    🤖 AI 트렌드
+                                </button>
+                                <button class="quick-template bg-white p-3 rounded text-sm hover:bg-green-50 transition"
+                                        data-topic="프로그래밍 학습 가이드" data-audience="초보자" data-tone="친근한">
+                                    💻 학습 가이드
+                                </button>
+                                <button class="quick-template bg-white p-3 rounded text-sm hover:bg-orange-50 transition"
+                                        data-topic="MZ세대 소셜미디어 트렌드" data-audience="일반인" data-tone="유머러스">
+                                    🔥 바이럴 콘텐츠
+                                </button>
+                                <button class="quick-template bg-white p-3 rounded text-sm hover:bg-purple-50 transition"
+                                        data-topic="건강한 생활습관 만들기" data-audience="일반인" data-tone="친근한">
+                                    🌿 라이프스타일
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- 생성된 콘텐츠 표시 영역 -->

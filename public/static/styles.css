@@ -1,0 +1,192 @@
+/* ==================== AI 블로그 생성기 v3.1 사용자 정의 스타일 ==================== */
+
+/* 튜토리얼 모달 애니메이션 */
+.tutorial-overlay {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.tutorial-modal {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideIn {
+    from { 
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.9);
+    }
+    to { 
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+/* 빠른 템플릿 버튼 호버 효과 */
+.quick-template {
+    transition: all 0.2s ease-in-out;
+    border: 1px solid transparent;
+}
+
+.quick-template:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* 스마트 가이드 섹션 스타일 */
+.smart-guide-section {
+    background: linear-gradient(135deg, #f6f9fc 0%, #ffffff 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    transition: all 0.3s ease-in-out;
+}
+
+.smart-guide-section:hover {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+/* 실시간 가이드 토글 버튼 */
+.guide-toggle-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    transition: all 0.2s ease-in-out;
+}
+
+.guide-toggle-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+/* 최적화 팁 리스트 */
+.optimization-tip {
+    background: linear-gradient(90deg, #f8fafc 0%, #f1f5f9 100%);
+    border-left: 3px solid #3b82f6;
+    transition: all 0.2s ease-in-out;
+}
+
+.optimization-tip:hover {
+    background: linear-gradient(90deg, #eff6ff 0%, #dbeafe 100%);
+    border-left-color: #1d4ed8;
+}
+
+/* 진행 상태 표시 */
+.progress-step {
+    transition: all 0.3s ease-in-out;
+}
+
+.progress-step.active {
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+/* 품질 점수 게이지 */
+.quality-score {
+    background: linear-gradient(90deg, #ef4444 0%, #f59e0b 50%, #10b981 100%);
+    border-radius: 8px;
+    height: 8px;
+    position: relative;
+    overflow: hidden;
+}
+
+.quality-score::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.3) 50%, transparent 100%);
+    animation: shimmer 2s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+/* 알림 메시지 */
+.notification {
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* 반응형 디자인 개선 */
+@media (max-width: 768px) {
+    .tutorial-modal {
+        max-width: 90vw;
+        margin: 0 5vw;
+    }
+    
+    .quick-template {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.75rem;
+    }
+}
+
+/* 다크 모드 대응 (미래 확장용) */
+@media (prefers-color-scheme: dark) {
+    .smart-guide-section {
+        background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+        border-color: #374151;
+    }
+}
+
+/* 접근성 개선 */
+.focus-visible:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+/* 로딩 상태 */
+.loading-spinner {
+    border: 2px solid #f3f4f6;
+    border-top: 2px solid #3b82f6;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 성공/오류 상태 표시 */
+.success-indicator {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    animation: successPulse 0.5s ease-out;
+}
+
+.error-indicator {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    animation: errorShake 0.5s ease-out;
+}
+
+@keyframes successPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+@keyframes errorShake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+/* 텍스트 애니메이션 */
+.typing-animation {
+    border-right: 2px solid #3b82f6;
+    animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+    0%, 50% { border-color: transparent; }
+    51%, 100% { border-color: #3b82f6; }
+}
