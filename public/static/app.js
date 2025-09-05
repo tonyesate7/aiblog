@@ -1,5 +1,5 @@
-// ==================== AI 블로그 생성기 v2.0 ====================
-// 기본 블로그 생성 기능만 포함한 간소화된 버전
+// ==================== AI 블로그 생성기 v3.0 ====================
+// 품질 검증 시스템(QA System) 포함 고급 버전
 
 class BlogGenerator {
     constructor() {
@@ -8,7 +8,7 @@ class BlogGenerator {
         this.loadApiKeys()
         this.checkApiKeyStatus()
         
-        console.log('🚀 AI 블로그 생성기 v2.0 초기화 완료')
+        console.log('🚀 AI 블로그 생성기 v3.0 초기화 완료')
     }
 
     initializeElements() {
@@ -41,6 +41,20 @@ class BlogGenerator {
         this.contentDiv = document.getElementById('content')
         this.copyBtn = document.getElementById('copyBtn')
         this.generationInfo = document.getElementById('generationInfo')
+        
+        // 품질 검증 관련 요소들
+        this.generateQaBtn = document.getElementById('generateQaBtn')
+        this.qaProgressSection = document.getElementById('qaProgressSection')
+        this.step1Status = document.getElementById('step1Status')
+        this.step1Details = document.getElementById('step1Details')
+        this.step2Status = document.getElementById('step2Status')
+        this.step2Details = document.getElementById('step2Details')
+        this.step3Status = document.getElementById('step3Status')
+        this.step3Details = document.getElementById('step3Details')
+        this.qaMetrics = document.getElementById('qaMetrics')
+        this.originalScore = document.getElementById('originalScore')
+        this.improvedScore = document.getElementById('improvedScore')
+        this.improvementPercentage = document.getElementById('improvementPercentage')
         
         // 전문가 시스템 요소들
         this.expertSystemInfo = document.getElementById('expertSystemInfo')
@@ -90,6 +104,14 @@ class BlogGenerator {
         if (this.toggleSeoOptionsBtn) {
             this.toggleSeoOptionsBtn.addEventListener('click', () => {
                 this.toggleSeoOptionsSection()
+            })
+        }
+
+        // 품질 검증 생성 버튼
+        if (this.generateQaBtn) {
+            this.generateQaBtn.addEventListener('click', (e) => {
+                e.preventDefault()
+                this.generateQABlog()
             })
         }
 
@@ -313,6 +335,95 @@ class BlogGenerator {
         }
     }
 
+    async generateQABlog() {
+        const topic = this.topicInput?.value?.trim()
+        if (!topic) {
+            this.showError('주제를 입력해주세요.')
+            return
+        }
+
+        const audience = this.audienceSelect?.value || '일반인'
+        const tone = this.toneSelect?.value || '친근한'
+        const aiModel = this.aiModelSelect?.value || 'auto'
+
+        // SEO 옵션 수집 (SEO 섹션이 열려있으면)
+        const seoOptions = {
+            focusKeyword: this.focusKeywordInput?.value?.trim() || topic,
+            targetKeywords: this.targetKeywordsInput?.value?.trim() 
+                ? this.targetKeywordsInput.value.split(',').map(k => k.trim()) 
+                : [],
+            contentLength: this.contentLengthSelect?.value || 'medium',
+            includeStructuredData: this.includeStructuredDataInput?.checked || false
+        }
+
+        // API 키 체크
+        let apiKey = ''
+        if (aiModel === 'claude' || aiModel === 'auto') {
+            apiKey = this.claudeApiKeyInput?.value || ''
+        } else if (aiModel === 'gemini') {
+            apiKey = this.geminiApiKeyInput?.value || ''
+        } else if (aiModel === 'openai') {
+            apiKey = this.openaiApiKeyInput?.value || ''
+        }
+
+        if (!apiKey && aiModel !== 'auto') {
+            this.showError('품질 검증 시스템을 위해서는 API 키가 필요합니다.')
+            return
+        }
+
+        // 로딩 상태 표시
+        this.setQALoadingState(true)
+        this.showQAProgress()
+        
+        try {
+            console.log(`🛡️ 품질 검증 ${aiModel} 모델로 블로그 생성 시작...`)
+            console.log(`📝 주제: ${topic}`)
+            console.log(`👥 대상: ${audience}`)
+            console.log(`🎨 톤: ${tone}`)
+
+            // SEO 모드 확인 (SEO 옵션 섹션이 열려있고 키워드가 있으면)
+            const seoMode = !this.seoOptionsSection?.classList.contains('hidden') && 
+                          (this.focusKeywordInput?.value?.trim() || this.targetKeywordsInput?.value?.trim())
+
+            const response = await axios.post('/api/generate-qa', {
+                topic,
+                audience,
+                tone,
+                aiModel,
+                apiKey,
+                seoMode,
+                seoOptions
+            })
+
+            const result = response.data
+            
+            // 진행 상황 업데이트
+            this.updateQAProgress(result.processingSteps)
+            
+            // 결과 표시
+            if (result.isQA) {
+                this.displayQAResult(result)
+            } else {
+                this.displayResult(result)
+            }
+            
+            console.log('✅ 품질 검증 블로그 생성 완료:', result.modelUsed || result.model)
+
+        } catch (error) {
+            console.error('❌ 품질 검증 블로그 생성 실패:', error)
+            
+            if (error.response?.data?.message) {
+                this.showError(error.response.data.message)
+            } else {
+                this.showError('품질 검증 시스템에서 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')
+            }
+            
+            this.resetQAProgress()
+        } finally {
+            this.setQALoadingState(false)
+        }
+    }
+
     setSeoLoadingState(isLoading) {
         if (this.generateSeoBtn) {
             if (isLoading) {
@@ -331,6 +442,196 @@ class BlogGenerator {
                 this.generateSeoBtn.classList.remove('opacity-70')
             }
         }
+    }
+
+    setQALoadingState(isLoading) {
+        if (this.generateQaBtn) {
+            if (isLoading) {
+                this.generateQaBtn.disabled = true
+                this.generateQaBtn.innerHTML = `
+                    <i class="fas fa-spinner fa-spin mr-2"></i>
+                    품질 검증 중...
+                `
+                this.generateQaBtn.classList.add('opacity-70')
+            } else {
+                this.generateQaBtn.disabled = false
+                this.generateQaBtn.innerHTML = `
+                    <i class="fas fa-shield-alt mr-2"></i>
+                    품질 검증 🛡️
+                `
+                this.generateQaBtn.classList.remove('opacity-70')
+            }
+        }
+    }
+
+    showQAProgress() {
+        if (this.qaProgressSection) {
+            this.qaProgressSection.classList.remove('hidden')
+            
+            // 모든 단계를 초기 상태로 리셋
+            this.resetQAProgress()
+            
+            // 결과 섹션으로 스크롤
+            this.qaProgressSection.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start' 
+            })
+        }
+    }
+
+    resetQAProgress() {
+        const statusElements = [this.step1Status, this.step2Status, this.step3Status]
+        const detailElements = [this.step1Details, this.step2Details, this.step3Details]
+        
+        statusElements.forEach(element => {
+            if (element) {
+                element.className = 'w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center mr-4'
+                element.innerHTML = '<i class="fas fa-clock text-gray-600 text-sm"></i>'
+            }
+        })
+
+        const initialDetails = [
+            '전문가 시스템으로 최적 모델 선택 후 콘텐츠 생성',
+            '10개 항목 기준으로 콘텐츠 품질 분석',
+            '검토 결과를 바탕으로 콘텐츠 품질 향상'
+        ]
+
+        detailElements.forEach((element, index) => {
+            if (element) {
+                element.textContent = initialDetails[index]
+                element.className = 'text-sm text-gray-600'
+            }
+        })
+
+        if (this.qaMetrics) {
+            this.qaMetrics.classList.add('hidden')
+        }
+    }
+
+    updateQAProgress(processingSteps) {
+        if (!processingSteps || !Array.isArray(processingSteps)) return
+
+        processingSteps.forEach(step => {
+            let statusElement, detailElement
+
+            switch (step.step) {
+                case 'expert_selection':
+                case 'initial_generation':
+                    statusElement = this.step1Status
+                    detailElement = this.step1Details
+                    break
+                case 'quality_review':
+                    statusElement = this.step2Status
+                    detailElement = this.step2Details
+                    break
+                case 'content_improvement':
+                case 'regeneration':
+                case 'approval':
+                    statusElement = this.step3Status
+                    detailElement = this.step3Details
+                    break
+            }
+
+            if (statusElement && detailElement) {
+                if (step.status === 'completed') {
+                    statusElement.className = 'w-6 h-6 rounded-full bg-green-500 flex items-center justify-center mr-4'
+                    statusElement.innerHTML = '<i class="fas fa-check text-white text-sm"></i>'
+                    
+                    if (step.details) {
+                        detailElement.textContent = step.details
+                        detailElement.className = 'text-sm text-green-600'
+                    }
+                } else if (step.status === 'in_progress') {
+                    statusElement.className = 'w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center mr-4'
+                    statusElement.innerHTML = '<i class="fas fa-spinner fa-spin text-white text-sm"></i>'
+                    
+                    if (step.details) {
+                        detailElement.textContent = step.details
+                        detailElement.className = 'text-sm text-blue-600'
+                    }
+                } else if (step.status === 'failed') {
+                    statusElement.className = 'w-6 h-6 rounded-full bg-red-500 flex items-center justify-center mr-4'
+                    statusElement.innerHTML = '<i class="fas fa-times text-white text-sm"></i>'
+                    
+                    if (step.details) {
+                        detailElement.textContent = step.details
+                        detailElement.className = 'text-sm text-red-600'
+                    }
+                }
+            }
+        })
+    }
+
+    displayQAResult(result) {
+        if (!this.resultSection || !this.contentDiv || !this.generationInfo) {
+            console.error('결과 표시 요소를 찾을 수 없습니다.')
+            return
+        }
+
+        // 결과 섹션 표시
+        this.resultSection.classList.remove('hidden')
+        
+        // SEO 분석 섹션 표시 여부 (SEO 모드인 경우)
+        if (result.seoAnalysis && result.seoMetadata) {
+            this.seoAnalysisSection?.classList.remove('hidden')
+        } else {
+            this.seoAnalysisSection?.classList.add('hidden')
+        }
+        
+        // 생성 정보 표시
+        let infoHtml = `<i class="fas fa-shield-alt mr-2 text-indigo-600"></i>품질 검증 모델: ${result.modelUsed}`
+        
+        if (result.processingTime) {
+            const processingTimeSeconds = Math.round(result.processingTime / 1000)
+            infoHtml += ` <span class="ml-2 px-2 py-1 bg-indigo-100 text-indigo-800 text-xs rounded-full">처리시간: ${processingTimeSeconds}초</span>`
+        }
+        
+        this.generationInfo.innerHTML = infoHtml
+
+        // 전문가 시스템 정보 표시
+        this.displayExpertSystemInfo(result.expertSelection)
+
+        // 품질 지표 표시
+        if (result.qualityMetrics && this.qaMetrics) {
+            this.qaMetrics.classList.remove('hidden')
+            
+            if (this.originalScore) {
+                this.originalScore.textContent = result.qualityMetrics.originalScore.toFixed(1)
+            }
+            
+            if (this.improvedScore) {
+                this.improvedScore.textContent = result.qualityMetrics.improvedScore.toFixed(1)
+            }
+            
+            if (this.improvementPercentage) {
+                const improvement = result.qualityMetrics.improvementPercentage
+                this.improvementPercentage.textContent = improvement > 0 ? `+${improvement}%` : `${improvement}%`
+                
+                // 개선율에 따른 색상 변경
+                if (improvement > 0) {
+                    this.improvementPercentage.className = 'text-2xl font-bold text-green-600'
+                } else {
+                    this.improvementPercentage.className = 'text-2xl font-bold text-gray-600'
+                }
+            }
+        }
+
+        // SEO 분석 정보 표시 (SEO 모드인 경우)
+        if (result.seoAnalysis && result.seoMetadata) {
+            this.displaySEOAnalysis(result.seoAnalysis, result.seoMetadata)
+        }
+
+        // 콘텐츠 표시
+        const contentToDisplay = result.content || result.finalContent
+        this.contentDiv.innerHTML = this.markdownToHtml(contentToDisplay)
+
+        // 결과 섹션으로 스크롤
+        this.resultSection.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'start' 
+        })
+
+        console.log('🛡️ 품질 검증 결과 표시 완료:', result.qualityMetrics)
     }
 
     displaySEOResult(result) {
@@ -640,9 +941,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // 블로그 생성기 초기화
     window.blogGenerator = new BlogGenerator()
     
-    console.log('📱 AI 블로그 생성기 v2.0 시작!')
-    console.log('✨ 기능: 기본 블로그 생성')
+    console.log('📱 AI 블로그 생성기 v3.0 시작!')
+    console.log('✨ 기능: 품질 검증 시스템 + SEO 최적화')
     console.log('🤖 지원 모델: Claude, Gemini, OpenAI')
+    console.log('🛡️ 신기능: 3단계 품질 검증 프로세스')
 })
 
 // 전역 함수로 내보내기 (디버깅용)
