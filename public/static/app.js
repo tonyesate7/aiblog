@@ -335,11 +335,7 @@ class BlogGenerator {
         const tone = this.toneSelect?.value || '친근한'
         const aiModel = this.aiModelSelect?.value || 'claude'
 
-        // GROK 모델 크레딧 부족 확인
-        if (aiModel === 'grok') {
-            this.showError('⚠️ GROK 모델은 현재 크레딧 부족으로 일시적으로 사용할 수 없습니다.\n\n해결 방법:\n1. 다른 AI 모델 선택 (Claude, Gemini, GPT)\n2. GROK 크레딧 구매: https://console.x.ai/')
-            return
-        }
+
 
         // 로딩 상태 표시
         this.setLoadingState(true)
@@ -416,11 +412,7 @@ class BlogGenerator {
         const tone = this.toneSelect?.value || '친근한'
         const aiModel = this.aiModelSelect?.value || 'claude'
 
-        // GROK 모델 크레딧 부족 확인
-        if (aiModel === 'grok') {
-            this.showError('⚠️ GROK 모델은 현재 크레딧 부족으로 일시적으로 사용할 수 없습니다.\n\n해결 방법:\n1. 다른 AI 모델 선택 (Claude, Gemini, GPT)\n2. GROK 크레딧 구매: https://console.x.ai/')
-            return
-        }
+
 
         // SEO 옵션 수집
         const seoOptions = {
@@ -512,11 +504,7 @@ class BlogGenerator {
         const tone = this.toneSelect?.value || '친근한'
         const aiModel = this.aiModelSelect?.value || 'auto'
 
-        // GROK 모델 크레딧 부족 확인
-        if (aiModel === 'grok') {
-            this.showError('⚠️ GROK 모델은 현재 크레딧 부족으로 일시적으로 사용할 수 없습니다.\n\n해결 방법:\n1. 다른 AI 모델 선택 (Claude, Gemini, GPT)\n2. GROK 크레딧 구매: https://console.x.ai/')
-            return
-        }
+
 
         // SEO 옵션 수집 (SEO 섹션이 열려있으면)
         const seoOptions = {
@@ -3002,12 +2990,12 @@ class BlogGenerator {
     // ==================== 유틸리티 메소드 ====================
     
     getAvailableApiKey() {
-        // 사용 가능한 API 키 및 모델 반환 (GROK 제외)
+        // 사용 가능한 API 키 및 모델 반환
         const keys = {
             claude: this.claudeApiKeyInput?.value || '',
             gemini: this.geminiApiKeyInput?.value || '',
-            openai: this.openaiApiKeyInput?.value || ''
-            // grok: 크레딧 부족으로 제외
+            openai: this.openaiApiKeyInput?.value || '',
+            grok: this.grokApiKeyInput?.value || ''
         }
         
         // 입력된 API 키 중 첫 번째 사용

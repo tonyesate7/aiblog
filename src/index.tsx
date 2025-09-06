@@ -107,11 +107,6 @@ const aiModels: Record<string, AIModel> = {
 
 // AI API 호출 함수
 async function callAI(model: string, prompt: string, apiKey: string, options: any = {}): Promise<string> {
-  // GROK 모델 임시 비활성화 (크레딧 부족)
-  if (model === 'grok') {
-    throw new Error('GROK 모델은 현재 크레딧 부족으로 일시적으로 비활성화되었습니다. 다른 모델을 선택해주세요.')
-  }
-  
   const aiModel = aiModels[model]
   if (!aiModel) {
     throw new Error(`지원하지 않는 AI 모델: ${model}`)
