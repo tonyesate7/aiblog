@@ -3193,3 +3193,22 @@ class BlogEditor {
 
 // 전역으로 브로그 에디터 내보내기
 window.BlogEditor = BlogEditor
+
+// ==================== 초기화 ====================
+// DOM이 완전히 로드된 후 BlogGenerator 인스턴스 생성
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('🚀 DOM 로드 완료, BlogGenerator 초기화 시작...')
+    window.blogGenerator = new BlogGenerator()
+    console.log('✅ BlogGenerator 인스턴스 생성 완료')
+})
+
+// 만약 DOMContentLoaded가 이미 발생했다면 즉시 실행
+if (document.readyState === 'loading') {
+    // DOM이 아직 로딩 중이면 이벤트 리스너 등록
+    console.log('⏳ DOM 로딩 중... 완료 대기')
+} else {
+    // DOM이 이미 로드되었으면 즉시 실행
+    console.log('🚀 DOM 이미 로드됨, BlogGenerator 즉시 초기화...')
+    window.blogGenerator = new BlogGenerator()
+    console.log('✅ BlogGenerator 인스턴스 생성 완료')
+}
