@@ -1,15 +1,16 @@
-# AI 블로그 생성기 v3.1 🔥🛡️
+# AI 블로그 생성기 v3.2 🔥🛡️✨
 
 ## 프로젝트 개요
-- **이름**: AI 블로그 생성기 v3.1
-- **목표**: 4-AI 전문가 시스템과 품질 검증으로 차세대 블로그 콘텐츠 생성
-- **특징**: GROK 트렌드 분석 + 3단계 품질 프로세스를 통한 혁신적 콘텐츠 보장
+- **이름**: AI 블로그 생성기 v3.2 (최종 배포 버전)
+- **목표**: 스마트 Fallback과 4-AI 전문가 시스템으로 무중단 고품질 콘텐츠 생성
+- **특징**: Rate Limit 자동 처리 + GROK 트렌드 분석 + 3단계 품질 보증을 통한 완벽한 사용자 경험
 
 ## 🌐 배포 URL
-- **🎆 프로덕션 라이브**: https://d68b9274.ai-blog-generator-v2.pages.dev **(JavaScript 오류 수정 완료!)**
+- **🎆 프로덕션 라이브**: https://02a74558.ai-blog-generator-v2.pages.dev **(최신 버전 - 스마트 Fallback 시스템!)**
+- **이전 버전**: https://2092a9e0.ai-blog-generator-v2.pages.dev (백업용)
 - **개발 데모**: https://3000-irjw24nhumrh4fh4yovkl-6532622b.e2b.dev
 - **GitHub**: https://github.com/username/webapp
-- **API 테스트**: https://d68b9274.ai-blog-generator-v2.pages.dev/api/health
+- **API 테스트**: https://02a74558.ai-blog-generator-v2.pages.dev/api/health
 
 ### 🔑 **API 키 상태** (라이브 배포 완룈! 🎆)
 - ✅ **Claude 3.5 Haiku**: 라이브 서버 설정 완룈 - **바로 사용 가능!**
@@ -24,6 +25,13 @@ GROK 크레딧 구매 완료로 모든 기능이 정상 작동합니다:
 - **실시간 트렌드 분석**: X(Twitter) 기반 최신 화제 반영
 - **바이럴 콘텐츠 생성**: 젊은층 특화 창의적 글쓰기  
 - **완전 활성화**: 서버에서 바로 사용 가능
+
+### 🛡️ **스마트 Fallback 시스템 (NEW! v3.2)**
+Rate limit과 API 오류를 지능적으로 처리합니다:
+- **자동 모델 전환**: Rate limit 발생 시 즉시 대체 모델 선택
+- **5분 임시 차단**: 문제 모델을 5분간 차단하여 안정성 확보
+- **무중단 서비스**: 사용자는 오류를 느끼지 않고 계속 이용 가능
+- **스마트 복구**: 차단 시간 후 자동으로 모든 모델 재활성화
 
 ## ✨ 주요 기능
 

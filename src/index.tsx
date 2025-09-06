@@ -134,6 +134,13 @@ async function callAI(model: string, prompt: string, apiKey: string, options: an
       
       if (!response.ok) {
         const errorText = await response.text()
+        
+        // Rate limit 에러 특별 처리
+        if (response.status === 429) {
+          console.log(`⚠️ Rate limit 도달 (${model}): ${errorText}`)
+          throw new Error(`RATE_LIMIT_${model.toUpperCase()}`)
+        }
+        
         throw new Error(`API 호출 실패 (${response.status}): ${errorText}`)
       }
       
@@ -229,7 +236,22 @@ const aiExperts: Record<string, AIExpert> = {
   }
 }
 
-// 전문가 모델 선택 로직
+// 사용 불가능한 모델 추적
+const unavailableModels = new Set<string>()
+
+// Rate limit으로 인한 모델 차단 (5분간)
+function blockModelTemporarily(model: string) {
+  unavailableModels.add(model)
+  console.log(`🚫 모델 임시 차단: ${model} (5분간)`)
+  
+  // 5분 후 자동 해제
+  setTimeout(() => {
+    unavailableModels.delete(model)
+    console.log(`✅ 모델 차단 해제: ${model}`)
+  }, 5 * 60 * 1000)
+}
+
+// 전문가 모델 선택 로직 (스마트 fallback 포함)
 function selectExpertModel(topic: string, audience: string, tone: string): { 
   model: string
   expert: AIExpert
@@ -307,8 +329,22 @@ function selectExpertModel(topic: string, audience: string, tone: string): {
     scores.grok += 10
   }
   
-  // 최고 점수 모델 선택
-  const bestModel = Object.entries(scores).reduce((a, b) => 
+  // 사용 가능한 모델들만 필터링
+  const availableModels = Object.entries(scores).filter(([model]) => !unavailableModels.has(model))
+  
+  if (availableModels.length === 0) {
+    // 모든 모델이 사용 불가능한 경우 - Claude를 강제 선택 (가장 안정적)
+    console.log('⚠️ 모든 모델 사용 불가능, Claude로 강제 선택')
+    return {
+      model: 'claude',
+      expert: aiExperts.claude,
+      confidence: 50,
+      reasoning: 'Rate limit으로 인해 Claude가 fallback으로 선택되었습니다.'
+    }
+  }
+  
+  // 최고 점수 모델 선택 (사용 가능한 모델 중에서)
+  const bestModel = availableModels.reduce((a, b) => 
     scores[a[0]] > scores[b[0]] ? a : b
   )[0] as keyof typeof aiExperts
   
@@ -320,6 +356,11 @@ function selectExpertModel(topic: string, audience: string, tone: string): {
   reasoning += `• 대상 독자 "${audience}"에 최적화\n`
   reasoning += `• 주제 "${topic}"에 대한 전문성\n`
   reasoning += `• ${expert.reasoning}`
+  
+  // 차단된 모델이 있으면 알림 추가
+  if (unavailableModels.size > 0) {
+    reasoning += `\n• Rate limit으로 차단된 모델: ${Array.from(unavailableModels).join(', ')}`
+  }
   
   return { model: bestModel, expert, confidence, reasoning }
 }
@@ -1273,42 +1314,63 @@ app.get('/api/health', (c) => {
 
 // API 키 상태 확인
 app.get('/api/keys/status', (c) => {
-  const { env } = c
-  
-  const keys = {
-    claude: !!env.CLAUDE_API_KEY,
-    gemini: !!env.GEMINI_API_KEY,
-    openai: !!env.OPENAI_API_KEY,
-    grok: !!env.GROK_API_KEY
-  }
-  
-  const availableCount = Object.values(keys).filter(Boolean).length
-  const availableModels = Object.entries(keys)
-    .filter(([_, hasKey]) => hasKey)
-    .map(([model]) => {
-      const modelNames = {
-        claude: 'Claude',
-        gemini: 'Gemini',
-        openai: 'OpenAI',  
-        grok: 'GROK'
-      }
-      return modelNames[model] || model
+  try {
+    const { env } = c
+    
+    // 안전한 API 키 확인
+    const keys = {
+      claude: !!(env?.CLAUDE_API_KEY || false),
+      gemini: !!(env?.GEMINI_API_KEY || false), 
+      openai: !!(env?.OPENAI_API_KEY || false),
+      grok: !!(env?.GROK_API_KEY || false)
+    }
+    
+    const availableCount = Object.values(keys).filter(Boolean).length
+    const availableModels = Object.entries(keys)
+      .filter(([_, hasKey]) => hasKey)
+      .map(([model]) => {
+        const modelNames: Record<string, string> = {
+          claude: 'Claude',
+          gemini: 'Gemini',
+          openai: 'OpenAI',  
+          grok: 'GROK'
+        }
+        return modelNames[model] || model
+      })
+    
+    return c.json({
+      ...keys,
+      availableCount,
+      availableModels,
+      canUseDirectly: availableCount > 0,
+      freeUsage: {
+        enabled: true,
+        dailyLimit: 10,  // 일일 무료 사용량 10회
+        note: '무료 사용량: 일일 10회 (개별 API 키 사용 시 무제한)'
+      },
+      message: availableCount > 0 
+        ? `✅ ${availableModels.join(', ')} 모델을 API 키 설정 없이 바로 사용하실 수 있습니다! (일일 10회 무료)`
+        : '❌ 서버에 구성된 API 키가 없습니다. 개별 API 키를 설정해주세요.'
     })
-  
-  return c.json({
-    ...keys,
-    availableCount,
-    availableModels,
-    canUseDirectly: availableCount > 0,
-    freeUsage: {
-      enabled: true,
-      dailyLimit: 10,  // 일일 무료 사용량 10회
-      note: '무료 사용량: 일일 10회 (개별 API 키 사용 시 무제한)'
-    },
-    message: availableCount > 0 
-      ? `✅ ${availableModels.join(', ')} 모델을 API 키 설정 없이 바로 사용하실 수 있습니다! (일일 10회 무료)`
-      : '❌ 서버에 구성된 API 키가 없습니다. 개별 API 키를 설정해주세요.'
-  })
+  } catch (error) {
+    console.error('API 키 상태 확인 오류:', error)
+    return c.json({
+      claude: false,
+      gemini: false,
+      openai: false,
+      grok: false,
+      availableCount: 0,
+      availableModels: [],
+      canUseDirectly: false,
+      freeUsage: {
+        enabled: false,
+        dailyLimit: 0,
+        note: 'API 키 상태를 확인할 수 없습니다.'
+      },
+      message: '❌ API 키 상태 확인 중 오류가 발생했습니다. 개별 API 키를 설정해주세요.',
+      error: error.message
+    })
+  }
 })
 
 // SEO 최적화 콘텐츠 생성
@@ -1654,7 +1716,14 @@ app.post('/api/generate', async (c) => {
       finalApiKey = env.GROK_API_KEY || apiKey || ''
     }
     
-    console.log(`🔑 API Key Check: selectedModel=${selectedModel}, envKey=${!!env[selectedModel.toUpperCase() + '_API_KEY']}, userKey=${!!apiKey}, finalKey=${!!finalApiKey}`)
+    // 안전한 로깅을 위한 개선
+    try {
+      const envKeyName = selectedModel.toUpperCase() + '_API_KEY'
+      const hasEnvKey = !!(env as any)[envKeyName]
+      console.log(`🔑 API Key Check: selectedModel=${selectedModel}, envKey=${hasEnvKey}, userKey=${!!apiKey}, finalKey=${!!finalApiKey}`)
+    } catch (logError) {
+      console.log(`🔑 API Key Check: selectedModel=${selectedModel}, finalKey=${!!finalApiKey}`)
+    }
 
     // API 키가 없으면 데모 콘텐츠 생성
     if (!finalApiKey) {
@@ -1671,15 +1740,64 @@ app.post('/api/generate', async (c) => {
     // 모델별 최적화된 프롬프트 생성
     const prompt = generateAdvancedPrompt(topic, audience, tone, selectedModel)
 
-    // AI 모델 호출
-    const content = await callAI(selectedModel, prompt, finalApiKey)
+    // AI 모델 호출 (스마트 fallback 포함)
+    let content = ''
+    let finalModel = selectedModel
+    let actualExpertSelection = expertSelection
+    
+    try {
+      content = await callAI(selectedModel, prompt, finalApiKey)
+    } catch (apiError: any) {
+      console.error(`${selectedModel} 모델 오류:`, apiError.message)
+      
+      // Rate limit 오류인 경우 모델 차단하고 대체 모델 시도
+      if (apiError.message.includes('RATE_LIMIT_')) {
+        const blockedModel = selectedModel
+        blockModelTemporarily(blockedModel)
+        
+        console.log(`🔄 ${blockedModel} rate limit으로 대체 모델 선택 중...`)
+        
+        // 새로운 모델 선택 (차단된 모델 제외)
+        const fallbackSelection = selectExpertModel(topic, audience, tone)
+        finalModel = fallbackSelection.model
+        actualExpertSelection = fallbackSelection
+        
+        // 새로운 API 키 가져오기
+        let fallbackApiKey = ''
+        if (finalModel === 'claude') {
+          fallbackApiKey = env.CLAUDE_API_KEY || apiKey || ''
+        } else if (finalModel === 'gemini') {
+          fallbackApiKey = env.GEMINI_API_KEY || apiKey || ''
+        } else if (finalModel === 'openai') {
+          fallbackApiKey = env.OPENAI_API_KEY || apiKey || ''
+        } else if (finalModel === 'grok') {
+          fallbackApiKey = env.GROK_API_KEY || apiKey || ''
+        }
+        
+        if (fallbackApiKey) {
+          try {
+            const fallbackPrompt = generateAdvancedPrompt(topic, audience, tone, finalModel)
+            content = await callAI(finalModel, fallbackPrompt, fallbackApiKey)
+            console.log(`✅ ${finalModel} 모델로 성공적으로 생성됨`)
+          } catch (fallbackError) {
+            console.error('Fallback 모델도 실패:', fallbackError)
+            throw apiError // 원래 오류 다시 던지기
+          }
+        } else {
+          throw apiError // API 키가 없으면 원래 오류 던지기
+        }
+      } else {
+        throw apiError // Rate limit이 아닌 다른 오류는 그대로 던지기
+      }
+    }
     
     return c.json({
       content,
-      model: aiModels[selectedModel].name,
+      model: aiModels[finalModel].name,
       isDemo: false,
-      expertSelection,
-      selectedModel
+      expertSelection: actualExpertSelection,
+      selectedModel: finalModel,
+      fallbackUsed: finalModel !== selectedModel
     })
 
   } catch (error: any) {
@@ -1706,7 +1824,7 @@ app.get('/', (c) => {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>AI 블로그 생성기 v3.0</title>
+        <title>AI 블로그 생성기 v3.2 - 최종 배포 버전</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
         <link href="/static/styles.css" rel="stylesheet">
@@ -1717,16 +1835,16 @@ app.get('/', (c) => {
             <div class="text-center mb-12">
                 <h1 class="text-4xl font-bold text-gray-800 mb-4">
                     <i class="fas fa-robot mr-3 text-blue-600"></i>
-                    AI 블로그 생성기 v3.1
+                    AI 블로그 생성기 v3.2 🎯
                 </h1>
                 <p class="text-xl text-gray-600">
-                    4-AI 전문가 시스템과 스마트 가이드로 최적의 콘텐츠를 생성하세요
+                    스마트 Fallback과 4-AI 전문가 시스템으로 무중단 고품질 콘텐츠를 생성하세요
                 </p>
                 <div class="mt-4 flex justify-center space-x-4 text-sm text-gray-500">
-                    <span><i class="fas fa-check text-green-500 mr-1"></i>🛡️ 3단계 품질 검증</span>
+                    <span><i class="fas fa-check text-green-500 mr-1"></i>🛡️ 스마트 Fallback 시스템</span>
                     <span><i class="fas fa-check text-green-500 mr-1"></i>🧠 4-AI 전문가 시스템</span>
                     <span><i class="fas fa-check text-green-500 mr-1"></i>🔥 GROK 트렌드 분석</span>
-                    <span><i class="fas fa-check text-green-500 mr-1"></i>💡 스마트 사용자 가이드</span>
+                    <span><i class="fas fa-check text-green-500 mr-1"></i>⚡ 무중단 서비스 보장</span>
                 </div>
                 
                 <!-- 튜토리얼 및 빠른 시작 버튼들 -->

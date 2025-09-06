@@ -112,20 +112,30 @@ class BlogGenerator {
     }
 
     attachEventListeners() {
+        console.log('🔗 이벤트 리스너 연결 시작...')
+        
         // 일반 블로그 생성 버튼
         if (this.generateBtn) {
+            console.log('✅ 일반 생성 버튼 연결됨:', this.generateBtn)
             this.generateBtn.addEventListener('click', (e) => {
+                console.log('🎯 일반 생성 클릭 이벤트 발생!')
                 e.preventDefault()
                 this.generateBlog()
             })
+        } else {
+            console.error('❌ 일반 생성 버튼을 찾을 수 없습니다!')
         }
 
         // SEO 최적화 블로그 생성 버튼
         if (this.generateSeoBtn) {
+            console.log('✅ SEO 생성 버튼 연결됨:', this.generateSeoBtn)
             this.generateSeoBtn.addEventListener('click', (e) => {
+                console.log('🎯 SEO 생성 클릭 이벤트 발생!')
                 e.preventDefault()
                 this.generateSEOBlog()
             })
+        } else {
+            console.error('❌ SEO 생성 버튼을 찾을 수 없습니다!')
         }
 
         // API 키 토글 버튼
@@ -144,10 +154,14 @@ class BlogGenerator {
 
         // 품질 검증 생성 버튼
         if (this.generateQaBtn) {
+            console.log('✅ 품질 검증 버튼 연결됨:', this.generateQaBtn)
             this.generateQaBtn.addEventListener('click', (e) => {
+                console.log('🎯 품질 검증 클릭 이벤트 발생!')
                 e.preventDefault()
                 this.generateQABlog()
             })
+        } else {
+            console.error('❌ 품질 검증 버튼을 찾을 수 없습니다!')
         }
 
         // 복사 버튼
@@ -269,29 +283,104 @@ class BlogGenerator {
 
     async checkApiKeyStatus() {
         try {
-            const response = await axios.get('/api/keys/status')
+            console.log('🔍 API 키 상태 확인 시작...')
+            
+            const response = await axios.get('/api/keys/status', {
+                timeout: 10000,  // 10초 타임아웃
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            
             const status = response.data
+            
+            if (!status) {
+                throw new Error('API 키 상태 응답이 비어있습니다')
+            }
             
             console.log('🔑 API 키 상태:', status)
             
-            // 서버 API 키 상태 저장 (전역 사용)
+            // 안전한 서버 API 키 상태 저장
             this.serverApiKeys = {
-                claude: status.claude,
-                gemini: status.gemini, 
-                openai: status.openai,
-                grok: status.grok
+                claude: !!(status.claude || false),
+                gemini: !!(status.gemini || false), 
+                openai: !!(status.openai || false),
+                grok: !!(status.grok || false)
             }
             
             // 바로 사용 가능한지 확인
-            if (status.canUseDirectly) {
-                console.log(status.message)
+            if (status.canUseDirectly && status.availableModels) {
+                console.log(status.message || '✅ 서버 API 키 사용 가능')
                 this.showServerApiKeyStatus(status.availableModels)
             } else {
                 console.log('❌ 서버에 구성된 API 키가 없습니다. 개별 API 키 설정이 필요합니다.')
+                this.showApiKeyRequiredMessage()
             }
             
         } catch (error) {
             console.error('API 키 상태 확인 실패:', error)
+            
+            // 기본값 설정
+            this.serverApiKeys = {
+                claude: false,
+                gemini: false,
+                openai: false,
+                grok: false
+            }
+            
+            // 사용자에게 오류 상황 알림
+            this.showApiKeyErrorMessage(error.message)
+        }
+    }
+    
+    showApiKeyRequiredMessage() {
+        const apiKeysSection = this.apiKeysSection
+        if (apiKeysSection) {
+            let statusDiv = document.getElementById('serverApiKeyStatus')
+            if (!statusDiv) {
+                statusDiv = document.createElement('div')
+                statusDiv.id = 'serverApiKeyStatus'
+                apiKeysSection.appendChild(statusDiv)
+            }
+            
+            statusDiv.className = 'mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg'
+            statusDiv.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas fa-exclamation-triangle text-yellow-500 mr-2"></i>
+                    <div>
+                        <p class="font-medium text-yellow-800">개별 API 키 설정 필요</p>
+                        <p class="text-sm text-yellow-600">
+                            아래에 사용하실 AI 모델의 API 키를 입력해주세요.
+                        </p>
+                    </div>
+                </div>
+            `
+        }
+    }
+    
+    showApiKeyErrorMessage(errorMessage) {
+        const apiKeysSection = this.apiKeysSection
+        if (apiKeysSection) {
+            let statusDiv = document.getElementById('serverApiKeyStatus')
+            if (!statusDiv) {
+                statusDiv = document.createElement('div')
+                statusDiv.id = 'serverApiKeyStatus'
+                apiKeysSection.appendChild(statusDiv)
+            }
+            
+            statusDiv.className = 'mb-4 p-3 bg-red-50 border border-red-200 rounded-lg'
+            statusDiv.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas fa-exclamation-circle text-red-500 mr-2"></i>
+                    <div>
+                        <p class="font-medium text-red-800">일시적 오류 발생</p>
+                        <p class="text-sm text-red-600">
+                            서비스가 일시적으로 불안정합니다. 잠시 후 다시 시도해주세요.
+                        </p>
+                        <p class="text-xs text-red-500 mt-1">또는 개별 API 키를 입력하여 사용하실 수 있습니다.</p>
+                    </div>
+                </div>
+            `
         }
     }
     
@@ -325,40 +414,68 @@ class BlogGenerator {
     }
 
     async generateBlog() {
+        console.log('🔥 일반 생성 버튼 클릭됨!')
+        
+        // 필수 입력 검증 강화
         const topic = this.topicInput?.value?.trim()
+        const audience = this.audienceSelect?.value
+        const tone = this.toneSelect?.value
+        const aiModel = this.aiModelSelect?.value
+        
+        console.log('📝 입력값 확인:', { topic, audience, tone, aiModel })
+        
         if (!topic) {
-            this.showError('주제를 입력해주세요.')
+            this.showError('⚠️ 주제를 입력해주세요!\n\n예시: "인공지능 기술", "디지털 마케팅", "건강한 생활습관"')
             return
         }
-
-        const audience = this.audienceSelect?.value || '일반인'
-        const tone = this.toneSelect?.value || '친근한'
-        const aiModel = this.aiModelSelect?.value || 'claude'
+        
+        if (!audience) {
+            this.showError('⚠️ 대상 독자를 선택해주세요!')
+            return
+        }
+        
+        if (!tone) {
+            this.showError('⚠️ 글의 톤을 선택해주세요!')
+            return
+        }
+        
+        if (!aiModel) {
+            this.showError('⚠️ AI 모델을 선택해주세요!')
+            return
+        }
+        
+        console.log('✅ 모든 입력값 검증 통과')
+        
+        // 기본값 설정
+        const finalAudience = audience || '일반인'
+        const finalTone = tone || '친근한'
+        const finalAiModel = aiModel || 'claude'
 
 
 
         // 로딩 상태 표시
-        this.setLoadingState(true)
+        console.log('🔄 로딩 상태 시작...')
+        this.setLoadingState(true, 'general')
         
         try {
             // API 키 가져오기 (서버 키 우선, 없으면 사용자 입력 키)
             let apiKey = ''
-            if (aiModel === 'claude') {
+            if (finalAiModel === 'claude') {
                 apiKey = this.claudeApiKeyInput?.value || ''
                 if (!apiKey && this.serverApiKeys?.claude) {
                     console.log('🔑 Claude 서버 API 키 사용')
                 }
-            } else if (aiModel === 'gemini') {
+            } else if (finalAiModel === 'gemini') {
                 apiKey = this.geminiApiKeyInput?.value || ''
                 if (!apiKey && this.serverApiKeys?.gemini) {
                     console.log('🔑 Gemini 서버 API 키 사용')
                 }
-            } else if (aiModel === 'openai') {
+            } else if (finalAiModel === 'openai') {
                 apiKey = this.openaiApiKeyInput?.value || ''
                 if (!apiKey && this.serverApiKeys?.openai) {
                     console.log('🔑 OpenAI 서버 API 키 사용')
                 }
-            } else if (aiModel === 'grok') {
+            } else if (finalAiModel === 'grok') {
                 apiKey = this.grokApiKeyInput?.value || ''
                 if (!apiKey && this.serverApiKeys?.grok) {
                     console.log('🔑 GROK 서버 API 키 사용')
@@ -366,25 +483,27 @@ class BlogGenerator {
             }
             
             // 서버 API 키가 있는지 확인
-            const hasServerKey = this.serverApiKeys && this.serverApiKeys[aiModel]
+            const hasServerKey = this.serverApiKeys && this.serverApiKeys[finalAiModel]
             
             // API 키 검증 (서버 키가 있으면 통과)
             if (!apiKey && !hasServerKey) {
-                this.showError(`${aiModel.toUpperCase()} API 키를 입력하거나 서버에 구성해주세요.`)
+                this.showError(`${finalAiModel.toUpperCase()} API 키를 입력하거나 서버에 구성해주세요.`)
                 this.setLoadingState(false)
                 return
             }
 
-            console.log(`🤖 ${aiModel} 모델로 블로그 생성 시작...`)
+            console.log(`🤖 ${finalAiModel} 모델로 블로그 생성 시작...`)
             console.log(`📝 주제: ${topic}`)
-            console.log(`👥 대상: ${audience}`)
-            console.log(`🎨 톤: ${tone}`)
+            console.log(`👥 대상: ${finalAudience}`)
+            console.log(`🎨 톤: ${finalTone}`)
+            
+            this.showInfo(`🚀 ${finalAiModel.toUpperCase()} 모델로 "${topic}" 주제 블로그를 생성 중입니다...\n⏱️ 예상 소요 시간: 15-30초`)
 
             const response = await axios.post('/api/generate', {
                 topic,
-                audience,
-                tone,
-                aiModel,
+                audience: finalAudience,
+                tone: finalTone,
+                aiModel: finalAiModel,
                 apiKey
             })
 
@@ -397,20 +516,47 @@ class BlogGenerator {
             console.error('❌ 블로그 생성 실패:', error)
             this.showError('블로그 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')
         } finally {
-            this.setLoadingState(false)
+            this.setLoadingState(false, 'general')
         }
     }
 
     async generateSEOBlog() {
+        console.log('🔥 SEO 최적화 버튼 클릭됨!')
+        
+        // 필수 입력 검증 강화
         const topic = this.topicInput?.value?.trim()
+        const audience = this.audienceSelect?.value
+        const tone = this.toneSelect?.value
+        const aiModel = this.aiModelSelect?.value
+        
+        console.log('📝 SEO 입력값 확인:', { topic, audience, tone, aiModel })
+        
         if (!topic) {
-            this.showError('주제를 입력해주세요.')
+            this.showError('⚠️ 주제를 입력해주세요!\n\n예시: "SEO 마케팅", "검색엔진 최적화", "콘텐츠 마케팅"')
             return
         }
-
-        const audience = this.audienceSelect?.value || '일반인'
-        const tone = this.toneSelect?.value || '친근한'
-        const aiModel = this.aiModelSelect?.value || 'claude'
+        
+        if (!audience) {
+            this.showError('⚠️ 대상 독자를 선택해주세요!')
+            return
+        }
+        
+        if (!tone) {
+            this.showError('⚠️ 글의 톤을 선택해주세요!')
+            return
+        }
+        
+        if (!aiModel) {
+            this.showError('⚠️ AI 모델을 선택해주세요!')
+            return
+        }
+        
+        console.log('✅ SEO 모든 입력값 검증 통과')
+        
+        // 기본값 설정
+        const finalAudience = audience || '일반인'
+        const finalTone = tone || '친근한'
+        const finalAiModel = aiModel || 'claude'
 
 
 
@@ -494,15 +640,42 @@ class BlogGenerator {
     }
 
     async generateQABlog() {
+        console.log('🔥 품질 검증 버튼 클릭됨!')
+        
+        // 필수 입력 검증 강화
         const topic = this.topicInput?.value?.trim()
+        const audience = this.audienceSelect?.value
+        const tone = this.toneSelect?.value
+        const aiModel = this.aiModelSelect?.value
+        
+        console.log('📝 QA 입력값 확인:', { topic, audience, tone, aiModel })
+        
         if (!topic) {
-            this.showError('주제를 입력해주세요.')
+            this.showError('⚠️ 주제를 입력해주세요!\n\n예시: "품질 관리", "프로젝트 관리", "데이터 분석"')
             return
         }
-
-        const audience = this.audienceSelect?.value || '일반인'
-        const tone = this.toneSelect?.value || '친근한'
-        const aiModel = this.aiModelSelect?.value || 'auto'
+        
+        if (!audience) {
+            this.showError('⚠️ 대상 독자를 선택해주세요!')
+            return
+        }
+        
+        if (!tone) {
+            this.showError('⚠️ 글의 톤을 선택해주세요!')
+            return
+        }
+        
+        if (!aiModel) {
+            this.showError('⚠️ AI 모델을 선택해주세요!')
+            return
+        }
+        
+        console.log('✅ QA 모든 입력값 검증 통과')
+        
+        // 기본값 설정
+        const finalAudience = audience || '일반인'
+        const finalTone = tone || '친근한'
+        const finalAiModel = aiModel || 'auto'
 
 
 
@@ -1092,22 +1265,60 @@ class BlogGenerator {
         console.log('🧠 전문가 시스템 정보 표시:', expertSelection)
     }
 
-    setLoadingState(isLoading) {
-        if (this.generateBtn) {
+    setLoadingState(isLoading, buttonType = 'general') {
+        console.log(`🔄 로딩 상태 변경: ${isLoading ? '시작' : '완료'} (${buttonType})`)
+        
+        if (buttonType === 'general' && this.generateBtn) {
             if (isLoading) {
                 this.generateBtn.disabled = true
                 this.generateBtn.innerHTML = `
                     <i class="fas fa-spinner fa-spin mr-2"></i>
-                    생성 중...
+                    블로그 생성 중...
                 `
                 this.generateBtn.classList.add('opacity-70')
             } else {
                 this.generateBtn.disabled = false
                 this.generateBtn.innerHTML = `
                     <i class="fas fa-magic mr-2"></i>
-                    블로그 글 생성하기
+                    일반 생성
                 `
                 this.generateBtn.classList.remove('opacity-70')
+            }
+        }
+        
+        if (buttonType === 'seo' && this.generateSeoBtn) {
+            if (isLoading) {
+                this.generateSeoBtn.disabled = true
+                this.generateSeoBtn.innerHTML = `
+                    <i class="fas fa-spinner fa-spin mr-2"></i>
+                    SEO 최적화 중...
+                `
+                this.generateSeoBtn.classList.add('opacity-70')
+            } else {
+                this.generateSeoBtn.disabled = false
+                this.generateSeoBtn.innerHTML = `
+                    <i class="fas fa-search mr-2"></i>
+                    SEO 최적화 🔥
+                `
+                this.generateSeoBtn.classList.remove('opacity-70')
+            }
+        }
+        
+        if (buttonType === 'qa' && this.generateQaBtn) {
+            if (isLoading) {
+                this.generateQaBtn.disabled = true
+                this.generateQaBtn.innerHTML = `
+                    <i class="fas fa-spinner fa-spin mr-2"></i>
+                    품질 검증 중... (2-3분)
+                `
+                this.generateQaBtn.classList.add('opacity-70')
+            } else {
+                this.generateQaBtn.disabled = false
+                this.generateQaBtn.innerHTML = `
+                    <i class="fas fa-shield-alt mr-2"></i>
+                    품질 검증 🛡️
+                `
+                this.generateQaBtn.classList.remove('opacity-70')
             }
         }
     }
