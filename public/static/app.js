@@ -8,8 +8,15 @@ class BlogGenerator {
         this.loadApiKeys()
         this.checkApiKeyStatus()
         this.initializeTutorial()
+        this.initializeBlogEditor()
         
-        console.log('🚀 AI 블로그 생성기 v3.1 초기화 완료 (GROK 통합 + 사용자 가이드 시스템)')
+        console.log('🚀 AI 블로그 생성기 v3.1 초기화 완료 (GROK 통합 + 사용자 가이드 시스템 + 블로그 에디터)')
+        
+        // 블로그 에디터 상태
+        this.isEditMode = false
+        this.editHistory = []
+        this.currentHistoryIndex = -1
+        this.currentContent = ''
         
         // 페이지 로드 시 스마트 가이드 초기 분석
         setTimeout(() => {
@@ -46,6 +53,7 @@ class BlogGenerator {
         // 결과 표시 요소들
         this.resultSection = document.getElementById('resultSection')
         this.contentDiv = document.getElementById('content')
+        this.contentReader = document.getElementById('contentReader')
         this.copyBtn = document.getElementById('copyBtn')
         this.generationInfo = document.getElementById('generationInfo')
         
@@ -91,6 +99,16 @@ class BlogGenerator {
         this.metaDescription = document.getElementById('metaDescription')
         this.seoKeywords = document.getElementById('seoKeywords')
         this.recommendationsList = document.getElementById('recommendationsList')
+        
+        // 블로그 에디터 요소들
+        this.editToggleBtn = document.getElementById('editToggleBtn')
+        this.aiToolbar = document.getElementById('aiToolbar')
+        this.contentEditor = document.getElementById('contentEditor')
+        this.contentEditArea = document.getElementById('contentEditArea')
+        this.cancelEditBtn = document.getElementById('cancelEditBtn')
+        this.saveEditBtn = document.getElementById('saveEditBtn')
+        this.downloadBtn = document.getElementById('downloadBtn')
+        this.downloadMenu = document.getElementById('downloadMenu')
     }
 
     attachEventListeners() {
@@ -174,6 +192,9 @@ class BlogGenerator {
                 })
             }
         })
+        
+        // 블로그 에디터 이벤트 리스너
+        this.attachEditorListeners()
     }
 
     toggleApiKeysSection() {
@@ -314,6 +335,12 @@ class BlogGenerator {
         const tone = this.toneSelect?.value || '친근한'
         const aiModel = this.aiModelSelect?.value || 'claude'
 
+        // GROK 모델 크레딧 부족 확인
+        if (aiModel === 'grok') {
+            this.showError('⚠️ GROK 모델은 현재 크레딧 부족으로 일시적으로 사용할 수 없습니다.\n\n해결 방법:\n1. 다른 AI 모델 선택 (Claude, Gemini, GPT)\n2. GROK 크레딧 구매: https://console.x.ai/')
+            return
+        }
+
         // 로딩 상태 표시
         this.setLoadingState(true)
         
@@ -388,6 +415,12 @@ class BlogGenerator {
         const audience = this.audienceSelect?.value || '일반인'
         const tone = this.toneSelect?.value || '친근한'
         const aiModel = this.aiModelSelect?.value || 'claude'
+
+        // GROK 모델 크레딧 부족 확인
+        if (aiModel === 'grok') {
+            this.showError('⚠️ GROK 모델은 현재 크레딧 부족으로 일시적으로 사용할 수 없습니다.\n\n해결 방법:\n1. 다른 AI 모델 선택 (Claude, Gemini, GPT)\n2. GROK 크레딧 구매: https://console.x.ai/')
+            return
+        }
 
         // SEO 옵션 수집
         const seoOptions = {
@@ -478,6 +511,12 @@ class BlogGenerator {
         const audience = this.audienceSelect?.value || '일반인'
         const tone = this.toneSelect?.value || '친근한'
         const aiModel = this.aiModelSelect?.value || 'auto'
+
+        // GROK 모델 크레딧 부족 확인
+        if (aiModel === 'grok') {
+            this.showError('⚠️ GROK 모델은 현재 크레딧 부족으로 일시적으로 사용할 수 없습니다.\n\n해결 방법:\n1. 다른 AI 모델 선택 (Claude, Gemini, GPT)\n2. GROK 크레딧 구매: https://console.x.ai/')
+            return
+        }
 
         // SEO 옵션 수집 (SEO 섹션이 열려있으면)
         const seoOptions = {
@@ -983,7 +1022,10 @@ class BlogGenerator {
         }
 
         // 콘텐츠 표시
-        this.contentDiv.innerHTML = this.markdownToHtml(result.content)
+        const contentElement = this.contentReader || this.contentDiv
+        if (contentElement) {
+            contentElement.innerHTML = this.markdownToHtml(result.content)
+        }
 
         // 결과 섹션으로 스크롤
         this.resultSection.scrollIntoView({ 
@@ -1112,7 +1154,11 @@ class BlogGenerator {
         this.displayExpertSystemInfo(result.expertSelection)
 
         // 콘텐츠 표시 (마크다운을 HTML로 변환)
-        this.contentDiv.innerHTML = this.markdownToHtml(result.content)
+        if (this.contentReader) {
+            this.contentReader.innerHTML = this.markdownToHtml(result.content)
+        } else if (this.contentDiv) {
+            this.contentDiv.innerHTML = this.markdownToHtml(result.content)
+        }
 
         // 결과 섹션으로 스크롤
         this.resultSection.scrollIntoView({ 
@@ -1166,9 +1212,10 @@ class BlogGenerator {
     }
 
     copyContent() {
-        if (!this.contentDiv) return
+        const contentElement = this.contentReader || this.contentDiv
+        if (!contentElement) return
 
-        const content = this.contentDiv.textContent || this.contentDiv.innerText
+        const content = contentElement.textContent || contentElement.innerText
         
         if (navigator.clipboard) {
             navigator.clipboard.writeText(content).then(() => {
@@ -1712,6 +1759,1406 @@ class BlogGenerator {
         // 성공 사례 표시 (필요시 구현)
         this.successCases = successCases
     }
+    
+    // ==================== 블로그 에디터 시스템 ====================
+    
+    initializeBlogEditor() {
+        this.editorMode = 'read' // 'read' or 'edit'
+        this.originalContent = ''
+        this.currentContent = ''
+        this.editHistory = []
+        this.historyIndex = -1
+        
+        // 에디터 요소들
+        this.contentReader = document.getElementById('contentReader')
+        this.contentEditor = document.getElementById('contentEditor')
+        this.contentEditArea = document.getElementById('contentEditArea')
+        this.editToggleBtn = document.getElementById('editToggleBtn')
+        this.saveEditBtn = document.getElementById('saveEditBtn')
+        this.cancelEditBtn = document.getElementById('cancelEditBtn')
+        this.aiToolbar = document.getElementById('aiToolbar')
+        this.downloadBtn = document.getElementById('downloadBtn')
+        this.downloadMenu = document.getElementById('downloadMenu')
+        
+        this.setupEditorEventListeners()
+    }
+    
+    setupEditorEventListeners() {
+        // 편집 모드 토글
+        if (this.editToggleBtn) {
+            this.editToggleBtn.addEventListener('click', () => this.toggleEditMode())
+        }
+        
+        // 저장/취소 버튼
+        if (this.saveEditBtn) {
+            this.saveEditBtn.addEventListener('click', () => this.saveEdit())
+        }
+        if (this.cancelEditBtn) {
+            this.cancelEditBtn.addEventListener('click', () => this.cancelEdit())
+        }
+        
+        // 포맷팅 도구들
+        document.querySelectorAll('.format-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const format = btn.dataset.format
+                this.applyFormat(format)
+            })
+        })
+        
+        // AI 편집 도구들
+        document.querySelectorAll('.ai-tool-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const action = btn.dataset.action
+                this.applyAIEdit(action, btn)
+            })
+        })
+        
+        // 다운로드 메뉴
+        if (this.downloadBtn) {
+            this.downloadBtn.addEventListener('click', (e) => {
+                e.stopPropagation()
+                this.downloadMenu.classList.toggle('hidden')
+            })
+        }
+        
+        // 다운로드 형식 선택
+        document.querySelectorAll('#downloadMenu button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const format = btn.dataset.format
+                this.downloadContent(format)
+                this.downloadMenu.classList.add('hidden')
+            })
+        })
+        
+        // 편집 영역 이벤트들
+        if (this.contentEditArea) {
+            this.contentEditArea.addEventListener('input', () => this.onContentChange())
+            this.contentEditArea.addEventListener('keydown', (e) => this.onKeyDown(e))
+            this.contentEditArea.addEventListener('paste', (e) => this.onPaste(e))
+        }
+        
+        // 외부 클릭으로 메뉴 닫기
+        document.addEventListener('click', (e) => {
+            if (this.downloadMenu && !this.downloadMenu.classList.contains('hidden')) {
+                this.downloadMenu.classList.add('hidden')
+            }
+        })
+    }
+    
+    toggleEditMode() {
+        if (this.editorMode === 'read') {
+            this.enterEditMode()
+        } else {
+            this.exitEditMode()
+        }
+    }
+    
+    enterEditMode() {
+        this.editorMode = 'edit'
+        this.originalContent = this.contentReader.innerHTML
+        this.currentContent = this.originalContent
+        
+        // 편집 영역에 콘텐츠 복사
+        this.contentEditArea.innerHTML = this.htmlToEditableContent(this.originalContent)
+        
+        // UI 전환
+        this.contentReader.classList.add('hidden')
+        this.contentEditor.classList.remove('hidden')
+        this.aiToolbar.classList.remove('hidden')
+        
+        // 버튼 텍스트 변경
+        this.editToggleBtn.innerHTML = '<i class="fas fa-eye mr-2"></i>읽기 모드'
+        this.editToggleBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700')
+        this.editToggleBtn.classList.add('bg-gray-600', 'hover:bg-gray-700')
+        
+        // 편집 이력 초기화
+        this.editHistory = [this.contentEditArea.innerHTML]
+        this.historyIndex = 0
+        
+        // 편집 영역에 포커스
+        setTimeout(() => this.contentEditArea.focus(), 100)
+        
+        console.log('📝 편집 모드 진입')
+    }
+    
+    exitEditMode() {
+        this.editorMode = 'read'
+        
+        // UI 전환
+        this.contentReader.classList.remove('hidden')
+        this.contentEditor.classList.add('hidden')
+        this.aiToolbar.classList.add('hidden')
+        
+        // 버튼 텍스트 변경
+        this.editToggleBtn.innerHTML = '<i class="fas fa-edit mr-2"></i>편집 모드'
+        this.editToggleBtn.classList.remove('bg-gray-600', 'hover:bg-gray-700')
+        this.editToggleBtn.classList.add('bg-blue-600', 'hover:bg-blue-700')
+        
+        console.log('👁️ 읽기 모드 진입')
+    }
+    
+    saveEdit() {
+        const editedContent = this.editableContentToHtml(this.contentEditArea.innerHTML)
+        this.contentReader.innerHTML = editedContent
+        this.currentContent = editedContent
+        
+        this.exitEditMode()
+        this.showSuccess('편집 내용이 저장되었습니다!')
+        
+        console.log('💾 편집 내용 저장 완료')
+    }
+    
+    cancelEdit() {
+        this.contentEditArea.innerHTML = this.htmlToEditableContent(this.originalContent)
+        this.exitEditMode()
+        this.showSuccess('편집이 취소되었습니다.')
+        
+        console.log('❌ 편집 취소')
+    }
+    
+    // HTML을 편집 가능한 형태로 변환
+    htmlToEditableContent(html) {
+        return html
+            .replace(/<div class="prose[^"]*"/g, '<div')
+            .replace(/class="[^"]*prose[^"]*"/g, '')
+            .replace(/\s+class=""/g, '')
+    }
+    
+    // 편집 가능한 콘텐츠를 HTML로 변환
+    editableContentToHtml(content) {
+        const tempDiv = document.createElement('div')
+        tempDiv.innerHTML = content
+        tempDiv.className = 'prose max-w-none'
+        return tempDiv.innerHTML
+    }
+    
+    applyFormat(format) {
+        if (!this.contentEditArea || this.editorMode !== 'edit') return
+        
+        switch (format) {
+            case 'bold':
+                document.execCommand('bold', false, null)
+                break
+            case 'italic':
+                document.execCommand('italic', false, null)
+                break
+            case 'underline':
+                document.execCommand('underline', false, null)
+                break
+            case 'ul':
+                document.execCommand('insertUnorderedList', false, null)
+                break
+            case 'ol':
+                document.execCommand('insertOrderedList', false, null)
+                break
+            case 'link':
+                const url = prompt('링크 URL을 입력하세요:')
+                if (url) document.execCommand('createLink', false, url)
+                break
+            case 'quote':
+                this.wrapSelection('blockquote')
+                break
+            case 'code':
+                this.wrapSelection('code')
+                break
+            case 'undo':
+                this.undo()
+                break
+            case 'redo':
+                this.redo()
+                break
+        }
+        
+        this.saveToHistory()
+    }
+    
+    wrapSelection(tag) {
+        const selection = window.getSelection()
+        if (selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0)
+            const selectedText = range.toString()
+            if (selectedText) {
+                const wrapper = document.createElement(tag)
+                wrapper.textContent = selectedText
+                range.deleteContents()
+                range.insertNode(wrapper)
+            }
+        }
+    }
+    
+    async applyAIEdit(action, button) {
+        const selection = window.getSelection()
+        const selectedText = selection.toString().trim()
+        
+        if (!selectedText) {
+            this.showError('편집할 텍스트를 선택해주세요.')
+            return
+        }
+        
+        // 로딩 상태 표시
+        button.classList.add('loading')
+        button.disabled = true
+        
+        try {
+            let prompt = ''
+            switch (action) {
+                case 'rewrite':
+                    prompt = `다음 텍스트를 더 명확하고 자연스럽게 재작성해주세요 (답변은 재작성된 텍스트만):\n\n${selectedText}`
+                    break
+                case 'improve':
+                    prompt = `다음 텍스트를 더 매력적이고 읽기 쉽게 개선해주세요 (답변은 개선된 텍스트만):\n\n${selectedText}`
+                    break
+                case 'tone':
+                    const newTone = prompt('어떤 톤으로 변경하시겠습니까? (친근한, 전문적, 유머러스, 진지한)')
+                    if (!newTone) {
+                        button.classList.remove('loading')
+                        button.disabled = false
+                        return
+                    }
+                    prompt = `다음 텍스트를 ${newTone} 톤으로 다시 작성해주세요 (답변은 변경된 텍스트만):\n\n${selectedText}`
+                    break
+                case 'expand':
+                    prompt = `다음 텍스트를 더 자세하고 풍부하게 확장해주세요 (답변은 확장된 텍스트만):\n\n${selectedText}`
+                    break
+                case 'summarize':
+                    prompt = `다음 텍스트를 핵심 내용만 간결하게 요약해주세요 (답변은 요약문만):\n\n${selectedText}`
+                    break
+                case 'translate':
+                    const targetLang = prompt('어떤 언어로 번역하시겠습니까? (영어, 일본어, 중국어, 스페인어 등)')
+                    if (!targetLang) {
+                        button.classList.remove('loading')
+                        button.disabled = false
+                        return
+                    }
+                    prompt = `다음 텍스트를 ${targetLang}로 번역해주세요 (답변은 번역문만):\n\n${selectedText}`
+                    break
+            }
+            
+            // AI API 호출
+            const result = await this.callAIForEdit(prompt)
+            
+            // 선택된 텍스트를 결과로 교체
+            const range = selection.getRangeAt(0)
+            range.deleteContents()
+            range.insertNode(document.createTextNode(result))
+            
+            this.saveToHistory()
+            this.showSuccess('AI 편집이 완료되었습니다!')
+            
+        } catch (error) {
+            console.error('AI 편집 실패:', error)
+            this.showError('AI 편집 중 오류가 발생했습니다.')
+        } finally {
+            // 로딩 상태 해제
+            button.classList.remove('loading')
+            button.disabled = false
+        }
+    }
+    
+    async callAIForEdit(prompt) {
+        const response = await axios.post('/api/generate', {
+            topic: prompt,
+            audience: '일반인',
+            tone: '친근한',
+            aiModel: 'claude'
+        })
+        
+        if (response.data.error) {
+            throw new Error(response.data.error)
+        }
+        
+        // AI 응답에서 실제 편집 결과만 추출
+        return this.extractEditResult(response.data.content)
+    }
+    
+    extractEditResult(content) {
+        // AI 응답에서 편집된 텍스트만 추출
+        let result = content
+            .replace(/^#.*$/gm, '') // 제목 제거
+            .replace(/\*\*(.*?)\*\*/g, '$1') // 굵은 글씨 마크다운 제거
+            .replace(/\*(.*?)\*/g, '$1') // 기울임 마크다운 제거
+            .replace(/^.*?:\s*/gm, '') // "답변:" 등 접두사 제거
+            .trim()
+        
+        // 첫 번째 문단만 추출 (편집 결과가 너무 길 경우)
+        const paragraphs = result.split('\n\n')
+        return paragraphs[0] || result
+    }
+    
+    onContentChange() {
+        this.currentContent = this.contentEditArea.innerHTML
+    }
+    
+    onKeyDown(e) {
+        if (e.ctrlKey || e.metaKey) {
+            switch (e.key) {
+                case 'z':
+                    e.preventDefault()
+                    if (e.shiftKey) {
+                        this.redo()
+                    } else {
+                        this.undo()
+                    }
+                    break
+                case 'b':
+                    e.preventDefault()
+                    this.applyFormat('bold')
+                    break
+                case 'i':
+                    e.preventDefault()
+                    this.applyFormat('italic')
+                    break
+                case 's':
+                    e.preventDefault()
+                    this.saveEdit()
+                    break
+            }
+        }
+    }
+    
+    onPaste(e) {
+        e.preventDefault()
+        const text = e.clipboardData.getData('text/plain')
+        document.execCommand('insertText', false, text)
+        this.saveToHistory()
+    }
+    
+    saveToHistory() {
+        const currentContent = this.contentEditArea.innerHTML
+        if (currentContent !== this.editHistory[this.historyIndex]) {
+            this.editHistory = this.editHistory.slice(0, this.historyIndex + 1)
+            this.editHistory.push(currentContent)
+            this.historyIndex++
+            
+            if (this.editHistory.length > 50) {
+                this.editHistory.shift()
+                this.historyIndex--
+            }
+        }
+    }
+    
+    undo() {
+        if (this.historyIndex > 0) {
+            this.historyIndex--
+            this.contentEditArea.innerHTML = this.editHistory[this.historyIndex]
+        }
+    }
+    
+    redo() {
+        if (this.historyIndex < this.editHistory.length - 1) {
+            this.historyIndex++
+            this.contentEditArea.innerHTML = this.editHistory[this.historyIndex]
+        }
+    }
+    
+    downloadContent(format) {
+        const content = this.currentContent || this.contentReader.innerHTML
+        const title = this.topicInput?.value || 'AI 생성 블로그'
+        
+        switch (format) {
+            case 'html':
+                this.downloadAsHTML(content, title)
+                break
+            case 'markdown':
+                this.downloadAsMarkdown(content, title)
+                break
+            case 'docx':
+                this.showError('Word 문서 다운로드는 준비 중입니다.')
+                break
+            case 'pdf':
+                this.showError('PDF 다운로드는 준비 중입니다.')
+                break
+        }
+    }
+    
+    downloadAsHTML(content, title) {
+        const html = `<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${title}</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; }
+        h1, h2, h3 { color: #333; }
+        code { background: #f4f4f4; padding: 2px 4px; border-radius: 3px; }
+        blockquote { border-left: 4px solid #ddd; margin: 0; padding-left: 20px; color: #666; }
+    </style>
+</head>
+<body>
+    ${content}
+</body>
+</html>`
+        
+        this.downloadFile(html, `${title}.html`, 'text/html')
+    }
+    
+    downloadAsMarkdown(content, title) {
+        const markdown = this.htmlToMarkdown(content)
+        this.downloadFile(markdown, `${title}.md`, 'text/markdown')
+    }
+    
+    htmlToMarkdown(html) {
+        return html
+            .replace(/<h1>(.*?)<\/h1>/g, '# $1\n\n')
+            .replace(/<h2>(.*?)<\/h2>/g, '## $1\n\n')
+            .replace(/<h3>(.*?)<\/h3>/g, '### $1\n\n')
+            .replace(/<p>(.*?)<\/p>/g, '$1\n\n')
+            .replace(/<strong>(.*?)<\/strong>/g, '**$1**')
+            .replace(/<em>(.*?)<\/em>/g, '*$1*')
+            .replace(/<code>(.*?)<\/code>/g, '`$1`')
+            .replace(/<blockquote>(.*?)<\/blockquote>/g, '> $1\n\n')
+            .replace(/<br\s*\/?>/g, '\n')
+            .replace(/<[^>]+>/g, '')
+            .replace(/\n\s*\n\s*\n/g, '\n\n')
+            .trim()
+    }
+    
+    downloadFile(content, filename, mimeType) {
+        const blob = new Blob([content], { type: mimeType })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = filename
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+        
+        this.showSuccess(`${filename} 다운로드가 시작되었습니다!`)
+    }
+    
+    // ==================== 블로그 에디터 기능 ====================
+    
+    initializeBlogEditor() {
+        console.log('📝 블로그 에디터 초기화 시작...')
+        
+        // 에디터 초기 상태 설정
+        this.isEditMode = false
+        this.editHistory = []
+        this.currentHistoryIndex = -1
+        this.currentContent = ''
+        this.selectedText = ''
+        
+        console.log('✅ 블로그 에디터 초기화 완료!')
+    }
+    
+    attachEditorListeners() {
+        // 편집 모드 토글 버튼
+        if (this.editToggleBtn) {
+            this.editToggleBtn.addEventListener('click', () => {
+                this.toggleEditMode()
+            })
+        }
+        
+        // AI 도구 버튼들
+        const aiToolBtns = document.querySelectorAll('.ai-tool-btn')
+        aiToolBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const action = e.target.dataset.action
+                this.handleAITool(action)
+            })
+        })
+        
+        // 포맷팅 버튼들
+        const formatBtns = document.querySelectorAll('.format-btn')
+        formatBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const format = e.target.dataset.format
+                this.handleFormat(format)
+            })
+        })
+        
+        // 포맷 셀렉터
+        const formatSelects = document.querySelectorAll('.format-select')
+        formatSelects.forEach(select => {
+            select.addEventListener('change', (e) => {
+                const format = e.target.dataset.format
+                const value = e.target.value
+                this.handleFormatSelect(format, value)
+            })
+        })
+        
+        // 저장/취소 버튼
+        if (this.saveEditBtn) {
+            this.saveEditBtn.addEventListener('click', () => {
+                this.saveEdit()
+            })
+        }
+        
+        if (this.cancelEditBtn) {
+            this.cancelEditBtn.addEventListener('click', () => {
+                this.cancelEdit()
+            })
+        }
+        
+        // 다운로드 버튼 및 메뉴
+        if (this.downloadBtn) {
+            this.downloadBtn.addEventListener('click', (e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                this.toggleDownloadMenu()
+            })
+        }
+        
+        // 다운로드 메뉴 옵션
+        const downloadOptions = document.querySelectorAll('#downloadMenu button')
+        downloadOptions.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const format = e.currentTarget.dataset.format
+                this.downloadContent(format)
+                this.hideDownloadMenu()
+            })
+        })
+        
+        // 다운로드 메뉴 외부 클릭 시 닫기
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#downloadBtn') && !e.target.closest('#downloadMenu')) {
+                this.hideDownloadMenu()
+            }
+        })
+        
+        // 편집 영역 이벤트
+        if (this.contentEditArea) {
+            // 입력 이벤트
+            this.contentEditArea.addEventListener('input', () => {
+                this.handleContentChange()
+            })
+            
+            // 키보드 단축키
+            this.contentEditArea.addEventListener('keydown', (e) => {
+                this.handleKeyboardShortcuts(e)
+            })
+            
+            // 블록 드래그 및 드롭
+            this.contentEditArea.addEventListener('dragover', (e) => {
+                e.preventDefault()
+                e.target.classList.add('drag-over')
+            })
+            
+            this.contentEditArea.addEventListener('dragleave', (e) => {
+                e.target.classList.remove('drag-over')
+            })
+            
+            this.contentEditArea.addEventListener('drop', (e) => {
+                e.preventDefault()
+                e.target.classList.remove('drag-over')
+                this.handleFileDrop(e)
+            })
+            
+            // 텍스트 선택 이벤트
+            this.contentEditArea.addEventListener('mouseup', () => {
+                this.updateSelectedText()
+            })
+            
+            this.contentEditArea.addEventListener('keyup', () => {
+                this.updateSelectedText()
+            })
+        }
+    }
+    
+    toggleEditMode() {
+        this.isEditMode = !this.isEditMode
+        
+        if (this.isEditMode) {
+            // 편집 모드 활성화
+            this.enterEditMode()
+        } else {
+            // 읽기 모드로 복귀
+            this.exitEditMode()
+        }
+    }
+    
+    enterEditMode() {
+        console.log('🖊️ 편집 모드 활성화')
+        
+        // 콘텐츠를 편집 영역으로 복사
+        if (this.contentReader && this.contentEditArea) {
+            const currentContent = this.contentReader.innerHTML || this.currentContent
+            this.contentEditArea.innerHTML = currentContent
+            this.currentContent = currentContent
+            
+            // 히스토리에 추가
+            this.addToHistory(currentContent)
+        }
+        
+        // UI 업데이트
+        if (this.contentReader) this.contentReader.style.display = 'none'
+        if (this.contentEditor) this.contentEditor.classList.remove('hidden')
+        if (this.aiToolbar) this.aiToolbar.classList.remove('hidden')
+        
+        // 버튼 텍스트 변경
+        if (this.editToggleBtn) {
+            this.editToggleBtn.innerHTML = '<i class="fas fa-book-open mr-2"></i>읽기 모드'
+        }
+    }
+    
+    exitEditMode() {
+        console.log('📄 읽기 모드로 복귀')
+        
+        // 편집된 콘텐츠를 읽기 영역으로 복사
+        if (this.contentEditArea && this.contentReader) {
+            const editedContent = this.contentEditArea.innerHTML
+            this.contentReader.innerHTML = editedContent
+            this.currentContent = editedContent
+        }
+        
+        // UI 업데이트
+        if (this.contentEditor) this.contentEditor.classList.add('hidden')
+        if (this.aiToolbar) this.aiToolbar.classList.add('hidden')
+        if (this.contentReader) this.contentReader.style.display = 'block'
+        
+        // 버튼 텍스트 변경
+        if (this.editToggleBtn) {
+            this.editToggleBtn.innerHTML = '<i class="fas fa-edit mr-2"></i>편집 모드'
+        }
+    }
+    
+    saveEdit() {
+        console.log('💾 편집 내용 저장')
+        
+        if (this.contentEditArea && this.contentReader) {
+            const editedContent = this.contentEditArea.innerHTML
+            this.contentReader.innerHTML = editedContent
+            this.currentContent = editedContent
+            
+            // 히스토리에 추가
+            this.addToHistory(editedContent)
+        }
+        
+        this.exitEditMode()
+        this.showSuccess('편집 내용이 저장되었습니다!')
+    }
+    
+    cancelEdit() {
+        console.log('❌ 편집 취소')
+        
+        // 이전 콘텐츠로 복귀
+        if (this.contentEditArea && this.currentContent) {
+            this.contentEditArea.innerHTML = this.currentContent
+        }
+        
+        this.exitEditMode()
+        this.showInfo('편집이 취소되었습니다.')
+    }
+    
+    // AI 도구 처리
+    async handleAITool(action) {
+        console.log(`🤖 AI 도구 실행: ${action}`)
+        
+        if (!this.selectedText && !this.contentEditArea) {
+            this.showError('편집할 텍스트를 선택하거나 전체 콘텐츠를 사용하세요.')
+            return
+        }
+        
+        // 타깃 텍스트 결정
+        const targetText = this.selectedText || this.contentEditArea.innerText
+        
+        if (!targetText.trim()) {
+            this.showError('편집할 콘텐츠가 비어있습니다.')
+            return
+        }
+        
+        // AI 도구 버튼 상태 업데이트
+        const btn = document.querySelector(`[data-action="${action}"]`)
+        if (btn) {
+            btn.classList.add('processing')
+            btn.disabled = true
+        }
+        
+        try {
+            const result = await this.callAIEdit(action, targetText)
+            
+            if (result) {
+                // 결과 적용
+                this.applyAIEdit(result)
+                this.showSuccess(`${this.getActionName(action)} 완료!`)
+            }
+        } catch (error) {
+            console.error('AI 도구 오류:', error)
+            this.showError(`${this.getActionName(action)} 실패: ${error.message}`)
+        } finally {
+            // 버튼 상태 복구
+            if (btn) {
+                btn.classList.remove('processing')
+                btn.disabled = false
+            }
+        }
+    }
+    
+    getActionName(action) {
+        const names = {
+            rewrite: '재작성',
+            improve: '개선',
+            tone: '톤 변경',
+            expand: '확장',
+            summarize: '요약',
+            translate: '번역'
+        }
+        return names[action] || action
+    }
+    
+    async callAIEdit(action, text) {
+        // AI API 호출 로직
+        const apiKey = this.getAvailableApiKey()
+        if (!apiKey.key) {
+            throw new Error('API 키가 설정되지 않았습니다.')
+        }
+        
+        const prompt = this.generateEditPrompt(action, text)
+        
+        const requestData = {
+            topic: `텍스트 편집: ${action}`,
+            audience: '일반인',
+            tone: '자연스러운',
+            aiModel: apiKey.model,
+            apiKey: apiKey.key,
+            customPrompt: prompt
+        }
+        
+        try {
+            const response = await axios.post('/api/generate', requestData)
+            return response.data.content
+        } catch (error) {
+            throw new Error('서버 오류: ' + (error.response?.data?.message || error.message))
+        }
+    }
+    
+    generateEditPrompt(action, text) {
+        const prompts = {
+            rewrite: `다음 텍스트를 더 명확하고 읽기 쉽게 다시 작성해주세요:\n\n${text}\n\n단순히 다시 작성된 텍스트만 반환해주세요.`,
+            improve: `다음 텍스트를 더 나은 품질로 개선해주세요:\n\n${text}\n\n더 명확하고, 설득력 있고, 매력적으로 만들어주세요. 개선된 텍스트만 반환해주세요.`,
+            tone: `다음 텍스트의 톤을 더 친근하고 대화체로 바꿔주세요:\n\n${text}\n\n내용은 그대로 유지하되, 톤만 바꿔서 반환해주세요.`,
+            expand: `다음 텍스트를 더 자세히 설명하고 구체적인 예시를 추가해주세요:\n\n${text}\n\n더 풍부하고 상세한 버전으로 확장해주세요.`,
+            summarize: `다음 텍스트를 핵심만 간결하게 요약해주세요:\n\n${text}\n\n핵심만 간단하게 요약해주세요.`,
+            translate: `다음 텍스트를 영어로 번역해주세요:\n\n${text}\n\n번역된 텍스트만 반환해주세요.`
+        }
+        
+        return prompts[action] || `다음 텍스트를 처리해주세요: ${text}`
+    }
+    
+    applyAIEdit(newText) {
+        if (this.selectedText && this.contentEditArea) {
+            // 선택된 텍스트 바꾸기
+            const currentContent = this.contentEditArea.innerHTML
+            const updatedContent = currentContent.replace(this.selectedText, newText)
+            this.contentEditArea.innerHTML = updatedContent
+        } else if (this.contentEditArea) {
+            // 전체 콘텐츠 바꾸기
+            this.contentEditArea.innerHTML = newText
+        }
+        
+        // 히스토리에 추가
+        this.addToHistory(this.contentEditArea.innerHTML)
+    }
+    
+    // 포맷팅 처리
+    handleFormat(format) {
+        if (!this.contentEditArea) return
+        
+        console.log(`🎨 포맷 적용: ${format}`)
+        
+        switch (format) {
+            case 'bold':
+                document.execCommand('bold')
+                break
+            case 'italic':
+                document.execCommand('italic')
+                break
+            case 'underline':
+                document.execCommand('underline')
+                break
+            case 'ul':
+                document.execCommand('insertUnorderedList')
+                break
+            case 'ol':
+                document.execCommand('insertOrderedList')
+                break
+            case 'link':
+                const url = prompt('링크 URL을 입력하세요:')
+                if (url) {
+                    document.execCommand('createLink', false, url)
+                }
+                break
+            case 'quote':
+                this.wrapSelection('blockquote')
+                break
+            case 'code':
+                this.wrapSelection('code')
+                break
+            case 'undo':
+                this.undoHistory()
+                break
+            case 'redo':
+                this.redoHistory()
+                break
+        }
+        
+        // 포맷 후 히스토리 업데이트
+        this.handleContentChange()
+    }
+    
+    handleFormatSelect(format, value) {
+        if (!this.contentEditArea) return
+        
+        if (format === 'heading') {
+            if (value) {
+                document.execCommand('formatBlock', false, `h${value}`)
+            } else {
+                document.execCommand('formatBlock', false, 'p')
+            }
+        }
+        
+        this.handleContentChange()
+    }
+    
+    wrapSelection(tag) {
+        const selection = window.getSelection()
+        if (selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0)
+            const selectedText = range.toString()
+            
+            if (selectedText) {
+                const element = document.createElement(tag)
+                element.textContent = selectedText
+                range.deleteContents()
+                range.insertNode(element)
+                
+                // 선택 해제
+                selection.removeAllRanges()
+            }
+        }
+    }
+    
+    // 히스토리 관리
+    addToHistory(content) {
+        // 현재 인덱스 이후의 히스토리 제거
+        this.editHistory = this.editHistory.slice(0, this.currentHistoryIndex + 1)
+        
+        // 새 콘텐츠 추가
+        this.editHistory.push(content)
+        this.currentHistoryIndex = this.editHistory.length - 1
+        
+        // 히스토리 최대 50개로 제한
+        if (this.editHistory.length > 50) {
+            this.editHistory.shift()
+            this.currentHistoryIndex--
+        }
+        
+        this.updateHistoryButtons()
+    }
+    
+    undoHistory() {
+        if (this.currentHistoryIndex > 0) {
+            this.currentHistoryIndex--
+            const content = this.editHistory[this.currentHistoryIndex]
+            if (this.contentEditArea && content) {
+                this.contentEditArea.innerHTML = content
+            }
+            this.updateHistoryButtons()
+        }
+    }
+    
+    redoHistory() {
+        if (this.currentHistoryIndex < this.editHistory.length - 1) {
+            this.currentHistoryIndex++
+            const content = this.editHistory[this.currentHistoryIndex]
+            if (this.contentEditArea && content) {
+                this.contentEditArea.innerHTML = content
+            }
+            this.updateHistoryButtons()
+        }
+    }
+    
+    updateHistoryButtons() {
+        const undoBtn = document.querySelector('[data-format="undo"]')
+        const redoBtn = document.querySelector('[data-format="redo"]')
+        
+        if (undoBtn) {
+            undoBtn.disabled = this.currentHistoryIndex <= 0
+        }
+        
+        if (redoBtn) {
+            redoBtn.disabled = this.currentHistoryIndex >= this.editHistory.length - 1
+        }
+    }
+    
+    // 콘텐츠 변경 처리
+    handleContentChange() {
+        // 디바운스 처리
+        if (this.contentChangeTimeout) {
+            clearTimeout(this.contentChangeTimeout)
+        }
+        
+        this.contentChangeTimeout = setTimeout(() => {
+            if (this.contentEditArea) {
+                // 문자 수 업데이트
+                this.updateCharCounter()
+                
+                // 자동 저장 (선택적)
+                // this.autoSave()
+            }
+        }, 500)
+    }
+    
+    updateCharCounter() {
+        if (this.contentEditArea) {
+            const text = this.contentEditArea.innerText || ''
+            const charCount = text.length
+            const wordCount = text.trim().split(/\s+/).filter(word => word.length > 0).length
+            
+            // 문자 수 표시 업데이트
+            let counter = document.querySelector('.char-counter')
+            if (!counter) {
+                counter = document.createElement('div')
+                counter.className = 'char-counter'
+                this.contentEditor.appendChild(counter)
+            }
+            
+            counter.textContent = `${charCount}글자 / ${wordCount}단어`
+        }
+    }
+    
+    updateSelectedText() {
+        const selection = window.getSelection()
+        this.selectedText = selection.toString().trim()
+        
+        // AI 도구 버튼 상태 업데이트
+        const aiToolBtns = document.querySelectorAll('.ai-tool-btn')
+        aiToolBtns.forEach(btn => {
+            if (this.selectedText) {
+                btn.style.opacity = '1'
+                btn.title = `선택된 텍스트 ${this.getActionName(btn.dataset.action)}`
+            } else {
+                btn.style.opacity = '0.7'
+                btn.title = `전체 콘텐츠 ${this.getActionName(btn.dataset.action)}`
+            }
+        })
+    }
+    
+    // 키보드 단축키
+    handleKeyboardShortcuts(e) {
+        if (e.ctrlKey || e.metaKey) {
+            switch (e.key) {
+                case 'b':
+                    e.preventDefault()
+                    this.handleFormat('bold')
+                    break
+                case 'i':
+                    e.preventDefault()
+                    this.handleFormat('italic')
+                    break
+                case 'u':
+                    e.preventDefault()
+                    this.handleFormat('underline')
+                    break
+                case 'z':
+                    e.preventDefault()
+                    if (e.shiftKey) {
+                        this.redoHistory()
+                    } else {
+                        this.undoHistory()
+                    }
+                    break
+                case 's':
+                    e.preventDefault()
+                    this.saveEdit()
+                    break
+            }
+        }
+        
+        // Tab 키 처리
+        if (e.key === 'Tab') {
+            e.preventDefault()
+            document.execCommand('insertText', false, '    ') // 4개 공백
+        }
+    }
+    
+    // 파일 드롭 처리
+    handleFileDrop(e) {
+        const files = Array.from(e.dataTransfer.files)
+        
+        files.forEach(file => {
+            if (file.type.startsWith('image/')) {
+                this.insertImage(file)
+            } else if (file.type === 'text/plain') {
+                this.insertTextFile(file)
+            }
+        })
+    }
+    
+    insertImage(file) {
+        const reader = new FileReader()
+        reader.onload = (e) => {
+            const img = document.createElement('img')
+            img.src = e.target.result
+            img.style.maxWidth = '100%'
+            img.style.height = 'auto'
+            img.alt = file.name
+            
+            // 커서 위치에 삽입
+            const selection = window.getSelection()
+            if (selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0)
+                range.insertNode(img)
+            } else {
+                this.contentEditArea.appendChild(img)
+            }
+            
+            this.handleContentChange()
+        }
+        reader.readAsDataURL(file)
+    }
+    
+    insertTextFile(file) {
+        const reader = new FileReader()
+        reader.onload = (e) => {
+            const text = e.target.result
+            document.execCommand('insertText', false, text)
+            this.handleContentChange()
+        }
+        reader.readAsText(file)
+    }
+    
+    // 다운로드 메뉴 관리
+    toggleDownloadMenu() {
+        if (this.downloadMenu) {
+            this.downloadMenu.classList.toggle('hidden')
+        }
+    }
+    
+    hideDownloadMenu() {
+        if (this.downloadMenu) {
+            this.downloadMenu.classList.add('hidden')
+        }
+    }
+    
+    // 콘텐츠 다운로드
+    downloadContent(format) {
+        console.log(`💾 다운로드 형식: ${format}`)
+        
+        const content = this.isEditMode ? this.contentEditArea?.innerHTML : this.contentReader?.innerHTML
+        
+        if (!content) {
+            this.showError('다운로드할 콘텐츠가 없습니다.')
+            return
+        }
+        
+        const title = this.extractTitle(content) || '블로그'
+        const filename = `${title}_${new Date().toISOString().slice(0, 10)}`
+        
+        switch (format) {
+            case 'html':
+                this.downloadAsHTML(content, filename)
+                break
+            case 'markdown':
+                this.downloadAsMarkdown(content, filename)
+                break
+            case 'docx':
+                this.downloadAsWord(content, filename)
+                break
+            case 'pdf':
+                this.downloadAsPDF(content, filename)
+                break
+            default:
+                this.showError('지원하지 않는 형식입니다.')
+        }
+    }
+    
+    extractTitle(content) {
+        // HTML에서 첫 번째 제목 추출
+        const parser = new DOMParser()
+        const doc = parser.parseFromString(content, 'text/html')
+        const heading = doc.querySelector('h1, h2, h3')
+        return heading ? heading.textContent.trim().substring(0, 50) : null
+    }
+    
+    downloadAsHTML(content, filename) {
+        const htmlContent = `<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${filename}</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; }
+        h1, h2, h3 { color: #333; }
+        code { background: #f4f4f4; padding: 2px 4px; border-radius: 3px; }
+        blockquote { border-left: 4px solid #ddd; padding-left: 1rem; margin: 1rem 0; font-style: italic; }
+    </style>
+</head>
+<body>
+    ${content}
+</body>
+</html>`
+        
+        this.downloadFile(htmlContent, `${filename}.html`, 'text/html')
+    }
+    
+    downloadAsMarkdown(content, filename) {
+        // HTML을 마크다운으로 변환 (간단한 변환)
+        let markdown = content
+            .replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n')
+            .replace(/<h2[^>]*>(.*?)<\/h2>/gi, '## $1\n')
+            .replace(/<h3[^>]*>(.*?)<\/h3>/gi, '### $1\n')
+            .replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n')
+            .replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**')
+            .replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**')
+            .replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*')
+            .replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*')
+            .replace(/<code[^>]*>(.*?)<\/code>/gi, '`$1`')
+            .replace(/<blockquote[^>]*>(.*?)<\/blockquote>/gi, '> $1\n')
+            .replace(/<ul[^>]*>(.*?)<\/ul>/gi, '$1')
+            .replace(/<ol[^>]*>(.*?)<\/ol>/gi, '$1')
+            .replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n')
+            .replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)')
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<[^>]*>/g, '') // 나머지 HTML 태그 제거
+            .replace(/\n{3,}/g, '\n\n') // 연속된 빈 줄 정리
+        
+        this.downloadFile(markdown, `${filename}.md`, 'text/markdown')
+    }
+    
+    downloadAsWord(content, filename) {
+        // Word 다운로드는 브라우저 제한으로 간단한 RTF 형식 사용
+        const rtfContent = `{\\rtf1\\ansi\\deff0 {\\fonttbl {\\f0 Times New Roman;}} ${content.replace(/<[^>]*>/g, '')}}`
+        this.downloadFile(rtfContent, `${filename}.rtf`, 'application/rtf')
+        
+        this.showInfo('Word 형식은 RTF로 다운로드됩니다. Word에서 열어 DOCX로 저장할 수 있습니다.')
+    }
+    
+    downloadAsPDF(content, filename) {
+        // PDF 다운로드는 브라우저 인쇄 기능 활용
+        const printWindow = window.open('', '_blank')
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>${filename}</title>
+                <style>
+                    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; margin: 20px; }
+                    h1, h2, h3 { color: #333; }
+                    @media print { body { margin: 0; } }
+                </style>
+            </head>
+            <body>${content}</body>
+            </html>
+        `)
+        printWindow.document.close()
+        
+        setTimeout(() => {
+            printWindow.print()
+        }, 500)
+        
+        this.showInfo('PDF 다운로드를 위해 브라우저의 인쇄 기능을 사용하세요.')
+    }
+    
+    // 에디터에서 콘텐츠 표시 업데이트
+    displayContent(content, isDemo = false, model = '', expertInfo = null, seoInfo = null) {
+        // 기존 displayContent 메소드 확장
+        if (this.resultSection) {
+            this.resultSection.classList.remove('hidden')
+        }
+        
+        // 콘텐츠 표시
+        if (this.contentReader) {
+            this.contentReader.innerHTML = content
+            this.currentContent = content
+        }
+        
+        // 에디터 초기화
+        this.isEditMode = false
+        this.editHistory = [content]
+        this.currentHistoryIndex = 0
+        
+        // 생성 정보 표시
+        if (this.generationInfo) {
+            let infoHTML = `<i class="fas fa-robot mr-2"></i><strong>모델:</strong> ${model}`
+            
+            if (isDemo) {
+                infoHTML += ` <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs ml-2">데모 모드</span>`
+            }
+            
+            if (expertInfo) {
+                infoHTML += `<br><i class="fas fa-brain mr-2"></i><strong>전문가 시스템:</strong> ${expertInfo.expert?.name || expertInfo.model} (신뢰도: ${expertInfo.confidence}%)`
+            }
+            
+            this.generationInfo.innerHTML = infoHTML
+        }
+        
+        // SEO 정보 표시
+        if (seoInfo) {
+            this.displaySEOInfo(seoInfo)
+        }
+        
+        // 스크롤 이동
+        if (this.resultSection) {
+            this.resultSection.scrollIntoView({ behavior: 'smooth' })
+        }
+        
+        console.log('📄 콘텐츠 표시 완료 - 에디터 준비 완료')
+    }
+    
+    // ==================== 유틸리티 메소드 ====================
+    
+    getAvailableApiKey() {
+        // 사용 가능한 API 키 및 모델 반환 (GROK 제외)
+        const keys = {
+            claude: this.claudeApiKeyInput?.value || '',
+            gemini: this.geminiApiKeyInput?.value || '',
+            openai: this.openaiApiKeyInput?.value || ''
+            // grok: 크레딧 부족으로 제외
+        }
+        
+        // 입력된 API 키 중 첫 번째 사용
+        for (const [model, key] of Object.entries(keys)) {
+            if (key.trim()) {
+                return { model, key: key.trim() }
+            }
+        }
+        
+        // 입력된 키가 없으면 디폴트 모델 사용 (서버 API 키)
+        return { model: 'claude', key: '' }
+    }
+    
+    showSuccess(message) {
+        this.showMessage(message, 'success')
+    }
+    
+    showError(message) {
+        this.showMessage(message, 'error')
+    }
+    
+    showInfo(message) {
+        this.showMessage(message, 'info')
+    }
+    
+    showMessage(message, type = 'info') {
+        // 기존 메시지 제거
+        const existingMessages = document.querySelectorAll('.message')
+        existingMessages.forEach(msg => msg.remove())
+        
+        // 새 메시지 생성
+        const messageDiv = document.createElement('div')
+        messageDiv.className = `message ${type}`
+        
+        let icon = ''
+        switch (type) {
+            case 'success':
+                icon = '<i class="fas fa-check-circle mr-2"></i>'
+                break
+            case 'error':
+                icon = '<i class="fas fa-exclamation-circle mr-2"></i>'
+                break
+            case 'info':
+                icon = '<i class="fas fa-info-circle mr-2"></i>'
+                break
+        }
+        
+        messageDiv.innerHTML = `${icon}${message}`
+        
+        // 메시지를 페이지 상단에 삽입
+        const container = document.querySelector('.container')
+        if (container) {
+            container.insertBefore(messageDiv, container.firstChild)
+        } else {
+            document.body.insertBefore(messageDiv, document.body.firstChild)
+        }
+        
+        // 5초 후 자동 제거 (오류 메시지는 10초)
+        const autoRemoveTime = type === 'error' ? 10000 : 5000
+        setTimeout(() => {
+            if (messageDiv.parentNode) {
+                messageDiv.style.opacity = '0'
+                messageDiv.style.transform = 'translateY(-20px)'
+                setTimeout(() => messageDiv.remove(), 300)
+            }
+        }, autoRemoveTime)
+        
+        // 애니메이션 효과
+        messageDiv.style.opacity = '0'
+        messageDiv.style.transform = 'translateY(-20px)'
+        setTimeout(() => {
+            messageDiv.style.opacity = '1'
+            messageDiv.style.transform = 'translateY(0)'
+        }, 100)
+    }
+    
+    displaySEOInfo(seoData) {
+        // SEO 정보 표시 메소드 (기존 코드 유지)
+        if (!this.seoAnalysisSection) return
+        
+        this.seoAnalysisSection.classList.remove('hidden')
+        
+        // SEO 점수 표시
+        if (this.seoScore && seoData.seoAnalysis) {
+            const score = seoData.seoAnalysis.seoScore || 0
+            this.seoScore.textContent = score
+            
+            if (this.seoScoreProgress) {
+                this.seoScoreProgress.style.width = `${score}%`
+                
+                // 색상 변경
+                if (score >= 80) {
+                    this.seoScoreProgress.className = 'bg-green-500 h-3 rounded-full transition-all'
+                } else if (score >= 60) {
+                    this.seoScoreProgress.className = 'bg-yellow-500 h-3 rounded-full transition-all'
+                } else {
+                    this.seoScoreProgress.className = 'bg-red-500 h-3 rounded-full transition-all'
+                }
+            }
+        }
+        
+        // 키워드 밀도
+        if (this.keywordDensity && seoData.seoAnalysis) {
+            this.keywordDensity.textContent = `${seoData.seoAnalysis.keywordDensity || 0}%`
+        }
+        
+        // 키워드 표시
+        if (this.focusKeywordDisplay && seoData.seoMetadata) {
+            this.focusKeywordDisplay.textContent = seoData.seoMetadata.focusKeyword || ''
+        }
+        
+        // 읽기 시간
+        if (this.readingTime && seoData.seoMetadata) {
+            this.readingTime.textContent = seoData.seoMetadata.readingTime || 0
+        }
+        
+        // 단어 수
+        if (this.wordCount && seoData.seoMetadata) {
+            this.wordCount.textContent = seoData.seoMetadata.wordCount || 0
+        }
+        
+        // SEO 메타데이터
+        if (this.seoTitle && seoData.seoMetadata) {
+            this.seoTitle.textContent = seoData.seoMetadata.title || ''
+        }
+        
+        if (this.metaDescription && seoData.seoMetadata) {
+            this.metaDescription.textContent = seoData.seoMetadata.metaDescription || ''
+        }
+        
+        if (this.seoKeywords && seoData.seoMetadata) {
+            const keywords = seoData.seoMetadata.keywords || []
+            this.seoKeywords.textContent = keywords.join(', ')
+        }
+        
+        // SEO 권장사항
+        if (this.recommendationsList && seoData.seoAnalysis) {
+            const recommendations = seoData.seoAnalysis.recommendations || []
+            this.recommendationsList.innerHTML = ''
+            
+            recommendations.forEach(rec => {
+                const li = document.createElement('li')
+                li.className = 'flex items-start'
+                li.innerHTML = `
+                    <i class="fas fa-lightbulb mr-2 text-yellow-500 mt-1"></i>
+                    <span class="text-gray-700">${rec}</span>
+                `
+                this.recommendationsList.appendChild(li)
+            })
+        }
+    }
 }
 
 // ==================== 초기화 ====================
@@ -1721,11 +3168,40 @@ document.addEventListener('DOMContentLoaded', function() {
     // 블로그 생성기 초기화
     window.blogGenerator = new BlogGenerator()
     
-    console.log('📱 AI 블로그 생성기 v3.0 시작!')
-    console.log('✨ 기능: 품질 검증 시스템 + SEO 최적화')
-    console.log('🤖 지원 모델: Claude, Gemini, OpenAI')
-    console.log('🛡️ 신기능: 3단계 품질 검증 프로세스')
+    console.log('📱 AI 블로그 생성기 v3.1 시작!')
+    console.log('✨ 기능: 품질 검증 시스템 + SEO 최적화 + 블로그 에디터')
+    console.log('🤖 지원 모델: Claude, Gemini, OpenAI, GROK')
+    console.log('🛡️ 신기능: 3단계 품질 검증 + Claude Artifacts 스타일 에디터')
 })
 
 // 전역 함수로 내보내기 (디버깅용)
 window.BlogGenerator = BlogGenerator
+
+// ==================== 블로그 에디터 클래스 ====================
+
+class BlogEditor {
+    constructor(blogGenerator) {
+        this.generator = blogGenerator
+        this.init()
+    }
+    
+    init() {
+        console.log('📝 BlogEditor 초기화...')
+        
+        // 에디터 상태
+        this.isEditMode = false
+        this.history = []
+        this.historyIndex = -1
+        this.currentContent = ''
+        
+        this.attachEvents()
+    }
+    
+    attachEvents() {
+        // 이미 BlogGenerator에서 처리하고 있으므로 추가 이벤트만 필요
+        console.log('✅ BlogEditor 이벤트 리스너 준비 완룈')
+    }
+}
+
+// 전역으로 브로그 에디터 내보내기
+window.BlogEditor = BlogEditor

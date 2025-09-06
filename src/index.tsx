@@ -107,6 +107,11 @@ const aiModels: Record<string, AIModel> = {
 
 // AI API 호출 함수
 async function callAI(model: string, prompt: string, apiKey: string, options: any = {}): Promise<string> {
+  // GROK 모델 임시 비활성화 (크레딧 부족)
+  if (model === 'grok') {
+    throw new Error('GROK 모델은 현재 크레딧 부족으로 일시적으로 비활성화되었습니다. 다른 모델을 선택해주세요.')
+  }
+  
   const aiModel = aiModels[model]
   if (!aiModel) {
     throw new Error(`지원하지 않는 AI 모델: ${model}`)
@@ -2128,10 +2133,38 @@ app.get('/', (c) => {
                             <i class="fas fa-file-alt mr-2 text-green-600"></i>
                             생성된 블로그 글
                         </h2>
-                        <button id="copyBtn" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition duration-300">
-                            <i class="fas fa-copy mr-2"></i>
-                            복사
-                        </button>
+                        <div class="flex space-x-3">
+                            <!-- 편집 모드 토글 -->
+                            <button id="editToggleBtn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-300">
+                                <i class="fas fa-edit mr-2"></i>
+                                편집 모드
+                            </button>
+                            <!-- 다운로드 옵션 -->
+                            <div class="relative">
+                                <button id="downloadBtn" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition duration-300">
+                                    <i class="fas fa-download mr-2"></i>
+                                    다운로드
+                                </button>
+                                <div id="downloadMenu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border z-50">
+                                    <button class="w-full text-left px-4 py-2 hover:bg-gray-50 rounded-t-lg" data-format="html">
+                                        <i class="fas fa-code mr-2 text-orange-500"></i>HTML
+                                    </button>
+                                    <button class="w-full text-left px-4 py-2 hover:bg-gray-50" data-format="markdown">
+                                        <i class="fas fa-markdown mr-2 text-blue-500"></i>Markdown
+                                    </button>
+                                    <button class="w-full text-left px-4 py-2 hover:bg-gray-50" data-format="docx">
+                                        <i class="fas fa-file-word mr-2 text-blue-600"></i>Word 문서
+                                    </button>
+                                    <button class="w-full text-left px-4 py-2 hover:bg-gray-50 rounded-b-lg" data-format="pdf">
+                                        <i class="fas fa-file-pdf mr-2 text-red-600"></i>PDF
+                                    </button>
+                                </div>
+                            </div>
+                            <button id="copyBtn" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition duration-300">
+                                <i class="fas fa-copy mr-2"></i>
+                                복사
+                            </button>
+                        </div>
                     </div>
                     
                     <div id="generationInfo" class="mb-4 p-3 bg-blue-50 rounded-lg text-sm text-gray-700"></div>
@@ -2293,7 +2326,101 @@ app.get('/', (c) => {
                         </div>
                     </div>
                     
-                    <div id="content" class="prose max-w-none bg-gray-50 p-6 rounded-lg border"></div>
+                    <!-- 콘텐츠 표시/편집 영역 -->
+                    <div class="relative">
+                        <!-- AI 편집 도구 바 (편집 모드일 때만 표시) -->
+                        <div id="aiToolbar" class="hidden mb-4 p-3 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
+                            <div class="flex flex-wrap items-center gap-3">
+                                <span class="font-medium text-gray-700">🤖 AI 편집 도구:</span>
+                                <button class="ai-tool-btn bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600 transition" data-action="rewrite">
+                                    ✍️ 재작성
+                                </button>
+                                <button class="ai-tool-btn bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600 transition" data-action="improve">
+                                    ✨ 개선
+                                </button>
+                                <button class="ai-tool-btn bg-purple-500 text-white px-3 py-1 rounded text-sm hover:bg-purple-600 transition" data-action="tone">
+                                    🎭 톤 변경
+                                </button>
+                                <button class="ai-tool-btn bg-orange-500 text-white px-3 py-1 rounded text-sm hover:bg-orange-600 transition" data-action="expand">
+                                    📝 확장
+                                </button>
+                                <button class="ai-tool-btn bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition" data-action="summarize">
+                                    📋 요약
+                                </button>
+                                <button class="ai-tool-btn bg-indigo-500 text-white px-3 py-1 rounded text-sm hover:bg-indigo-600 transition" data-action="translate">
+                                    🌍 번역
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 읽기 모드 -->
+                        <div id="contentReader" class="prose max-w-none bg-gray-50 p-6 rounded-lg border"></div>
+                        
+                        <!-- 편집 모드 -->
+                        <div id="contentEditor" class="hidden">
+                            <!-- 포맷팅 툴바 -->
+                            <div class="bg-white border border-gray-300 rounded-t-lg p-2 flex flex-wrap items-center gap-2">
+                                <button class="format-btn p-2 hover:bg-gray-100 rounded" data-format="bold" title="굵게">
+                                    <i class="fas fa-bold"></i>
+                                </button>
+                                <button class="format-btn p-2 hover:bg-gray-100 rounded" data-format="italic" title="기울임">
+                                    <i class="fas fa-italic"></i>
+                                </button>
+                                <button class="format-btn p-2 hover:bg-gray-100 rounded" data-format="underline" title="밑줄">
+                                    <i class="fas fa-underline"></i>
+                                </button>
+                                <div class="border-l border-gray-300 h-6 mx-2"></div>
+                                <select class="format-select p-1 border border-gray-300 rounded" data-format="heading">
+                                    <option value="">본문</option>
+                                    <option value="1">제목 1</option>
+                                    <option value="2">제목 2</option>
+                                    <option value="3">제목 3</option>
+                                </select>
+                                <div class="border-l border-gray-300 h-6 mx-2"></div>
+                                <button class="format-btn p-2 hover:bg-gray-100 rounded" data-format="ul" title="불릿 목록">
+                                    <i class="fas fa-list-ul"></i>
+                                </button>
+                                <button class="format-btn p-2 hover:bg-gray-100 rounded" data-format="ol" title="번호 목록">
+                                    <i class="fas fa-list-ol"></i>
+                                </button>
+                                <button class="format-btn p-2 hover:bg-gray-100 rounded" data-format="link" title="링크">
+                                    <i class="fas fa-link"></i>
+                                </button>
+                                <button class="format-btn p-2 hover:bg-gray-100 rounded" data-format="quote" title="인용">
+                                    <i class="fas fa-quote-left"></i>
+                                </button>
+                                <button class="format-btn p-2 hover:bg-gray-100 rounded" data-format="code" title="코드">
+                                    <i class="fas fa-code"></i>
+                                </button>
+                                <div class="border-l border-gray-300 h-6 mx-2"></div>
+                                <button class="format-btn p-2 hover:bg-gray-100 rounded" data-format="undo" title="실행 취소">
+                                    <i class="fas fa-undo"></i>
+                                </button>
+                                <button class="format-btn p-2 hover:bg-gray-100 rounded" data-format="redo" title="다시 실행">
+                                    <i class="fas fa-redo"></i>
+                                </button>
+                            </div>
+                            
+                            <!-- 편집 가능한 텍스트 영역 -->
+                            <div 
+                                id="contentEditArea" 
+                                contenteditable="true" 
+                                class="min-h-96 p-6 border-l border-r border-b border-gray-300 rounded-b-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 prose max-w-none"
+                                placeholder="여기서 생성된 콘텐츠를 편집하세요..."
+                            ></div>
+                            
+                            <!-- 편집 완료 버튼들 -->
+                            <div class="mt-4 flex justify-end space-x-3">
+                                <button id="cancelEditBtn" class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                                    취소
+                                </button>
+                                <button id="saveEditBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                                    <i class="fas fa-save mr-2"></i>
+                                    저장
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
