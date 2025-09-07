@@ -492,30 +492,48 @@ class BlogGenerator {
         try {
             // API 키 가져오기 (서버 키 우선, 없으면 사용자 입력 키)
             let apiKey = ''
-            if (finalAiModel === 'claude') {
+            let hasServerKey = false
+            
+            if (finalAiModel === 'auto') {
+                // AUTO 모드: 사용 가능한 서버 키 중 아무거나 사용
+                console.log('🤖 AUTO 모드: 사용 가능한 서버 API 키 확인 중...')
+                hasServerKey = this.serverApiKeys && (
+                    this.serverApiKeys.claude || 
+                    this.serverApiKeys.gemini || 
+                    this.serverApiKeys.openai || 
+                    this.serverApiKeys.grok
+                )
+                
+                if (hasServerKey) {
+                    console.log('🔑 AUTO 모드: 서버 API 키 사용 가능')
+                } else {
+                    console.log('❌ AUTO 모드: 서버 API 키 없음')
+                }
+            } else if (finalAiModel === 'claude') {
                 apiKey = this.claudeApiKeyInput?.value || ''
                 if (!apiKey && this.serverApiKeys?.claude) {
                     console.log('🔑 Claude 서버 API 키 사용')
+                    hasServerKey = true
                 }
             } else if (finalAiModel === 'gemini') {
                 apiKey = this.geminiApiKeyInput?.value || ''
                 if (!apiKey && this.serverApiKeys?.gemini) {
                     console.log('🔑 Gemini 서버 API 키 사용')
+                    hasServerKey = true
                 }
             } else if (finalAiModel === 'openai') {
                 apiKey = this.openaiApiKeyInput?.value || ''
                 if (!apiKey && this.serverApiKeys?.openai) {
                     console.log('🔑 OpenAI 서버 API 키 사용')
+                    hasServerKey = true
                 }
             } else if (finalAiModel === 'grok') {
                 apiKey = this.grokApiKeyInput?.value || ''
                 if (!apiKey && this.serverApiKeys?.grok) {
                     console.log('🔑 GROK 서버 API 키 사용')
+                    hasServerKey = true
                 }
             }
-            
-            // 서버 API 키가 있는지 확인
-            const hasServerKey = this.serverApiKeys && this.serverApiKeys[finalAiModel]
             
             // API 키 검증 (서버 키가 있으면 통과)
             if (!apiKey && !hasServerKey) {
@@ -638,12 +656,12 @@ class BlogGenerator {
             
             // API 키 검증 (서버 키가 있으면 통과)
             if (!apiKey && !hasServerKey) {
-                this.showError(`SEO 최적화를 위해서는 ${aiModel.toUpperCase()} API 키가 필요합니다. 서버에 구성된 키가 있거나 개별 API 키를 입력해주세요.`)
+                this.showError(`SEO 최적화를 위해서는 ${finalAiModel.toUpperCase()} API 키가 필요합니다. 서버에 구성된 키가 있거나 개별 API 키를 입력해주세요.`)
                 this.setSeoLoadingState(false)
                 return
             }
 
-            console.log(`🔍 SEO 최적화 ${aiModel} 모델로 블로그 생성 시작...`)
+            console.log(`🔍 SEO 최적화 ${finalAiModel} 모델로 블로그 생성 시작...`)
             console.log(`📝 주제: ${topic}`)
             console.log(`👥 대상: ${audience}`)
             console.log(`🎨 톤: ${tone}`)
@@ -653,7 +671,7 @@ class BlogGenerator {
                 topic,
                 audience,
                 tone,
-                aiModel,
+                aiModel: finalAiModel,
                 apiKey,
                 seoOptions
             })
@@ -725,36 +743,45 @@ class BlogGenerator {
         let apiKey = ''
         let hasServerKey = false
         
-        if (aiModel === 'claude' || aiModel === 'auto') {
+        if (finalAiModel === 'auto') {
+            // AUTO 모드: 사용 가능한 서버 키 중 아무거나 사용
+            console.log('🤖 SEO AUTO 모드: 사용 가능한 서버 API 키 확인 중...')
+            hasServerKey = this.serverApiKeys && (
+                this.serverApiKeys.claude || 
+                this.serverApiKeys.gemini || 
+                this.serverApiKeys.openai || 
+                this.serverApiKeys.grok
+            )
+            
+            if (hasServerKey) {
+                console.log('🔑 SEO AUTO 모드: 서버 API 키 사용 가능')
+            } else {
+                console.log('❌ SEO AUTO 모드: 서버 API 키 없음')
+            }
+        } else if (finalAiModel === 'claude') {
             apiKey = this.claudeApiKeyInput?.value || ''
             hasServerKey = this.serverApiKeys?.claude
             if (!apiKey && hasServerKey) {
-                console.log('🔑 Claude 서버 API 키 사용 (QA)')
+                console.log('🔑 Claude 서버 API 키 사용 (SEO)')
             }
-        } else if (aiModel === 'gemini') {
+        } else if (finalAiModel === 'gemini') {
             apiKey = this.geminiApiKeyInput?.value || ''
             hasServerKey = this.serverApiKeys?.gemini
             if (!apiKey && hasServerKey) {
-                console.log('🔑 Gemini 서버 API 키 사용 (QA)')
+                console.log('🔑 Gemini 서버 API 키 사용 (SEO)')
             }
-        } else if (aiModel === 'openai') {
+        } else if (finalAiModel === 'openai') {
             apiKey = this.openaiApiKeyInput?.value || ''
             hasServerKey = this.serverApiKeys?.openai
             if (!apiKey && hasServerKey) {
-                console.log('🔑 OpenAI 서버 API 키 사용 (QA)')
+                console.log('🔑 OpenAI 서버 API 키 사용 (SEO)')
             }
-        } else if (aiModel === 'grok') {
+        } else if (finalAiModel === 'grok') {
             apiKey = this.grokApiKeyInput?.value || ''
             hasServerKey = this.serverApiKeys?.grok
             if (!apiKey && hasServerKey) {
-                console.log('🔑 GROK 서버 API 키 사용 (QA)')
+                console.log('🔑 GROK 서버 API 키 사용 (SEO)')
             }
-        }
-
-        // auto 모드일 때는 서버 키 중에서 사용 가능한 것 확인
-        if (aiModel === 'auto') {
-            hasServerKey = this.serverApiKeys?.claude || this.serverApiKeys?.gemini || 
-                          this.serverApiKeys?.openai || this.serverApiKeys?.grok
         }
 
         if (!apiKey && !hasServerKey) {
@@ -767,7 +794,7 @@ class BlogGenerator {
         this.showQAProgress()
         
         try {
-            console.log(`🛡️ 품질 검증 ${aiModel} 모델로 블로그 생성 시작...`)
+            console.log(`🛡️ 품질 검증 ${finalAiModel} 모델로 블로그 생성 시작...`)
             console.log(`📝 주제: ${topic}`)
             console.log(`👥 대상: ${audience}`)
             console.log(`🎨 톤: ${tone}`)
@@ -780,7 +807,7 @@ class BlogGenerator {
                 topic,
                 audience,
                 tone,
-                aiModel,
+                aiModel: finalAiModel,
                 apiKey,
                 seoMode,
                 seoOptions
