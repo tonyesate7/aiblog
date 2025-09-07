@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>테스트</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+</head>
+<body>
+    <h1>일반 생성 테스트</h1>
+    <button onclick="testGenerate()">일반 생성 테스트</button>
+    <div id="result"></div>
+    
+    <script>
+    async function testGenerate() {
+        console.log('테스트 시작...')
+        
+        try {
+            const response = await axios.post('https://5526f4f7.ai-blog-generator-v2.pages.dev/api/generate', {
+                topic: '인공지능의 미래',
+                audience: '일반인',
+                tone: '친근한', 
+                aiModel: 'auto',
+                apiKey: ''
+            })
+            
+            console.log('API 응답:', response.data)
+            document.getElementById('result').innerHTML = '<pre>' + JSON.stringify(response.data, null, 2) + '</pre>'
+            
+        } catch (error) {
+            console.error('API 오류:', error)
+            document.getElementById('result').innerHTML = '<pre style="color:red">오류: ' + error.message + '</pre>'
+        }
+    }
+    </script>
+</body>
+</html>

@@ -151,13 +151,28 @@ class BlogGenerator {
             console.log('🔍 재검색 결과:', btn)
         }
 
-        // SEO 최적화 블로그 생성 버튼
+        // SEO 최적화 블로그 생성 버튼 (중복 클릭 방지)
         if (this.generateSeoBtn) {
             console.log('✅ SEO 생성 버튼 연결됨:', this.generateSeoBtn)
-            this.generateSeoBtn.addEventListener('click', (e) => {
+            this.generateSeoBtn.addEventListener('click', async (e) => {
                 console.log('🎯 SEO 생성 클릭 이벤트 발생!')
                 e.preventDefault()
-                this.generateSEOBlog()
+                
+                // 중복 클릭 방지
+                if (this.generateSeoBtn.disabled || this.generateSeoBtn.classList.contains('processing')) {
+                    console.log('⚠️ SEO 생성 이미 진행 중, 중복 클릭 무시')
+                    return
+                }
+                
+                this.generateSeoBtn.disabled = true
+                this.generateSeoBtn.classList.add('processing')
+                
+                try {
+                    await this.generateSEOBlog()
+                } finally {
+                    this.generateSeoBtn.disabled = false
+                    this.generateSeoBtn.classList.remove('processing')
+                }
             })
         } else {
             console.error('❌ SEO 생성 버튼을 찾을 수 없습니다!')
@@ -177,13 +192,28 @@ class BlogGenerator {
             })
         }
 
-        // 품질 검증 생성 버튼
+        // 품질 검증 생성 버튼 (중복 클릭 방지)
         if (this.generateQaBtn) {
             console.log('✅ 품질 검증 버튼 연결됨:', this.generateQaBtn)
-            this.generateQaBtn.addEventListener('click', (e) => {
+            this.generateQaBtn.addEventListener('click', async (e) => {
                 console.log('🎯 품질 검증 클릭 이벤트 발생!')
                 e.preventDefault()
-                this.generateQABlog()
+                
+                // 중복 클릭 방지
+                if (this.generateQaBtn.disabled || this.generateQaBtn.classList.contains('processing')) {
+                    console.log('⚠️ 품질 검증 이미 진행 중, 중복 클릭 무시')
+                    return
+                }
+                
+                this.generateQaBtn.disabled = true
+                this.generateQaBtn.classList.add('processing')
+                
+                try {
+                    await this.generateQABlog()
+                } finally {
+                    this.generateQaBtn.disabled = false
+                    this.generateQaBtn.classList.remove('processing')
+                }
             })
         } else {
             console.error('❌ 품질 검증 버튼을 찾을 수 없습니다!')
@@ -549,6 +579,14 @@ class BlogGenerator {
             
             this.showInfo(`🚀 ${finalAiModel.toUpperCase()} 모델로 "${topic}" 주제 블로그를 생성 중입니다...\n⏱️ 예상 소요 시간: 15-30초`)
 
+            console.log('🌐 API 호출 시작:', {
+                topic,
+                audience: finalAudience,
+                tone: finalTone,
+                aiModel: finalAiModel,
+                apiKey: apiKey ? '있음' : '없음'
+            })
+            
             const response = await axios.post('/api/generate', {
                 topic,
                 audience: finalAudience,
@@ -557,8 +595,13 @@ class BlogGenerator {
                 apiKey
             })
 
+            console.log('🎉 API 응답 받음:', response.status)
+            console.log('📦 응답 데이터:', response.data)
+            
             const result = response.data
+            console.log('🎯 displayResult 호출 전')
             this.displayResult(result)
+            console.log('✅ displayResult 호출 완료')
             
             console.log('✅ 블로그 생성 완료:', result.model)
 
@@ -830,10 +873,27 @@ class BlogGenerator {
         } catch (error) {
             console.error('❌ 품질 검증 블로그 생성 실패:', error)
             
-            if (error.response?.data?.message) {
-                this.showError(error.response.data.message)
+            // Rate Limit 오류인 경우 특별한 안내 메시지
+            if (error.response?.status === 500 && error.response?.data?.message?.includes('RATE_LIMIT')) {
+                this.showError(`⚠️ AI 모델이 일시적으로 사용량 제한에 걸렸습니다.
+
+🔄 **추천 대안:**
+• ✨ **SEO 최적화 생성** 사용 (정상 작동)
+• 🚀 **일반 생성** 사용 (정상 작동) 
+• ⏰ **5-10분 후** 품질 검증 재시도
+
+💡 일반 생성과 SEO 생성은 다른 시스템을 사용하므로 정상 작동합니다!`)
+            } else if (error.response?.data?.message) {
+                this.showError(`${error.response.data.message}
+
+💡 **대안:** SEO 최적화 생성 또는 일반 생성을 사용해보세요.`)
             } else {
-                this.showError('품질 검증 시스템에서 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')
+                this.showError(`품질 검증 시스템에서 오류가 발생했습니다.
+
+💡 **대안:**
+• ✨ SEO 최적화 생성 사용
+• 🚀 일반 생성 사용  
+• ⏰ 잠시 후 다시 시도`)
             }
             
             this.resetQAProgress()
@@ -1211,10 +1271,24 @@ class BlogGenerator {
     }
 
     displaySEOResult(result) {
-        if (!this.resultSection || !this.contentDiv || !this.generationInfo) {
-            console.error('결과 표시 요소를 찾을 수 없습니다.')
+        console.log('🎯 displaySEOResult 호출됨:', result)
+        console.log('📋 SEO DOM 요소 상태:')
+        console.log('  - resultSection:', this.resultSection)
+        console.log('  - contentDiv:', this.contentDiv)
+        console.log('  - generationInfo:', this.generationInfo)
+        console.log('  - contentReader:', this.contentReader)
+        
+        // contentDiv 대신 contentReader 사용하도록 수정
+        if (!this.resultSection || !this.generationInfo || (!this.contentDiv && !this.contentReader)) {
+            console.error('❌ SEO 결과 표시 요소를 찾을 수 없습니다.')
+            console.error('누락된 요소들:')
+            if (!this.resultSection) console.error('  - resultSection 없음')
+            if (!this.generationInfo) console.error('  - generationInfo 없음')
+            if (!this.contentDiv && !this.contentReader) console.error('  - contentDiv와 contentReader 모두 없음')
             return
         }
+        
+        console.log('✅ SEO 필수 DOM 요소가 존재함, 결과 표시 시작...')
 
         // 결과 섹션 표시
         this.resultSection.classList.remove('hidden')
@@ -1383,16 +1457,35 @@ class BlogGenerator {
     }
 
     displayResult(result) {
-        if (!this.resultSection || !this.contentDiv || !this.generationInfo) {
-            console.error('결과 표시 요소를 찾을 수 없습니다.')
+        console.log('🎯 displayResult 호출됨:', result)
+        console.log('📋 DOM 요소 상태:')
+        console.log('  - resultSection:', this.resultSection)
+        console.log('  - contentDiv:', this.contentDiv)
+        console.log('  - generationInfo:', this.generationInfo)
+        console.log('  - contentReader:', this.contentReader)
+        
+        // contentDiv 대신 contentReader 사용하도록 수정
+        if (!this.resultSection || !this.generationInfo || (!this.contentDiv && !this.contentReader)) {
+            console.error('❌ 결과 표시 요소를 찾을 수 없습니다.')
+            console.error('누락된 요소들:')
+            if (!this.resultSection) console.error('  - resultSection 없음')
+            if (!this.generationInfo) console.error('  - generationInfo 없음')
+            if (!this.contentDiv && !this.contentReader) console.error('  - contentDiv와 contentReader 모두 없음')
             return
         }
+        
+        console.log('✅ 필수 DOM 요소가 존재함, 결과 표시 시작...')
 
         // 결과 섹션 표시
+        console.log('👁️ 결과 섹션 표시 중...')
+        console.log('   현재 hidden 클래스:', this.resultSection.classList.contains('hidden'))
         this.resultSection.classList.remove('hidden')
+        console.log('   hidden 클래스 제거 후:', this.resultSection.classList.contains('hidden'))
+        
         // SEO 분석 섹션 숨김 (일반 모드)
         if (this.seoAnalysisSection) {
             this.seoAnalysisSection.classList.add('hidden')
+            console.log('📊 SEO 분석 섹션 숨김 처리 완료')
         }
         
         // 생성 정보 표시
@@ -1412,10 +1505,22 @@ class BlogGenerator {
         this.displayExpertSystemInfo(result.expertSelection)
 
         // 콘텐츠 표시 (마크다운을 HTML로 변환)
+        console.log('🔄 콘텐츠 변환 중...')
+        console.log('📝 원본 콘텐츠:', result.content?.substring(0, 100) + '...')
+        
+        const convertedHtml = this.markdownToHtml(result.content)
+        console.log('🔧 변환된 HTML:', convertedHtml?.substring(0, 100) + '...')
+        
         if (this.contentReader) {
-            this.contentReader.innerHTML = this.markdownToHtml(result.content)
+            console.log('✅ contentReader에 HTML 설정 중...')
+            this.contentReader.innerHTML = convertedHtml
+            console.log('🎯 contentReader innerHTML 설정 완료')
         } else if (this.contentDiv) {
-            this.contentDiv.innerHTML = this.markdownToHtml(result.content)
+            console.log('✅ contentDiv에 HTML 설정 중...')
+            this.contentDiv.innerHTML = convertedHtml
+            console.log('🎯 contentDiv innerHTML 설정 완료')
+        } else {
+            console.error('❌ contentReader와 contentDiv 모두 없음!')
         }
 
         // 결과 섹션으로 스크롤
@@ -2703,6 +2808,9 @@ class BlogGenerator {
     // AI 도구 처리
     async handleAITool(action) {
         console.log(`🤖 AI 도구 실행: ${action}`)
+        console.log('🔍 선택된 텍스트 상태:', this.selectedText)
+        console.log('🔍 편집 영역 상태:', this.contentEditArea)
+        console.log('🔍 편집 영역 내용:', this.contentEditArea?.innerText?.substring(0, 100) + '...')
         
         if (!this.selectedText && !this.contentEditArea) {
             this.showError('편집할 텍스트를 선택하거나 전체 콘텐츠를 사용하세요.')
@@ -2711,6 +2819,12 @@ class BlogGenerator {
         
         // 타깃 텍스트 결정
         const targetText = this.selectedText || this.contentEditArea.innerText
+        console.log('🎯 타깃 텍스트:', targetText?.substring(0, 200) + '...')
+        
+        if (!targetText || targetText.trim().length === 0) {
+            this.showError('편집할 텍스트가 비어있습니다.')
+            return
+        }
         
         if (!targetText.trim()) {
             this.showError('편집할 콘텐츠가 비어있습니다.')
@@ -2759,19 +2873,26 @@ class BlogGenerator {
     async callAIEdit(action, text) {
         // AI API 호출 로직
         const apiKey = this.getAvailableApiKey()
-        if (!apiKey.key) {
-            throw new Error('API 키가 설정되지 않았습니다.')
+        
+        console.log('🔍 callAIEdit - 받은 API 키 정보:', apiKey)
+        
+        if (!apiKey.model || (!apiKey.key && apiKey.key !== 'server')) {
+            console.error('❌ API 키 검증 실패:', apiKey)
+            throw new Error('API 키가 설정되지 않았습니다. 개별 API 키를 입력하거나 서버에 구성된 키를 사용하세요.')
         }
+        
+        console.log(`🤖 AI 도구 ${action}: ${apiKey.model} 모델 사용`)
+        console.log('✅ API 키 검증 통과!')
         
         const prompt = this.generateEditPrompt(action, text)
         
         const requestData = {
-            topic: `텍스트 편집: ${action}`,
+            topic: action, // 액션명만 간단히
             audience: '일반인',
             tone: '자연스러운',
             aiModel: apiKey.model,
-            apiKey: apiKey.key,
-            customPrompt: prompt
+            apiKey: apiKey.key === 'server' ? '' : apiKey.key, // 서버 키면 빈 문자열로 전달
+            customPrompt: prompt // 여기에 실제 편집할 텍스트와 명령이 들어있음
         }
         
         try {
@@ -3260,23 +3381,54 @@ class BlogGenerator {
     // ==================== 유틸리티 메소드 ====================
     
     getAvailableApiKey() {
-        // 사용 가능한 API 키 및 모델 반환
-        const keys = {
+        console.log('🔥🔥🔥 AI 도구용 API 키 검색 시작! 🔥🔥🔥')
+        console.log('📋 현재 객체 상태:', this)
+        console.log('🔑 serverApiKeys 상태:', this.serverApiKeys)
+        
+        // DOM 요소 상태 확인
+        console.log('📝 DOM 요소 상태:')
+        console.log('  - claudeApiKeyInput:', this.claudeApiKeyInput)
+        console.log('  - geminiApiKeyInput:', this.geminiApiKeyInput) 
+        console.log('  - openaiApiKeyInput:', this.openaiApiKeyInput)
+        console.log('  - grokApiKeyInput:', this.grokApiKeyInput)
+        
+        // 1. 사용자 입력 API 키 먼저 확인
+        const userKeys = {
             claude: this.claudeApiKeyInput?.value || '',
             gemini: this.geminiApiKeyInput?.value || '',
             openai: this.openaiApiKeyInput?.value || '',
             grok: this.grokApiKeyInput?.value || ''
         }
         
+        console.log('👤 사용자 입력 키들:', userKeys)
+        
         // 입력된 API 키 중 첫 번째 사용
-        for (const [model, key] of Object.entries(keys)) {
+        for (const [model, key] of Object.entries(userKeys)) {
             if (key.trim()) {
+                console.log(`✅ 사용자 입력 ${model} API 키 사용: ${key.substring(0, 10)}...`)
                 return { model, key: key.trim() }
             }
         }
         
-        // 입력된 키가 없으면 디폴트 모델 사용 (서버 API 키)
-        return { model: 'claude', key: '' }
+        console.log('⏭️ 사용자 입력 키 없음, 서버 키 확인 중...')
+        
+        // 2. 서버 API 키 확인
+        if (this.serverApiKeys) {
+            console.log('🖥️ 서버 API 키 상태:', this.serverApiKeys)
+            const serverModels = ['claude', 'gemini', 'openai', 'grok']
+            for (const model of serverModels) {
+                console.log(`🔍 ${model} 서버 키 확인:`, this.serverApiKeys[model])
+                if (this.serverApiKeys[model]) {
+                    console.log(`✅ 서버 ${model} API 키 사용 (AI 도구용)`)
+                    return { model, key: 'server' } // 서버 키는 'server'로 표시
+                }
+            }
+        } else {
+            console.log('❌ serverApiKeys가 null 또는 undefined')
+        }
+        
+        console.log('💥 사용 가능한 API 키가 전혀 없음!')
+        return { model: null, key: null }
     }
     
     showSuccess(message) {
@@ -3420,17 +3572,7 @@ class BlogGenerator {
 }
 
 // ==================== 초기화 ====================
-
-// DOM 로드 완료 시 초기화
-document.addEventListener('DOMContentLoaded', function() {
-    // 블로그 생성기 초기화
-    window.blogGenerator = new BlogGenerator()
-    
-    console.log('📱 AI 블로그 생성기 v3.1 시작!')
-    console.log('✨ 기능: 품질 검증 시스템 + SEO 최적화 + 블로그 에디터')
-    console.log('🤖 지원 모델: Claude, Gemini, OpenAI, GROK')
-    console.log('🛡️ 신기능: 3단계 품질 검증 + Claude Artifacts 스타일 에디터')
-})
+// 중복 초기화 제거됨 - 아래에서 통합 초기화
 
 // 전역 함수로 내보내기 (디버깅용)
 window.BlogGenerator = BlogGenerator
@@ -3464,21 +3606,29 @@ class BlogEditor {
 // 전역으로 브로그 에디터 내보내기
 window.BlogEditor = BlogEditor
 
-// ==================== 초기화 ====================
-// DOM이 완전히 로드된 후 BlogGenerator 인스턴스 생성
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('🚀 DOM 로드 완료, BlogGenerator 초기화 시작...')
+// ==================== 통합 초기화 ====================
+// BlogGenerator 단일 초기화로 중복 이벤트 리스너 문제 해결
+function initializeBlogGenerator() {
+    if (window.blogGenerator) {
+        console.log('⚠️ BlogGenerator 이미 초기화됨, 재초기화 방지')
+        return
+    }
+    
+    console.log('🚀 BlogGenerator 초기화 시작...')
     window.blogGenerator = new BlogGenerator()
+    
+    console.log('📱 AI 블로그 생성기 v3.2 시작!')
+    console.log('✨ 기능: 품질 검증 시스템 + SEO 최적화 + 블로그 에디터')  
+    console.log('🤖 지원 모델: Claude, Gemini, OpenAI, GROK')
+    console.log('🛡️ 신기능: 3단계 품질 검증 + Claude Artifacts 스타일 에디터')
     console.log('✅ BlogGenerator 인스턴스 생성 완료')
-})
+}
 
-// 만약 DOMContentLoaded가 이미 발생했다면 즉시 실행
+// DOM 로드 상태에 따라 적절히 초기화
 if (document.readyState === 'loading') {
-    // DOM이 아직 로딩 중이면 이벤트 리스너 등록
     console.log('⏳ DOM 로딩 중... 완료 대기')
+    document.addEventListener('DOMContentLoaded', initializeBlogGenerator)
 } else {
-    // DOM이 이미 로드되었으면 즉시 실행
     console.log('🚀 DOM 이미 로드됨, BlogGenerator 즉시 초기화...')
-    window.blogGenerator = new BlogGenerator()
-    console.log('✅ BlogGenerator 인스턴스 생성 완료')
+    initializeBlogGenerator()
 }

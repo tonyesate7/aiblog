@@ -1683,11 +1683,71 @@ app.post('/api/generate-qa', async (c) => {
   }
 })
 
-// 기존 블로그 글 생성 (호환성 유지)
+// 기존 블로그 글 생성 (호환성 유지) + AI 도구 편집 지원
 app.post('/api/generate', async (c) => {
   try {
-    const { topic, audience, tone, aiModel, apiKey } = await c.req.json()
+    const { topic, audience, tone, aiModel, apiKey, customPrompt } = await c.req.json()
     
+    // AI 도구용 customPrompt가 있는 경우 (편집 모드)
+    if (customPrompt) {
+      console.log('🛠️ AI 도구 편집 모드 감지 - customPrompt 사용')
+      
+      // 전문가 시스템: 최적 모델 자동 선택 (사용자가 선택하지 않은 경우)
+      let selectedModel = aiModel
+      let expertSelection = null
+      
+      if (aiModel === 'auto' || !aiModel) {
+        // AI 도구의 경우 Claude를 기본으로 선택 (편집에 특화)
+        selectedModel = 'claude'
+        console.log('🧠 AI 도구 - Claude 모델 자동 선택 (편집 최적화)')
+      }
+
+      // API 키 가져오기 (선택된 모델 기준)
+      const { env } = c
+      let finalApiKey = ''
+      
+      if (selectedModel === 'claude') {
+        finalApiKey = env.CLAUDE_API_KEY || apiKey || ''
+      } else if (selectedModel === 'gemini') {
+        finalApiKey = env.GEMINI_API_KEY || apiKey || ''
+      } else if (selectedModel === 'openai') {
+        finalApiKey = env.OPENAI_API_KEY || apiKey || ''
+      } else if (selectedModel === 'grok') {
+        finalApiKey = env.GROK_API_KEY || apiKey || ''
+      }
+
+      console.log(`🔑 AI 도구 API Key Check: selectedModel=${selectedModel}, finalKey=${!!finalApiKey}`)
+
+      // API 키가 없으면 오류 반환
+      if (!finalApiKey) {
+        return c.json({ 
+          error: `${selectedModel} API 키가 설정되지 않아 AI 도구를 사용할 수 없습니다.`,
+          model: selectedModel
+        }, 400)
+      }
+
+      try {
+        // customPrompt를 직접 AI에게 전달
+        console.log('📤 AI 도구 - customPrompt 전달 중...')
+        const content = await callAI(selectedModel, customPrompt, finalApiKey)
+        
+        return c.json({
+          content,
+          model: aiModels[selectedModel].name,
+          isDemo: false,
+          isAITool: true,
+          selectedModel
+        })
+      } catch (aiError: any) {
+        console.error('AI 도구 호출 오류:', aiError.message)
+        return c.json({ 
+          error: `AI 도구 처리 중 오류가 발생했습니다: ${aiError.message}`,
+          model: selectedModel
+        }, 500)
+      }
+    }
+    
+    // 일반 블로그 생성 모드 (기존 로직)
     if (!topic || !audience || !tone) {
       return c.json({ error: '필수 필드가 누락되었습니다' }, 400)
     }
