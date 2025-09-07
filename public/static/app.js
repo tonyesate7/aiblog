@@ -18,6 +18,15 @@ class BlogGenerator {
         this.currentHistoryIndex = -1
         this.currentContent = ''
         
+        // 디버깅: 전역 클릭 이벤트 감지
+        document.addEventListener('click', (e) => {
+            if (e.target.id === 'generateBtn') {
+                console.log('🔴 전역 클릭 감지: generateBtn 클릭됨!')
+                console.log('🔴 클릭된 요소:', e.target)
+                console.log('🔴 this.generateBtn:', this.generateBtn)
+            }
+        })
+        
         // 페이지 로드 시 스마트 가이드 초기 분석
         setTimeout(() => {
             this.analyzeInput()
@@ -117,13 +126,29 @@ class BlogGenerator {
         // 일반 블로그 생성 버튼
         if (this.generateBtn) {
             console.log('✅ 일반 생성 버튼 연결됨:', this.generateBtn)
-            this.generateBtn.addEventListener('click', (e) => {
+            console.log('✅ 버튼 ID 확인:', this.generateBtn.id)
+            console.log('✅ 버튼 클래스:', this.generateBtn.className)
+            
+            // 기존 이벤트 리스너 제거 후 다시 추가
+            this.generateBtn.removeEventListener('click', this.handleGenerateClick)
+            this.handleGenerateClick = (e) => {
                 console.log('🎯 일반 생성 클릭 이벤트 발생!')
+                console.log('🎯 이벤트 객체:', e)
+                console.log('🎯 이벤트 타겟:', e.target)
                 e.preventDefault()
+                e.stopPropagation()
                 this.generateBlog()
-            })
+            }
+            this.generateBtn.addEventListener('click', this.handleGenerateClick)
+            
+            // 버튼 상태 추가 확인
+            console.log('✅ 버튼 비활성화 상태:', this.generateBtn.disabled)
+            console.log('✅ 버튼 스타일:', this.generateBtn.style.cssText)
         } else {
             console.error('❌ 일반 생성 버튼을 찾을 수 없습니다!')
+            console.log('🔍 DOM에서 버튼 재검색 시도...')
+            const btn = document.getElementById('generateBtn')
+            console.log('🔍 재검색 결과:', btn)
         }
 
         // SEO 최적화 블로그 생성 버튼
@@ -414,7 +439,16 @@ class BlogGenerator {
     }
 
     async generateBlog() {
-        console.log('🔥 일반 생성 버튼 클릭됨!')
+        console.log('🔥🔥🔥 일반 생성 함수 호출됨! 🔥🔥🔥')
+        console.log('🔥 현재 시간:', new Date().toISOString())
+        console.log('🔥 this 객체:', this)
+        
+        // DOM 요소 상태 확인
+        console.log('📋 DOM 요소 상태 확인:')
+        console.log('  - topicInput:', this.topicInput)
+        console.log('  - audienceSelect:', this.audienceSelect)
+        console.log('  - toneSelect:', this.toneSelect) 
+        console.log('  - aiModelSelect:', this.aiModelSelect)
         
         // 필수 입력 검증 강화
         const topic = this.topicInput?.value?.trim()
@@ -450,8 +484,6 @@ class BlogGenerator {
         const finalAudience = audience || '일반인'
         const finalTone = tone || '친근한'
         const finalAiModel = aiModel || 'claude'
-
-
 
         // 로딩 상태 표시
         console.log('🔄 로딩 상태 시작...')
