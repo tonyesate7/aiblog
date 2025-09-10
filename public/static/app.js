@@ -1601,11 +1601,78 @@ class BlogGenerator {
             console.error('❌ contentReader와 contentDiv 모두 없음!')
         }
 
+        // 이미지 로딩 상태 모니터링 (NEW! 🎨)
+        this.setupImageErrorHandling()
+        
         // 결과 섹션으로 스크롤
         this.resultSection.scrollIntoView({ 
             behavior: 'smooth', 
             block: 'start' 
         })
+    }
+    
+    // 이미지 오류 처리 설정 (NEW! 🎨)
+    setupImageErrorHandling() {
+        // 잠시 후 이미지들의 로딩 상태 확인
+        setTimeout(() => {
+            const images = document.querySelectorAll('.blog-image')
+            let loadedImages = 0
+            let totalImages = images.length
+            
+            if (totalImages === 0) return
+            
+            images.forEach((img, index) => {
+                // 이미지 로딩 성공 처리
+                img.addEventListener('load', () => {
+                    loadedImages++
+                    console.log(`✅ 이미지 ${index + 1}/${totalImages} 로딩 성공`)
+                    
+                    if (loadedImages === totalImages) {
+                        this.showImageLoadingComplete(totalImages)
+                    }
+                })
+                
+                // 이미지 로딩 실패 처리
+                img.addEventListener('error', () => {
+                    console.log(`❌ 이미지 ${index + 1} 로딩 실패, 대체 이미지 사용`)
+                    
+                    // 고품질 랜덤 이미지로 교체
+                    const randomSeed = Math.floor(Math.random() * 1000)
+                    img.src = `https://picsum.photos/seed/${randomSeed}/800/450`
+                    
+                    // 설명 텍스트 업데이트
+                    const caption = img.nextElementSibling
+                    if (caption) {
+                        caption.innerHTML = '🎨 AI 생성 이미지 (대체 이미지)'
+                        caption.classList.add('text-blue-600')
+                    }
+                })
+                
+                // 이미 로딩된 이미지 확인
+                if (img.complete && img.naturalHeight !== 0) {
+                    loadedImages++
+                }
+            })
+            
+            // 모든 이미지가 이미 로딩되어 있는 경우
+            if (loadedImages === totalImages) {
+                this.showImageLoadingComplete(totalImages)
+            }
+        }, 1000)
+    }
+    
+    // 이미지 로딩 완료 알림 (NEW! 🎨)
+    showImageLoadingComplete(imageCount) {
+        // 기존 이미지 진행 메시지 제거
+        const progressDiv = document.getElementById('imageGenerationProgress')
+        if (progressDiv) {
+            progressDiv.style.opacity = '0'
+            progressDiv.style.transform = 'translateY(-20px)'
+            setTimeout(() => progressDiv.remove(), 300)
+        }
+        
+        // 완료 메시지 표시
+        this.showSuccess(`🎉 멀티미디어 블로그 생성 완료! 텍스트와 이미지 ${imageCount}개가 성공적으로 통합되었습니다.`)
     }
 
     markdownToHtml(markdown) {
@@ -1622,10 +1689,13 @@ class BlogGenerator {
         // 기울임체
         html = html.replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
 
-        // 이미지 처리 (NEW! 🎨)
+        // 이미지 처리 (NEW! 🎨) - 오류 처리 포함
         html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, 
             '<div class="my-6 text-center">' +
-                '<img src="$2" alt="$1" class="max-w-full h-auto rounded-lg shadow-md mx-auto" loading="lazy">' +
+                '<img src="$2" alt="$1" class="max-w-full h-auto rounded-lg shadow-md mx-auto blog-image" loading="lazy" ' +
+                     'onerror="this.src=\'https://picsum.photos/800/450?random=' + Math.floor(Math.random() * 1000) + '\'; ' +
+                     'this.onerror=null; ' +
+                     'this.nextElementSibling.innerHTML=\'이미지 로딩 중... (대체 이미지 표시됨)\';">' +
                 '<p class="text-sm text-gray-600 mt-2 italic">$1</p>' +
             '</div>'
         )

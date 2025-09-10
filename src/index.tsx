@@ -1895,10 +1895,14 @@ async function generateImage(prompt: string, style: string = 'realistic', aspect
     }
     
     const colors = colorSchemes[style] || colorSchemes.professional
-    const encodedPrompt = encodeURIComponent(prompt.slice(0, 40))
     
-    // 고해상도 플레이스홀더 이미지 생성
-    const placeholderUrl = `https://via.placeholder.com/800x450/${colors}?text=${encodedPrompt}`
+    // 한글 포함 프롬프트를 영어 키워드로 변환하여 URL 안전성 확보
+    const safeText = convertPromptToSafeText(prompt, style)
+    
+    // 안정적인 플레이스홀더 이미지 서비스 사용
+    // Picsum Photos: 랜덤 고품질 이미지 (가장 안정적)
+    const randomSeed = Math.floor(Math.random() * 1000)
+    const placeholderUrl = `https://picsum.photos/seed/${randomSeed}/800/450`
     
     console.log(`✅ 플레이스홀더 이미지 생성 완료: ${placeholderUrl}`)
     return placeholderUrl
@@ -1930,6 +1934,53 @@ async function generateImage(prompt: string, style: string = 'realistic', aspect
     console.error('이미지 생성 오류:', error)
     return null
   }
+}
+
+// 프롬프트를 URL 안전한 텍스트로 변환
+function convertPromptToSafeText(prompt: string, style: string): string {
+  // 한글/특수문자가 포함된 프롬프트를 영어 키워드로 매핑
+  const keywordMappings: Record<string, string> = {
+    '인공지능': 'AI',
+    '미래': 'future',
+    '건강': 'health',
+    '식습관': 'diet',
+    '기술': 'technology',
+    '비즈니스': 'business',
+    '마케팅': 'marketing',
+    '교육': 'education',
+    '투자': 'investment',
+    '경제': 'economy',
+    '소셜미디어': 'social',
+    '트렌드': 'trend',
+    '라이프스타일': 'lifestyle'
+  }
+  
+  // 스타일별 키워드 추가
+  const styleKeywords: Record<string, string> = {
+    realistic: 'photo',
+    professional: 'business',
+    illustration: 'art',
+    diagram: 'chart'
+  }
+  
+  let safeText = prompt
+  
+  // 한글 키워드를 영어로 변환
+  Object.entries(keywordMappings).forEach(([korean, english]) => {
+    safeText = safeText.replace(new RegExp(korean, 'g'), english)
+  })
+  
+  // 특수문자 제거하고 영어/숫자만 남기기
+  safeText = safeText.replace(/[^a-zA-Z0-9\s]/g, ' ')
+  
+  // 연속 공백을 하나로 만들고, 앞뒤 공백 제거
+  safeText = safeText.replace(/\s+/g, ' ').trim()
+  
+  // 스타일 키워드 추가
+  safeText = `${safeText} ${styleKeywords[style] || 'image'}`
+  
+  // 최대 30자로 제한
+  return safeText.slice(0, 30)
 }
 
 // 블로그 내용에서 이미지 키워드 추출
