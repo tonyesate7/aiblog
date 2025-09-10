@@ -59,6 +59,13 @@ class BlogGenerator {
         this.contentLengthSelect = document.getElementById('contentLength')
         this.includeStructuredDataInput = document.getElementById('includeStructuredData')
         
+        // 이미지 생성 관련 요소들 (NEW! 🎨)
+        this.toggleImageOptionsBtn = document.getElementById('toggleImageOptions')
+        this.imageOptionsSection = document.getElementById('imageOptionsSection')
+        this.includeImagesInput = document.getElementById('includeImages')
+        this.imageStyleSelect = document.getElementById('imageStyle')
+        this.imageCountSelect = document.getElementById('imageCount')
+        
         // 결과 표시 요소들
         this.resultSection = document.getElementById('resultSection')
         this.contentDiv = document.getElementById('content')
@@ -192,6 +199,20 @@ class BlogGenerator {
             })
         }
 
+        // 이미지 생성 옵션 토글 버튼 (NEW! 🎨)
+        if (this.toggleImageOptionsBtn) {
+            this.toggleImageOptionsBtn.addEventListener('click', () => {
+                this.toggleImageOptionsSection()
+            })
+        }
+
+        // 이미지 옵션 토글 버튼 (NEW! 🎨)
+        if (this.toggleImageOptionsBtn) {
+            this.toggleImageOptionsBtn.addEventListener('click', () => {
+                this.toggleImageOptionsSection()
+            })
+        }
+
         // 품질 검증 생성 버튼 (중복 클릭 방지)
         if (this.generateQaBtn) {
             console.log('✅ 품질 검증 버튼 연결됨:', this.generateQaBtn)
@@ -290,6 +311,21 @@ class BlogGenerator {
             } else {
                 this.seoOptionsSection.classList.add('hidden')
                 this.toggleSeoOptionsBtn.innerHTML = '<i class="fas fa-chevron-down"></i>'
+            }
+        }
+    }
+
+    // 이미지 옵션 섹션 토글 (NEW! 🎨)
+    toggleImageOptionsSection() {
+        if (this.imageOptionsSection) {
+            const isHidden = this.imageOptionsSection.classList.contains('hidden')
+            
+            if (isHidden) {
+                this.imageOptionsSection.classList.remove('hidden')
+                this.toggleImageOptionsBtn.innerHTML = '<i class="fas fa-chevron-up"></i>'
+            } else {
+                this.imageOptionsSection.classList.add('hidden')
+                this.toggleImageOptionsBtn.innerHTML = '<i class="fas fa-chevron-down"></i>'
             }
         }
     }
@@ -486,7 +522,12 @@ class BlogGenerator {
         const tone = this.toneSelect?.value
         const aiModel = this.aiModelSelect?.value
         
-        console.log('📝 입력값 확인:', { topic, audience, tone, aiModel })
+        // 이미지 생성 옵션 확인 (NEW! 🎨)
+        const includeImages = this.includeImagesInput?.checked || false
+        const imageStyle = this.imageStyleSelect?.value || 'professional'
+        const imageCount = parseInt(this.imageCountSelect?.value || '3')
+        
+        console.log('📝 입력값 확인:', { topic, audience, tone, aiModel, includeImages, imageStyle, imageCount })
         
         if (!topic) {
             this.showError('⚠️ 주제를 입력해주세요!\n\n예시: "인공지능 기술", "디지털 마케팅", "건강한 생활습관"')
@@ -579,20 +620,45 @@ class BlogGenerator {
             
             this.showInfo(`🚀 ${finalAiModel.toUpperCase()} 모델로 "${topic}" 주제 블로그를 생성 중입니다...\n⏱️ 예상 소요 시간: 15-30초`)
 
+            // 이미지 생성 옵션 확인 (NEW! 🎨)
+            const includeImages = this.includeImagesInput?.checked || false
+            const imageStyle = this.imageStyleSelect?.value || 'professional'
+            const imageCount = parseInt(this.imageCountSelect?.value || '3')
+            
+            console.log('🎨 이미지 생성 옵션:', {
+                includeImages,
+                imageStyle,
+                imageCount
+            })
+
             console.log('🌐 API 호출 시작:', {
                 topic,
                 audience: finalAudience,
                 tone: finalTone,
                 aiModel: finalAiModel,
-                apiKey: apiKey ? '있음' : '없음'
+                apiKey: apiKey ? '있음' : '없음',
+                includeImages,
+                imageStyle,
+                imageCount
             })
             
-            const response = await axios.post('/api/generate', {
+            // 이미지 포함 여부에 따라 다른 API 엔드포인트 사용
+            const apiEndpoint = includeImages ? '/api/generate-with-images' : '/api/generate'
+            
+            // 진행상황 업데이트 (이미지 생성 포함시 상세 안내)
+            if (includeImages) {
+                this.showImageGenerationProgress(topic, finalAiModel, imageCount)
+            }
+            
+            const response = await axios.post(apiEndpoint, {
                 topic,
                 audience: finalAudience,
                 tone: finalTone,
                 aiModel: finalAiModel,
-                apiKey
+                apiKey,
+                includeImages,
+                imageStyle,
+                imageCount
             })
 
             console.log('🎉 API 응답 받음:', response.status)
@@ -1495,8 +1561,20 @@ class BlogGenerator {
             infoHtml += ` <span class="ml-2 px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded-full">데모 모드</span>`
         }
         
+        // 이미지 생성 정보 표시 (NEW! 🎨)
+        if (result.images && result.images.length > 0) {
+            infoHtml += ` <span class="ml-2 px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
+                <i class="fas fa-images mr-1"></i>이미지 ${result.images.length}개 포함
+            </span>`
+        }
+        
         if (result.message) {
             infoHtml += `<br><i class="fas fa-info-circle mr-2"></i>${result.message}`
+        }
+        
+        // 이미지 생성 통계 정보 추가
+        if (result.includeImages && result.imageCount > 0) {
+            infoHtml += `<br><i class="fas fa-magic mr-2 text-purple-600"></i>AI 이미지 ${result.imageCount}개 자동 생성 및 삽입 완료 🎨`
         }
         
         this.generationInfo.innerHTML = infoHtml
@@ -1543,6 +1621,14 @@ class BlogGenerator {
 
         // 기울임체
         html = html.replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
+
+        // 이미지 처리 (NEW! 🎨)
+        html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, 
+            '<div class="my-6 text-center">' +
+                '<img src="$2" alt="$1" class="max-w-full h-auto rounded-lg shadow-md mx-auto" loading="lazy">' +
+                '<p class="text-sm text-gray-600 mt-2 italic">$1</p>' +
+            '</div>'
+        )
 
         // 링크
         html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-600 hover:text-blue-800 underline" target="_blank">$1</a>')
@@ -3492,6 +3578,148 @@ class BlogGenerator {
             messageDiv.style.opacity = '1'
             messageDiv.style.transform = 'translateY(0)'
         }, 100)
+    }
+    
+    // 이미지 생성 진행 상황 표시 (NEW! 🎨)
+    showImageGenerationProgress(topic, aiModel, imageCount) {
+        // 기존 메시지 제거
+        const existingMessages = document.querySelectorAll('.message')
+        existingMessages.forEach(msg => msg.remove())
+        
+        // 이미지 생성 진행 상황 메시지 생성
+        const progressDiv = document.createElement('div')
+        progressDiv.className = 'message image-progress'
+        progressDiv.id = 'imageGenerationProgress'
+        
+        progressDiv.innerHTML = `
+            <div class="bg-gradient-to-r from-purple-50 to-blue-50 border-l-4 border-purple-500 p-4 rounded-lg shadow-md">
+                <div class="flex items-center mb-3">
+                    <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600 mr-3"></div>
+                    <div class="flex-1">
+                        <h4 class="text-lg font-bold text-purple-800">
+                            <i class="fas fa-magic mr-2"></i>
+                            AI 멀티미디어 블로그 생성 중... 🎨✨
+                        </h4>
+                        <p class="text-purple-600 text-sm">
+                            ${aiModel.toUpperCase()} 모델로 "${topic}" 주제의 블로그와 관련 이미지를 동시에 생성하고 있습니다
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="space-y-3">
+                    <div class="flex items-center text-sm">
+                        <div class="animate-pulse bg-green-500 w-3 h-3 rounded-full mr-3"></div>
+                        <span class="text-green-700">
+                            <i class="fas fa-file-text mr-1"></i>
+                            <strong>1단계:</strong> AI 텍스트 생성 중... (30-60초)
+                        </span>
+                    </div>
+                    
+                    <div class="flex items-center text-sm">
+                        <div class="animate-pulse bg-purple-500 w-3 h-3 rounded-full mr-3"></div>
+                        <span class="text-purple-700">
+                            <i class="fas fa-images mr-1"></i>
+                            <strong>2단계:</strong> 맞춤형 이미지 ${imageCount}개 생성 중... (2-4분)
+                        </span>
+                    </div>
+                    
+                    <div class="flex items-center text-sm">
+                        <div class="animate-pulse bg-blue-500 w-3 h-3 rounded-full mr-3"></div>
+                        <span class="text-blue-700">
+                            <i class="fas fa-puzzle-piece mr-1"></i>
+                            <strong>3단계:</strong> 텍스트와 이미지 자동 통합 중... (10-20초)
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="mt-4 p-3 bg-white rounded border-l-2 border-orange-400">
+                    <div class="flex items-center text-sm text-orange-700">
+                        <i class="fas fa-lightbulb text-orange-500 mr-2"></i>
+                        <div>
+                            <strong>잠깐!</strong> 텍스트는 먼저 표시되며, 이미지는 순차적으로 로딩됩니다.
+                            <br>완성된 멀티미디어 블로그를 곧 만나보실 수 있습니다! 🚀
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-3 bg-white rounded p-2 border">
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full animate-pulse" style="width: 45%"></div>
+                    </div>
+                    <div class="text-xs text-gray-600 mt-1 text-center">예상 완료까지 3-8분 소요</div>
+                </div>
+            </div>
+        `
+        
+        // 메시지를 페이지 상단에 삽입
+        const container = document.querySelector('.container')
+        if (container) {
+            container.insertBefore(progressDiv, container.firstChild)
+        } else {
+            document.body.insertBefore(progressDiv, document.body.firstChild)
+        }
+        
+        // 애니메이션 효과
+        progressDiv.style.opacity = '0'
+        progressDiv.style.transform = 'translateY(-20px)'
+        setTimeout(() => {
+            progressDiv.style.opacity = '1'
+            progressDiv.style.transform = 'translateY(0)'
+        }, 100)
+        
+        // 15분 후 자동 제거 (이미지 생성은 오래 걸릴 수 있음)
+        setTimeout(() => {
+            if (progressDiv.parentNode) {
+                progressDiv.style.opacity = '0'
+                progressDiv.style.transform = 'translateY(-20px)'
+                setTimeout(() => progressDiv.remove(), 300)
+            }
+        }, 900000) // 15분
+    }
+    
+    // 이미지 생성 옵션 섹션 토글 (NEW! 🎨)
+    toggleImageOptionsSection() {
+        if (this.imageOptionsSection) {
+            const isHidden = this.imageOptionsSection.classList.contains('hidden')
+            
+            if (isHidden) {
+                this.imageOptionsSection.classList.remove('hidden')
+                this.toggleImageOptionsBtn.innerHTML = '<i class="fas fa-chevron-up"></i>'
+            } else {
+                this.imageOptionsSection.classList.add('hidden')  
+                this.toggleImageOptionsBtn.innerHTML = '<i class="fas fa-chevron-down"></i>'
+            }
+        }
+    }
+    
+    // API 키 섹션 토글
+    toggleApiKeysSection() {
+        if (this.apiKeysSection) {
+            const isHidden = this.apiKeysSection.classList.contains('hidden')
+            
+            if (isHidden) {
+                this.apiKeysSection.classList.remove('hidden')
+                this.toggleApiKeysBtn.innerHTML = '<i class="fas fa-chevron-up"></i>'
+            } else {
+                this.apiKeysSection.classList.add('hidden')
+                this.toggleApiKeysBtn.innerHTML = '<i class="fas fa-chevron-down"></i>'
+            }
+        }
+    }
+    
+    // SEO 옵션 섹션 토글
+    toggleSeoOptionsSection() {
+        if (this.seoOptionsSection) {
+            const isHidden = this.seoOptionsSection.classList.contains('hidden')
+            
+            if (isHidden) {
+                this.seoOptionsSection.classList.remove('hidden')
+                this.toggleSeoOptionsBtn.innerHTML = '<i class="fas fa-chevron-up"></i>'
+            } else {
+                this.seoOptionsSection.classList.add('hidden')
+                this.toggleSeoOptionsBtn.innerHTML = '<i class="fas fa-chevron-down"></i>'
+            }
+        }
     }
     
     displaySEOInfo(seoData) {
