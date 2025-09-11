@@ -2144,23 +2144,23 @@ function extractImageKeywords(content: string, topic: string, imageCount: number
   keywords.push(`Professional blog header image about ${englishTopic}, modern design, clean background, high quality`)
   
   if (imageCount >= 2) {
-    // 2. 개념 설명 이미지
-    keywords.push(`Educational illustration showing ${englishTopic}, infographic style, professional`)
+    // 2. 실제 적용/활용 이미지 - 주제별 맞춤
+    keywords.push(`Real world application of ${englishTopic}, practical use, everyday life, professional`)
   }
   
   if (imageCount >= 3) {
-    // 3. 결론/성공 이미지
-    keywords.push(`Success and achievement related to ${englishTopic}, inspiring, professional`)
+    // 3. 상세/근접 이미지 - 주제 핵심 요소
+    keywords.push(`Close-up detailed view of ${englishTopic}, high quality, clear focus, professional`)
   }
   
   if (imageCount >= 4) {
     // 4. 단계별 프로세스 이미지
-    keywords.push(`Step-by-step process for ${englishTopic}, clean design, tutorial style`)
+    keywords.push(`Step-by-step guide for ${englishTopic}, tutorial style, educational, clear`)
   }
   
   if (imageCount >= 5) {
-    // 5. 미래/트렌드 이미지
-    keywords.push(`Future trends and innovation in ${englishTopic}, futuristic, technology`)
+    // 5. 비교/선택 이미지
+    keywords.push(`Comparison and selection of ${englishTopic}, variety, options, professional`)
   }
   
   return keywords.slice(0, imageCount)
@@ -2169,34 +2169,38 @@ function extractImageKeywords(content: string, topic: string, imageCount: number
 // Phase 2.3: 한국어 주제를 영어로 변환하는 전용 함수
 function convertKoreanTopicToEnglish(topic: string): string {
   const topicMappings = {
-    // 건강/음식 관련
-    '과일 음료': 'fruit juice and healthy drinks',
-    '건강한 식습관': 'healthy eating habits', 
-    '건강한 생활': 'healthy lifestyle',
-    '비타민': 'vitamins and nutrition',
-    '영양': 'nutrition and wellness',
-    '운동': 'exercise and fitness',
+    // 건강/음식 관련 - 더 구체적이고 시각적
+    '과일 음료': 'fresh fruit smoothies and healthy beverages',
+    '비타민': 'vitamin-rich fruits and healthy nutrition',
+    '비타민이 풍부한 과일': 'colorful vitamin-rich fruits and fresh produce',
+    '건강한 식습관': 'healthy eating habits and nutritious meals', 
+    '건강한 생활': 'healthy lifestyle and wellness activities',
+    '영양': 'nutrition and healthy food choices',
+    '운동': 'exercise and fitness activities',
     '요리': 'cooking and food preparation',
+    '과일': 'fresh colorful fruits and healthy eating',
+    '채소': 'fresh vegetables and healthy produce',
     
     // 기술 관련
-    '인공지능': 'artificial intelligence',
-    'AI': 'artificial intelligence technology',
+    '인공지능': 'artificial intelligence technology',
+    'AI': 'artificial intelligence and modern technology',
     '프로그래밍': 'programming and software development',
-    '기술': 'technology and innovation',
-    '디지털': 'digital technology',
+    '기술': 'technology and digital innovation',
+    '디지털': 'digital technology and modern devices',
     
     // 비즈니스 관련
-    '비즈니스': 'business and entrepreneurship',
-    '마케팅': 'marketing and advertising',
-    '창업': 'startup and business planning',
+    '비즈니스': 'business and professional development',
+    '마케팅': 'marketing strategy and brand development',
+    '창업': 'startup and entrepreneurship',
     
     // 교육 관련
-    '교육': 'education and learning',
-    '학습': 'study and knowledge',
+    '교육': 'education and learning environment',
+    '학습': 'study and knowledge acquisition',
     
-    // 기타
-    '여행': 'travel and tourism',
-    '문화': 'culture and arts'
+    // 라이프스타일
+    '여행': 'travel and adventure experiences',
+    '문화': 'culture and artistic expression',
+    '환경': 'environmental conservation and sustainability'
   }
   
   // 완전 일치 검색
@@ -2207,13 +2211,19 @@ function convertKoreanTopicToEnglish(topic: string): string {
     }
   }
   
-  // 패턴 매칭으로 부분 일치 검색
+  // Phase 2.4: 더 정밀한 패턴 매칭
   const patterns = {
-    '.*음료.*': 'healthy drinks and beverages',
-    '.*과일.*': 'fresh fruits and healthy eating',
-    '.*건강.*': 'health and wellness',
+    '.*비타민.*': 'vitamin-rich foods and healthy nutrition',
+    '.*음료.*': 'healthy beverages and nutritious drinks',
+    '.*과일.*': 'fresh colorful fruits and natural produce',
+    '.*채소.*': 'fresh vegetables and healthy greens',
+    '.*건강.*': 'health and wellness lifestyle',
+    '.*영양.*': 'nutrition and balanced diet',
+    '.*운동.*': 'exercise and fitness activities',
     '.*AI.*|.*인공지능.*': 'artificial intelligence technology',
-    '.*비즈니스.*': 'business and professional development'
+    '.*프로그램.*|.*개발.*': 'programming and software development',
+    '.*비즈니스.*': 'business and professional development',
+    '.*마케팅.*': 'marketing and brand strategy'
   }
   
   for (const [pattern, english] of Object.entries(patterns)) {
