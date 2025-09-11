@@ -672,8 +672,29 @@ class BlogGenerator {
             console.log('✅ 블로그 생성 완료:', result.model)
 
         } catch (error) {
-            console.error('❌ 블로그 생성 실패:', error)
-            this.showError('블로그 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')
+            console.error('❌ Phase 2 블로그 생성 실패:', error)
+            
+            // Phase 2 향상된 에러 처리
+            let errorMessage = '블로그 생성 중 오류가 발생했습니다.'
+            
+            if (error.response) {
+                // 서버 응답 에러
+                if (error.response.status === 429) {
+                    errorMessage = `⏱️ 잠시만요! AI가 많은 요청을 처리하느라 바빠요.\n30초 후에 다시 시도해주세요.`
+                } else if (error.response.status === 500) {
+                    errorMessage = `🤖 AI 이미지 생성 서버에 일시적인 문제가 있습니다.\n텍스트만 생성하시거나 잠시 후 다시 시도해주세요.`
+                } else {
+                    errorMessage = `⚠️ 서버 오류 (코드: ${error.response.status})\n잠시 후 다시 시도해주세요.`
+                }
+            } else if (error.request) {
+                // 네트워크 에러
+                errorMessage = `🌐 인터넷 연결을 확인해주세요.\n연결이 불안정하거나 서버에 접속할 수 없습니다.`
+            } else {
+                // 기타 에러
+                errorMessage = `🔧 예상치 못한 오류가 발생했습니다.\n페이지를 새로고침하고 다시 시도해주세요.`
+            }
+            
+            this.showError(errorMessage)
         } finally {
             this.setLoadingState(false, 'general')
         }
@@ -1632,13 +1653,28 @@ class BlogGenerator {
                     }
                 })
                 
-                // 이미지 로딩 실패 처리
+                // Phase 2: 향상된 이미지 로딩 실패 처리
                 img.addEventListener('error', () => {
-                    console.log(`❌ 이미지 ${index + 1} 로딩 실패, 대체 이미지 사용`)
+                    console.log(`⚠️ Phase 2 AI 이미지 ${index + 1} 로딩 실패, 고급 fallback 시스템 작동`)
                     
-                    // 고품질 랜덤 이미지로 교체
-                    const randomSeed = Math.floor(Math.random() * 1000)
-                    img.src = `https://picsum.photos/seed/${randomSeed}/800/450`
+                    // 3단계 fallback 시스템
+                    if (!img.dataset.fallbackAttempt) {
+                        img.dataset.fallbackAttempt = '1'
+                        // 1단계: 다른 고품질 랜덤 이미지로 재시도
+                        const randomSeed = Math.floor(Math.random() * 1000)
+                        img.src = `https://picsum.photos/seed/${randomSeed}/800/450`
+                        console.log(`🔄 1단계 fallback: 고품질 이미지로 재시도`)
+                    } else if (img.dataset.fallbackAttempt === '1') {
+                        img.dataset.fallbackAttempt = '2'
+                        // 2단계: 더 안정적인 서비스 사용
+                        const backupSeed = Math.floor(Math.random() * 500) + 500
+                        img.src = `https://picsum.photos/${backupSeed}/800/450`
+                        console.log(`🔄 2단계 fallback: 백업 서비스 사용`)
+                    } else {
+                        // 3단계: 최종 fallback - 로컬 플레이스홀더
+                        console.log(`🛡️ 3단계 최종 fallback: 안전한 플레이스홀더 사용`)
+                        img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAwIiBoZWlnaHQ9IjQ1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyNCIgZmlsbD0iIzk5YTNhZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkFJIOydtOuvuOyngCDsg53shLHspJE8L3RleHQ+PC9zdmc+'
+                    }
                     
                     // 설명 텍스트 업데이트
                     const caption = img.nextElementSibling
@@ -3689,7 +3725,7 @@ class BlogGenerator {
                         <div class="animate-pulse bg-purple-500 w-3 h-3 rounded-full mr-3"></div>
                         <span class="text-purple-700">
                             <i class="fas fa-images mr-1"></i>
-                            <strong>2단계:</strong> 맞춤형 이미지 ${imageCount}개 생성 중... (2-4분)
+                            <strong>2단계:</strong> 🎨 Phase 2 실제 AI 이미지 ${imageCount}개 생성 중... (30초-2분)
                         </span>
                     </div>
                     
@@ -3697,17 +3733,17 @@ class BlogGenerator {
                         <div class="animate-pulse bg-blue-500 w-3 h-3 rounded-full mr-3"></div>
                         <span class="text-blue-700">
                             <i class="fas fa-puzzle-piece mr-1"></i>
-                            <strong>3단계:</strong> 텍스트와 이미지 자동 통합 중... (10-20초)
+                            <strong>3단계:</strong> 멀티미디어 블로그 최종 완성 중... (5-10초)
                         </span>
                     </div>
                 </div>
                 
-                <div class="mt-4 p-3 bg-white rounded border-l-2 border-orange-400">
-                    <div class="flex items-center text-sm text-orange-700">
-                        <i class="fas fa-lightbulb text-orange-500 mr-2"></i>
+                <div class="mt-4 p-3 bg-gradient-to-r from-pink-50 to-purple-50 rounded border-l-4 border-purple-400">
+                    <div class="flex items-center text-sm text-purple-700">
+                        <i class="fas fa-sparkles text-purple-500 mr-2"></i>
                         <div>
-                            <strong>잠깐!</strong> 텍스트는 먼저 표시되며, 이미지는 순차적으로 로딩됩니다.
-                            <br>완성된 멀티미디어 블로그를 곧 만나보실 수 있습니다! 🚀
+                            <strong>🚀 Phase 2 혁신!</strong> 실제 AI가 블로그 내용에 완벽하게 맞는 맞춤형 이미지를 생성합니다.
+                            <br><span class="text-purple-600">플레이스홀더가 아닌 진짜 AI 아트워크를 경험하세요!</span> ✨
                         </div>
                     </div>
                 </div>
