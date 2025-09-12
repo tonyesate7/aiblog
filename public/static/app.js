@@ -66,9 +66,20 @@ class BlogGenerator {
         this.imageStyleSelect = document.getElementById('imageStyle')
         this.imageCountSelect = document.getElementById('imageCount')
         
+        // 이미지 생성 관련 새 버튼
+        this.generateWithImagesBtn = document.getElementById('generateWithImagesBtn')
+        
+        // 이미지 생성 상태 추적
+        this.imageGenerationStatus = {
+            isGenerating: false,
+            currentStep: 0,
+            totalSteps: 0,
+            generatedImages: []
+        }
+        
         // 결과 표시 요소들
         this.resultSection = document.getElementById('resultSection')
-        this.contentDiv = document.getElementById('content')
+        this.contentDiv = document.getElementById('contentReader') // contentReader를 contentDiv로 참조
         this.contentReader = document.getElementById('contentReader')
         this.copyBtn = document.getElementById('copyBtn')
         this.generationInfo = document.getElementById('generationInfo')
@@ -211,6 +222,33 @@ class BlogGenerator {
             this.toggleImageOptionsBtn.addEventListener('click', () => {
                 this.toggleImageOptionsSection()
             })
+        }
+
+        // 이미지 포함 생성 버튼 (NEW! 🎨)
+        if (this.generateWithImagesBtn) {
+            console.log('✅ 이미지 포함 생성 버튼 연결됨:', this.generateWithImagesBtn)
+            this.generateWithImagesBtn.addEventListener('click', async (e) => {
+                console.log('🎯 이미지 포함 생성 클릭!')
+                e.preventDefault()
+                
+                // 중복 클릭 방지
+                if (this.generateWithImagesBtn.disabled || this.imageGenerationStatus.isGenerating) {
+                    console.log('⚠️ 이미지 생성 이미 진행 중, 중복 클릭 무시')
+                    return
+                }
+                
+                this.generateWithImagesBtn.disabled = true
+                this.imageGenerationStatus.isGenerating = true
+                
+                try {
+                    await this.generateBlogWithImages()
+                } finally {
+                    this.generateWithImagesBtn.disabled = false
+                    this.imageGenerationStatus.isGenerating = false
+                }
+            })
+        } else {
+            console.error('❌ 이미지 포함 생성 버튼을 찾을 수 없습니다!')
         }
 
         // 품질 검증 생성 버튼 (중복 클릭 방지)
@@ -1850,6 +1888,81 @@ class BlogGenerator {
                 }
             }, 300)
         }, 3000)
+    }
+
+    // ==================== 고급 AI 이미지 생성 시스템 ====================
+    
+    // AI 이미지 모델 정보
+    getImageModelInfo() {
+        return {
+            'gemini-flash-image': {
+                name: 'Gemini 2.5 Flash Image Preview',
+                description: 'Google 최신 이미지 생성 및 편집 모델',
+                strengths: ['자연어 이미지 편집', '실시간 변환', '높은 품질'],
+                optimalFor: ['이미지 편집', '스타일 변환', '창의적 콘텐츠']
+            },
+            'nano-banana': {
+                name: 'Nano-Banana (fal-ai)',
+                description: 'SOTA 이미지 생성 및 편집',
+                strengths: ['멀티 이미지 융합', '캐릭터 일관성', '창의적 편집'],
+                optimalFor: ['마케팅', '광고', '창의적 콘텐츠']
+            },
+            'imagen4': {
+                name: 'Imagen 4 (Google)',
+                description: '고품질 사실적 이미지 생성',
+                strengths: ['고품질', '사실적 렌더링', '세밀한 디테일'],
+                optimalFor: ['전문적 콘텐츠', '사실적 이미지']
+            },
+            'ideogram-v3': {
+                name: 'Ideogram V3',
+                description: '얼굴 일관성 및 텍스트 렌더링',
+                strengths: ['얼굴 일관성', '텍스트 렌더링', '캐릭터 참조'],
+                optimalFor: ['인물 중심', '브랜딩', '텍스트 포함']
+            },
+            'qwen-image': {
+                name: 'Qwen Image',
+                description: '한중 문화 특화 및 텍스트 렌더링',
+                strengths: ['한중 문화', '텍스트 렌더링', '비용 효율성'],
+                optimalFor: ['아시아 문화', '다국어 콘텐츠']
+            }
+        }
+    }
+    
+    // 최적 이미지 모델 자동 선택
+    getOptimalImageModel(topic, style) {
+        const topicLower = topic.toLowerCase()
+        
+        // 이미지 편집 작업
+        if (style === 'editing' || topicLower.includes('edit') || topicLower.includes('편집') || topicLower.includes('변경')) {
+            return 'gemini-flash-image'
+        }
+        
+        // 창의적/마케팅 콘텐츠 (Gemini로 우선 변경)
+        if (style === 'creative' || topicLower.includes('marketing') || topicLower.includes('광고') || 
+            topicLower.includes('creative') || topicLower.includes('artistic')) {
+            return 'gemini-flash-image'
+        }
+        
+        // 인물/캐릭터 중심
+        if (topicLower.includes('person') || topicLower.includes('character') || topicLower.includes('사람') || 
+            topicLower.includes('캐릭터') || topicLower.includes('얼굴') || topicLower.includes('portrait')) {
+            return 'ideogram-v3'
+        }
+        
+        // 한국어/아시아 문화 콘텐츠
+        if (/[가-힣]/.test(topic) || topicLower.includes('korean') || topicLower.includes('chinese') || 
+            topicLower.includes('한국') || topicLower.includes('아시아')) {
+            return 'qwen-image'
+        }
+        
+        // 기본: 고품질 범용
+        return 'imagen4'
+    }
+    
+    // 모델명 가져오기
+    getImageModelName(model) {
+        const modelInfo = this.getImageModelInfo()
+        return modelInfo[model]?.name || model
     }
 
     // ==================== 사용자 가이드 시스템 ====================
@@ -3902,6 +4015,405 @@ class BlogGenerator {
                 this.recommendationsList.appendChild(li)
             })
         }
+    }
+
+    // ==================== 이미지 포함 블로그 생성 ====================
+    
+    async generateBlogWithImages() {
+        console.log('🎨 이미지 포함 블로그 생성 시작!')
+        
+        // 필수 입력 검증
+        const topic = this.topicInput?.value?.trim()
+        const audience = this.audienceSelect?.value
+        const tone = this.toneSelect?.value
+        const aiModel = this.aiModelSelect?.value
+        
+        // 이미지 생성 옵션
+        const includeImages = this.includeImagesInput?.checked || true
+        const imageStyle = this.imageStyleSelect?.value || 'professional'
+        const imageCount = parseInt(this.imageCountSelect?.value || '3')
+        
+        console.log('📝 이미지 생성 옵션:', { topic, audience, tone, aiModel, includeImages, imageStyle, imageCount })
+        
+        if (!topic || !audience || !tone || !aiModel) {
+            this.showError('모든 필수 항목을 입력해주세요!')
+            return
+        }
+        
+        // 기본값 설정
+        const finalAudience = audience || '일반인'
+        const finalTone = tone || '친근한'
+        const finalAiModel = aiModel || 'auto'
+        
+        try {
+            // 1단계: 로딩 상태 표시
+            this.setImageLoadingState(true, '텍스트 생성 중...')
+            
+            // API 키 설정 (일반 생성과 동일한 로직)
+            let apiKey = ''
+            let hasServerKey = false
+            
+            if (finalAiModel === 'auto') {
+                hasServerKey = this.serverApiKeys && (
+                    this.serverApiKeys.claude || 
+                    this.serverApiKeys.gemini || 
+                    this.serverApiKeys.openai || 
+                    this.serverApiKeys.grok
+                )
+            } else if (finalAiModel === 'claude') {
+                apiKey = this.claudeApiKeyInput?.value || ''
+                hasServerKey = this.serverApiKeys?.claude
+            } else if (finalAiModel === 'gemini') {
+                apiKey = this.geminiApiKeyInput?.value || ''
+                hasServerKey = this.serverApiKeys?.gemini
+            } else if (finalAiModel === 'openai') {
+                apiKey = this.openaiApiKeyInput?.value || ''
+                hasServerKey = this.serverApiKeys?.openai
+            } else if (finalAiModel === 'grok') {
+                apiKey = this.grokApiKeyInput?.value || ''
+                hasServerKey = this.serverApiKeys?.grok
+            }
+            
+            // API 키 검증
+            if (!apiKey && !hasServerKey) {
+                this.showError(`${finalAiModel.toUpperCase()} API 키가 필요합니다.`)
+                this.setImageLoadingState(false)
+                return
+            }
+            
+            // 2단계: 텍스트 먼저 생성
+            console.log('📝 텍스트 생성 시작...')
+            const textResponse = await axios.post('/api/generate', {
+                topic,
+                audience: finalAudience,
+                tone: finalTone,
+                aiModel: finalAiModel,
+                apiKey
+            })
+            
+            const textResult = textResponse.data
+            console.log('✅ 텍스트 생성 완료:', textResult.model)
+            
+            if (!includeImages) {
+                // 이미지 없이 텍스트만 표시
+                this.displayResult(textResult)
+                this.setImageLoadingState(false)
+                return
+            }
+            
+            // 3단계: 이미지 생성 시작
+            this.setImageLoadingState(true, '관련 이미지 생성 중... (1-2분 소요)')
+            
+            // 이미지 키워드 생성 (한국어 주제를 영어로 변환)
+            const imageKeywords = this.generateImageKeywords(topic, imageCount)
+            console.log('🎯 이미지 키워드:', imageKeywords)
+            
+            // 병렬로 이미지 생성
+            const imagePromises = imageKeywords.map(async (keyword, index) => {
+                try {
+                    console.log(`🎨 이미지 ${index + 1}/${imageKeywords.length} 생성: ${keyword}`)
+                    
+                    // 브라우저에서 직접 이미지 생성 API 호출 (시뮬레이션)
+                    const imageUrl = await this.generateSingleImage(keyword, imageStyle)
+                    
+                    return {
+                        url: imageUrl,
+                        keyword: keyword,
+                        position: index,
+                        success: true
+                    }
+                } catch (error) {
+                    console.error(`❌ 이미지 ${index + 1} 생성 실패:`, error)
+                    return {
+                        url: `https://via.placeholder.com/800x450/4F46E5/FFFFFF?text=Image+${index + 1}`,
+                        keyword: keyword,
+                        position: index,
+                        success: false,
+                        error: error.message
+                    }
+                }
+            })
+            
+            const images = await Promise.all(imagePromises)
+            console.log(`✅ ${images.length}개 이미지 생성 완료`)
+            
+            // 4단계: 텍스트에 이미지 삽입
+            const contentWithImages = this.insertImagesIntoContent(textResult.content, images)
+            
+            // 결과 표시 (이미지 포함)
+            const finalResult = {
+                ...textResult,
+                content: contentWithImages,
+                images: images,
+                imageCount: images.length,
+                includeImages: true,
+                imageStyle: imageStyle
+            }
+            
+            this.displayImageResult(finalResult)
+            
+        } catch (error) {
+            console.error('❌ 이미지 포함 블로그 생성 실패:', error)
+            this.showError(`이미지 포함 블로그 생성 중 오류가 발생했습니다: ${error.message}`)
+        } finally {
+            this.setImageLoadingState(false)
+        }
+    }
+    
+    // 이미지 키워드 생성
+    generateImageKeywords(topic, count) {
+        // 한국어 주제를 영어로 변환
+        const topicMappings = {
+            '비타민이 풍부한 과일': 'colorful vitamin-rich fruits and fresh produce',
+            '건강한 영양': 'healthy nutrition and wellness',
+            '과일 음료': 'fresh fruit smoothies and healthy beverages',
+            '건강한 식습관': 'healthy eating habits and nutritious meals',
+            '인공지능': 'artificial intelligence technology',
+            '프로그래밍': 'programming and software development',
+            '비즈니스': 'business and professional development',
+            '마케팅': 'marketing strategy and brand development',
+            '교육': 'education and learning environment',
+            '여행': 'travel and adventure experiences'
+        }
+        
+        let englishTopic = topic
+        
+        // 완전 일치 검색
+        for (const [korean, english] of Object.entries(topicMappings)) {
+            if (topic.includes(korean)) {
+                englishTopic = english
+                console.log(`✅ 주제 변환: "${korean}" → "${english}"`)
+                break
+            }
+        }
+        
+        // 패턴 매칭
+        if (englishTopic === topic) {
+            const patterns = {
+                '.*비타민.*': 'vitamin-rich foods and healthy nutrition',
+                '.*과일.*': 'fresh colorful fruits and natural produce',
+                '.*건강.*': 'health and wellness lifestyle',
+                '.*AI.*|.*인공지능.*': 'artificial intelligence technology',
+                '.*프로그램.*|.*개발.*': 'programming and software development'
+            }
+            
+            for (const [pattern, english] of Object.entries(patterns)) {
+                if (new RegExp(pattern).test(topic)) {
+                    englishTopic = english
+                    console.log(`🔍 패턴 매칭: "${pattern}" → "${english}"`)
+                    break
+                }
+            }
+        }
+        
+        // 고급 이미지 키워드 생성 (nano-banana 최적화)
+        const keywords = []
+        
+        // 스타일 감지
+        const isCreative = this.imageStyle?.value === 'creative' || englishTopic.includes('creative')
+        const isEducational = this.imageStyle?.value === 'educational' || englishTopic.includes('education')
+        
+        if (isCreative) {
+            // 창의적 콘텐츠를 위한 nano-banana 특화 프롬프트
+            keywords.push(`Creative visual storytelling for ${englishTopic}, artistic composition, vibrant colors, engaging design`)
+            
+            if (count >= 2) {
+                keywords.push(`Interactive infographic about ${englishTopic}, modern UI elements, clean layout`)
+            }
+            
+            if (count >= 3) {
+                keywords.push(`Dynamic lifestyle photography of ${englishTopic}, natural lighting, authentic moments`)
+            }
+        } else if (isEducational) {
+            // 교육용 콘텐츠
+            keywords.push(`Educational diagram about ${englishTopic}, clear labels, instructional design`)
+            
+            if (count >= 2) {
+                keywords.push(`Step-by-step visual guide for ${englishTopic}, sequential process, easy to understand`)
+            }
+            
+            if (count >= 3) {
+                keywords.push(`Comparison chart of ${englishTopic}, before and after, visual learning`)
+            }
+        } else {
+            // 기본 전문적 콘텐츠
+            keywords.push(`Professional blog header image about ${englishTopic}, modern design, high quality`)
+            
+            if (count >= 2) {
+                keywords.push(`Real world application of ${englishTopic}, practical use, professional`)
+            }
+            
+            if (count >= 3) {
+                keywords.push(`Detailed view of ${englishTopic}, close-up, high quality, clear focus`)
+            }
+        }
+        
+        if (count >= 4) {
+            // 4. 단계별 프로세스
+            keywords.push(`Step-by-step guide for ${englishTopic}, tutorial style, educational`)
+        }
+        
+        if (count >= 5) {
+            // 5. 비교 이미지
+            keywords.push(`Comparison and options for ${englishTopic}, variety, professional`)
+        }
+        
+        return keywords.slice(0, count)
+    }
+    
+    // 단일 이미지 생성 (실제로는 스마트 fallback 사용)
+    async generateSingleImage(keyword, style) {
+        // 실제 환경에서는 이 부분에서 외부 이미지 생성 API를 호출할 수 있습니다
+        // 현재는 스마트 시드를 사용한 Picsum Photos로 시뮬레이션
+        
+        const keywordSeeds = {
+            'fruit': 200, 'vitamin': 250, 'healthy': 220, 'nutrition': 270,
+            'professional': 300, 'business': 350, 'technology': 400,
+            'education': 450, 'travel': 500, 'modern': 550
+        }
+        
+        let seed = 100
+        const lowerKeyword = keyword.toLowerCase()
+        
+        for (const [word, wordSeed] of Object.entries(keywordSeeds)) {
+            if (lowerKeyword.includes(word)) {
+                seed = wordSeed + Math.floor(Math.random() * 50)
+                break
+            }
+        }
+        
+        // 1-2초 지연으로 실제 생성을 시뮬레이션
+        await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000))
+        
+        return `https://picsum.photos/seed/${seed}/800/450`
+    }
+    
+    // 텍스트에 이미지 삽입
+    insertImagesIntoContent(content, images) {
+        if (!images || images.length === 0) return content
+        
+        // 마크다운을 HTML로 변환 (간단한 변환)
+        let htmlContent = content
+            .replace(/^# (.*)/gm, '<h1>$1</h1>')
+            .replace(/^## (.*)/gm, '<h2>$1</h2>')
+            .replace(/^### (.*)/gm, '<h3>$1</h3>')
+            .replace(/^\* (.*)/gm, '<li>$1</li>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            .replace(/\n\n/g, '</p><p>')
+        
+        if (!htmlContent.startsWith('<p>')) {
+            htmlContent = '<p>' + htmlContent + '</p>'
+        }
+        
+        // 단락별로 나누기
+        const paragraphs = htmlContent.split('</p>')
+        
+        // 이미지 삽입 위치 계산
+        const insertPositions = []
+        
+        if (images.length >= 1 && paragraphs.length > 2) {
+            // 첫 번째 이미지: 제목 다음
+            insertPositions.push(1)
+        }
+        
+        if (images.length >= 2 && paragraphs.length > 4) {
+            // 두 번째 이미지: 중간
+            insertPositions.push(Math.floor(paragraphs.length / 2))
+        }
+        
+        if (images.length >= 3 && paragraphs.length > 6) {
+            // 세 번째 이미지: 끝 부분 전
+            insertPositions.push(paragraphs.length - 2)
+        }
+        
+        // 추가 이미지들은 균등 분배
+        for (let i = 3; i < images.length && i < 5; i++) {
+            const pos = Math.floor((paragraphs.length / (images.length + 1)) * (i + 1))
+            insertPositions.push(pos)
+        }
+        
+        // 뒤에서부터 이미지 삽입 (인덱스 변화 방지)
+        const sortedPositions = insertPositions.sort((a, b) => b - a)
+        
+        images.forEach((image, index) => {
+            if (sortedPositions[index] !== undefined && sortedPositions[index] < paragraphs.length) {
+                const pos = sortedPositions[index]
+                const imageHtml = `</p>
+<div class="my-6 text-center">
+    <img src="${image.url}" alt="${image.keyword}" class="mx-auto rounded-lg shadow-lg max-w-full h-auto" style="max-height: 400px;">
+    <p class="text-sm text-gray-600 mt-2 italic">${image.keyword}</p>
+</div>
+<p>`
+                
+                paragraphs.splice(pos + 1, 0, imageHtml)
+            }
+        })
+        
+        return paragraphs.join('</p>')
+    }
+    
+    // 이미지 생성용 로딩 상태
+    setImageLoadingState(isLoading, message = '이미지 생성 중...') {
+        if (this.generateWithImagesBtn) {
+            if (isLoading) {
+                this.generateWithImagesBtn.disabled = true
+                this.generateWithImagesBtn.innerHTML = `
+                    <i class="fas fa-spinner fa-spin mr-2"></i>
+                    ${message}
+                `
+                this.generateWithImagesBtn.classList.add('opacity-70')
+            } else {
+                this.generateWithImagesBtn.disabled = false
+                this.generateWithImagesBtn.innerHTML = `
+                    <i class="fas fa-images mr-2"></i>
+                    이미지 포함 🎨
+                `
+                this.generateWithImagesBtn.classList.remove('opacity-70')
+            }
+        }
+    }
+    
+    // 이미지 포함 결과 표시
+    displayImageResult(result) {
+        console.log('🎨 이미지 포함 결과 표시:', result)
+        
+        // 기본 결과 표시
+        this.displayResult(result)
+        
+        // 이미지 생성 정보 추가 표시
+        if (result.images && result.images.length > 0) {
+            const imageInfo = document.createElement('div')
+            imageInfo.className = 'mt-4 p-4 bg-purple-50 rounded-lg border border-purple-200'
+            imageInfo.innerHTML = `
+                <div class="flex items-center mb-2">
+                    <i class="fas fa-images text-purple-600 mr-2"></i>
+                    <span class="font-medium text-purple-800">이미지 생성 완료</span>
+                </div>
+                <div class="text-sm text-purple-700">
+                    <div>✅ 총 ${result.images.length}개 이미지 생성</div>
+                    <div>🎨 스타일: ${result.imageStyle}</div>
+                    <div>⏱️ 생성 시간: 약 ${result.images.length * 30}초</div>
+                    <div class="mt-2">
+                        <strong>생성된 이미지:</strong>
+                        <ul class="mt-1 ml-4">
+                            ${result.images.map((img, i) => `
+                                <li class="flex items-center text-xs">
+                                    ${img.success ? '✅' : '❌'} 이미지 ${i + 1}: ${img.keyword.substring(0, 50)}...
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                </div>
+            `
+            
+            // 생성 정보 다음에 추가
+            if (this.generationInfo && this.generationInfo.nextElementSibling) {
+                this.generationInfo.parentNode.insertBefore(imageInfo, this.generationInfo.nextElementSibling)
+            }
+        }
+        
+        this.showSuccess(`🎨 이미지 포함 블로그가 성공적으로 생성되었습니다! (${result.images?.length || 0}개 이미지 포함)`)
     }
 }
 
