@@ -1,0 +1,10 @@
+# 네이버 DataLab API 설정
+NAVER_CLIENT_ID=your_client_id_here
+NAVER_CLIENT_SECRET=your_client_secret_here
+
+# 기존 AI API 키들 (이미 서버에 설정됨)
+CLAUDE_API_KEY=sk-ant-xxxxx
+GEMINI_API_KEY=AIzaxxxxx
+OPENAI_API_KEY=sk-proj-xxxxx
+GROK_API_KEY=xai-xxxxx
+FAL_AI_API_KEY=xxxxx
