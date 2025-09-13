@@ -4960,14 +4960,16 @@ function initializeBlogGenerator() {
     console.log('🚀 BlogGenerator 초기화 시작...')
     window.blogGenerator = new BlogGenerator()
     
+    
     console.log('🚀 BlogGenerator 초기화 시작...')
     window.blogGenerator = new BlogGenerator()
     
-    console.log('📱 AI 블로그 생성기 v3.2 시작!')
-    console.log('✨ 기능: 품질 검증 시스템 + SEO 최적화 + 블로그 에디터')  
-    console.log('🤖 지원 모델: Claude, Gemini, OpenAI, GROK')
-    console.log('🛡️ 신기능: 3단계 품질 검증 + Claude Artifacts 스타일 에디터')
-    console.log('✅ BlogGenerator 인스턴스 생성 완료')
+    console.log('📱 AI 블로그 생성기 v3.2 - 완전 최종 버전!')
+    console.log('✨ 기능: 품질 검증 + SEO 최적화 + 블로그 에디터 + 네이버 실시간 트렌드')  
+    console.log('🤖 지원 모델: Claude, Gemini, GPT, GROK + nano-banana 이미지 생성')
+    console.log('📡 실시간 데이터: 네이버 DataLab + Google Trends + 소셜미디어')
+    console.log('🛡️ 3단계 품질 검증 + Claude Artifacts 스타일 에디터')
+    console.log('✅ BlogGenerator 완전 최종 버전 초기화 완료!')
 }
 
 // DOM 로드 상태에 따라 적절히 초기화
