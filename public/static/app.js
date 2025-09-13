@@ -10,7 +10,7 @@ class BlogGenerator {
         this.initializeTutorial()
         this.initializeBlogEditor()
         
-        console.log('🚀 AI 블로그 생성기 v3.1 초기화 완료 (GROK 통합 + 사용자 가이드 시스템 + 블로그 에디터)')
+        console.log('🚀 AI 블로그 생성기 v3.2-K 초기화 완료 (한국 트렌드 특화 + GROK 통합 + 사용자 가이드 시스템 + 블로그 에디터)')
         
         // 블로그 에디터 상태
         this.isEditMode = false
@@ -27,6 +27,27 @@ class BlogGenerator {
             }
         })
         
+        // 한국 트렌드 상태 초기화
+        this.koreanTrends = {
+            hotKeywords: [],
+            generationalTrends: [],
+            brandTrends: [],
+            currentSeason: 'spring'
+        }
+        
+        // 한국 트렌드 데이터 로드
+        this.loadKoreanTrends()
+        
+        // 실시간 데이터 소스 상태 초기화
+        this.dataSourceStatus = {
+            naver: false,
+            google: false,
+            social: false
+        }
+        
+        // 데이터 소스 상태 로드
+        this.loadDataSourceStatus()
+        
         // 페이지 로드 시 스마트 가이드 초기 분석
         setTimeout(() => {
             this.analyzeInput()
@@ -42,6 +63,7 @@ class BlogGenerator {
         this.aiModelSelect = document.getElementById('aiModel')
         this.generateBtn = document.getElementById('generateBtn')
         this.generateSeoBtn = document.getElementById('generateSeoBtn')
+        this.generateKTrendBtn = document.getElementById('generateKTrendBtn')
         
         // API 키 관련 요소들
         this.toggleApiKeysBtn = document.getElementById('toggleApiKeys')
@@ -857,6 +879,496 @@ class BlogGenerator {
         }
     }
 
+    // ==================== 한국 트렌드 시스템 ====================
+    
+    // 한국 트렌드 데이터 로드 (실시간 + 시뮬레이션 통합)
+    async loadKoreanTrends() {
+        try {
+            console.log('🇰🇷 한국 트렌드 데이터 로드 시작... (실시간 + 시뮬레이션 통합)')
+            
+            const response = await axios.get('/api/korean-trends')
+            
+            if (response.data.success) {
+                this.koreanTrends = response.data.data
+                console.log('✅ 한국 트렌드 데이터 로드 완료:', this.koreanTrends)
+                
+                // 트렌드 데이터 UI에 반영
+                this.updateTrendKeywordSuggestions()
+                this.updateSeasonalContext()
+                this.updateRealTimeDataStatus(response.data.data.realTimeData)
+            } else {
+                console.warn('⚠️ 한국 트렌드 데이터 로드 실패:', response.data.message)
+            }
+        } catch (error) {
+            console.error('❌ 한국 트렌드 데이터 로드 오류:', error)
+            // 에러 시 기본값 설정
+            this.koreanTrends = {
+                hotKeywords: [],
+                generationalTrends: [],
+                brandTrends: [],
+                currentSeason: 'spring'
+            }
+        }
+    }
+    
+    // 데이터 소스 상태 로드
+    async loadDataSourceStatus() {
+        try {
+            const response = await axios.get('/api/data-sources/status')
+            
+            if (response.data.success) {
+                this.dataSourceStatus = response.data.status
+                this.updateDataSourceUI(response.data)
+                console.log('📈 데이터 소스 상태 로드:', response.data)
+            }
+        } catch (error) {
+            console.error('데이터 소스 상태 로드 오류:', error)
+        }
+    }
+    
+    // 데이터 소스 UI 업데이트
+    updateDataSourceUI(statusData) {
+        const statusContainer = document.getElementById('dataSourcesStatus')
+        if (!statusContainer) return
+        
+        const { status, summary, recommendations } = statusData
+        
+        statusContainer.innerHTML = `
+            <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                <h4 class="font-semibold text-gray-800 mb-3 flex items-center">
+                    <i class="fas fa-database mr-2"></i>
+                    데이터 소스 연동 상태
+                </h4>
+                
+                <div class="space-y-2">
+                    <!-- 네이버 DataLab -->
+                    <div class="flex items-center justify-between p-2 rounded ${status.naver.connected ? 'bg-green-50 border border-green-200' : 'bg-gray-50 border border-gray-200'}">
+                        <div class="flex items-center">
+                            <i class="${status.naver.connected ? 'fas fa-check-circle text-green-500' : 'fas fa-times-circle text-gray-400'} mr-2"></i>
+                            <span class="font-medium text-sm">NAVER DataLab</span>
+                        </div>
+                        <span class="text-xs ${status.naver.connected ? 'text-green-600' : 'text-gray-500'}">
+                            ${status.naver.connected ? '연동됨' : '미연동'}
+                        </span>
+                    </div>
+                    
+                    <!-- Google Trends -->
+                    <div class="flex items-center justify-between p-2 rounded ${status.google.connected ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 border border-gray-200'}">
+                        <div class="flex items-center">
+                            <i class="${status.google.connected ? 'fas fa-check-circle text-blue-500' : 'fas fa-times-circle text-gray-400'} mr-2"></i>
+                            <span class="font-medium text-sm">Google Trends</span>
+                        </div>
+                        <span class="text-xs ${status.google.connected ? 'text-blue-600' : 'text-gray-500'}">
+                            시뮬레이션
+                        </span>
+                    </div>
+                    
+                    <!-- 소셜미디어 -->
+                    <div class="flex items-center justify-between p-2 rounded ${status.social.connected ? 'bg-purple-50 border border-purple-200' : 'bg-gray-50 border border-gray-200'}">
+                        <div class="flex items-center">
+                            <i class="${status.social.connected ? 'fas fa-check-circle text-purple-500' : 'fas fa-times-circle text-gray-400'} mr-2"></i>
+                            <span class="font-medium text-sm">소셜미디어</span>
+                        </div>
+                        <span class="text-xs ${status.social.connected ? 'text-purple-600' : 'text-gray-500'}">
+                            시뮬레이션
+                        </span>
+                    </div>
+                </div>
+                
+                <!-- 요약 -->
+                <div class="mt-3 p-2 bg-gray-50 rounded text-sm">
+                    <strong>연동된 데이터 소스:</strong> ${summary.connectedSources}/${summary.totalSources}
+                    ${ summary.realTimeDataAvailable 
+                        ? '<span class="text-green-600 ml-2">✓ 실시간 데이터 사용 가능</span>' 
+                        : '<span class="text-orange-600 ml-2">⚠️ 시뮬레이션 데이터 사용 중</span>' 
+                    }
+                </div>
+                
+                <!-- 권장사항 -->
+                ${recommendations.length > 0 ? `
+                    <div class="mt-2">
+                        <details class="text-sm">
+                            <summary class="cursor-pointer text-blue-600 hover:text-blue-800">개선 방안 보기</summary>
+                            <ul class="mt-2 text-xs text-gray-600 space-y-1 ml-4">
+                                ${recommendations.map(rec => `<li>• ${rec}</li>`).join('')}
+                            </ul>
+                        </details>
+                    </div>
+                ` : ''}
+                
+                <!-- API 키 설정 버튼 -->
+                ${!status.naver.connected ? `
+                    <button onclick="blogGenerator.showNaverApiSetup()" 
+                            class="mt-3 w-full bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded text-sm font-medium transition-colors">
+                        🔑 네이버 DataLab API 연동하기
+                    </button>
+                ` : ''}
+            </div>
+        `
+    }
+    
+    // 실시간 데이터 상태 업데이트
+    updateRealTimeDataStatus(realTimeData) {
+        const statusContainer = document.getElementById('realTimeDataStatus')
+        if (!statusContainer) return
+        
+        if (realTimeData && realTimeData.isRealTime) {
+            statusContainer.className = 'ml-3 px-3 py-1 rounded-full text-sm bg-green-100 text-green-700'
+            statusContainer.innerHTML = `
+                <i class="fas fa-satellite-dish mr-1"></i>
+                실시간 연동됨
+            `
+            
+            // 상세 정보는 hover 시 툴팁으로 표시 (추후 구현)
+        } else {
+            statusContainer.className = 'ml-3 px-3 py-1 rounded-full text-sm bg-gray-100 text-gray-600'
+            statusContainer.innerHTML = `
+                <i class="fas fa-server mr-1"></i>
+                시뮬레이션 모드
+            `
+        } else {
+            statusContainer.innerHTML = `
+                <div class="bg-orange-50 border border-orange-200 p-3 rounded-lg">
+                    <div class="flex items-center mb-2">
+                        <i class="fas fa-simulation text-orange-600 mr-2"></i>
+                        <span class="font-semibold text-orange-800">시뮬레이션 데이터 사용 중</span>
+                    </div>
+                    <div class="text-sm text-orange-700">
+                        한국 문화적 컨텍스트 기반 시뮬레이션 데이터를 사용 중입니다.
+                    </div>
+                    <div class="mt-2 text-xs text-orange-600">
+                        🔑 API 키를 설정하면 실시간 데이터를 사용할 수 있습니다.
+                    </div>
+                </div>
+            `
+        }
+    }
+    
+    // 트렌드 키워드 제안 업데이트
+    updateTrendKeywordSuggestions() {
+        const trendContainer = document.getElementById('trendKeywordSuggestions')
+        if (!trendContainer || !this.koreanTrends.hotKeywords) return
+        
+        trendContainer.innerHTML = ''
+        
+        // 현재 인기 키워드 Top 8 표시
+        this.koreanTrends.hotKeywords.slice(0, 8).forEach(trend => {
+            const button = document.createElement('button')
+            button.className = 'trend-keyword-btn bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm border border-blue-200 transition-colors'
+            button.innerHTML = `
+                <span class="font-medium">${trend.keyword}</span>
+                <span class="text-xs text-blue-500 ml-1">⬆️${trend.growth}%</span>
+            `
+            button.onclick = () => this.applyTrendKeyword(trend.keyword)
+            trendContainer.appendChild(button)
+        })
+    }
+    
+    // 시즌 컨텍스트 업데이트
+    updateSeasonalContext() {
+        const seasonContainer = document.getElementById('seasonalContext')
+        if (!seasonContainer || !this.koreanTrends.currentSeason) return
+        
+        const seasonNames = {
+            spring: '봄 🌸',
+            summer: '여름 ☀️',
+            autumn: '가을 🍂',
+            winter: '겨울 ❄️'
+        }
+        
+        const seasonEmojis = {
+            spring: '🌸🌱🥰',
+            summer: '☀️🏖️🌉',
+            autumn: '🍂🍁😌',
+            winter: '❄️⛄🏠'
+        }
+        
+        seasonContainer.innerHTML = `
+            <div class="bg-gradient-to-r from-orange-50 to-yellow-50 p-3 rounded-lg border border-orange-200">
+                <div class="flex items-center mb-2">
+                    <span class="text-lg">${seasonEmojis[this.koreanTrends.currentSeason]}</span>
+                    <h4 class="font-semibold text-orange-800 ml-2">현재 ${seasonNames[this.koreanTrends.currentSeason]} 시즌 트렌드</h4>
+                </div>
+                <p class="text-sm text-orange-700">
+                    한국 시장에서 지금 가장 화제가 되고 있는 ${seasonNames[this.koreanTrends.currentSeason]} 시즌 키워드들입니다.
+                </p>
+            </div>
+        `
+    }
+    
+    // 트렌드 키워드 적용
+    applyTrendKeyword(keyword) {
+        const currentTopic = this.topicInput.value.trim()
+        
+        if (currentTopic === '') {
+            this.topicInput.value = keyword
+        } else if (!currentTopic.includes(keyword)) {
+            this.topicInput.value = currentTopic + ' ' + keyword
+        }
+        
+        // 입력 후 스마트 가이드 업데이트
+        this.analyzeInput()
+        
+        // 시각적 피드백
+        this.showTemporaryMessage(`트렌드 키워드 "${keyword}" 추가됨! 🔥`, 'info')
+    }
+    
+    // 한국 시장 분석 수행
+    async analyzeKoreanMarket(topic) {
+        try {
+            console.log('🇰🇷 한국 시장 분석 시작:', topic)
+            
+            const response = await axios.post('/api/korean-market-analysis', {
+                topic: topic
+            })
+            
+            if (response.data.success) {
+                console.log('✅ 한국 시장 분석 완료:', response.data.analysis)
+                
+                // 실시간 데이터 포함 여부 확인
+                if (response.data.analysis.culturalContext) {
+                    const hasRealTimeData = response.data.analysis.culturalContext.trendScore > 80
+                    if (hasRealTimeData) {
+                        console.log('📊 실시간 데이터 기반 분석 결과')
+                    }
+                }
+                
+                return response.data.analysis
+            } else {
+                console.warn('⚠️ 한국 시장 분석 실패:', response.data.error)
+                return null
+            }
+        } catch (error) {
+            console.error('❌ 한국 시장 분석 오류:', error)
+            return null
+        }
+    }
+    
+    // K-트렌드 블로그 생성 (한국 시장 특화)
+    async generateKTrendBlog() {
+        console.log('🇰🇷 K-트렌드 블로그 생성 시작!')
+        
+        // 필수 입력 검증
+        const topic = this.topicInput?.value?.trim()
+        const audience = this.audienceSelect?.value || '일반인'
+        const tone = this.toneSelect?.value || '친근한'
+        const aiModel = this.aiModelSelect?.value || 'auto'
+        
+        if (!topic) {
+            this.showError('⚠️ 주제를 입력해주세요!\n\n예시: "한국 마케팅 트렌드", "MZ세대 소비패턴", "K-문화 확산"')
+            return
+        }
+        
+        console.log('✅ K-트렌드 입력값 검증 통과')
+        
+        // API 키 체크
+        let apiKey = ''
+        let hasServerKey = false
+        
+        if (aiModel === 'claude') {
+            apiKey = this.claudeApiKeyInput?.value || ''
+            hasServerKey = this.serverApiKeys?.claude
+        } else if (aiModel === 'gemini') {
+            apiKey = this.geminiApiKeyInput?.value || ''
+            hasServerKey = this.serverApiKeys?.gemini
+        } else if (aiModel === 'openai') {
+            apiKey = this.openaiApiKeyInput?.value || ''
+            hasServerKey = this.serverApiKeys?.openai
+        } else if (aiModel === 'grok') {
+            apiKey = this.grokApiKeyInput?.value || ''
+            hasServerKey = this.serverApiKeys?.grok
+        } else {
+            // AUTO 모드
+            hasServerKey = this.serverApiKeys && (
+                this.serverApiKeys.claude || 
+                this.serverApiKeys.gemini || 
+                this.serverApiKeys.openai || 
+                this.serverApiKeys.grok
+            )
+        }
+        
+        if (!apiKey && !hasServerKey) {
+            this.showError('K-트렌드 블로그 생성을 위해서는 API 키가 필요합니다. 서버에 구성된 키가 있거나 개별 API 키를 입력해주세요.')
+            return
+        }
+        
+        // 로딩 상태 표시
+        this.setLoadingState(true)
+        this.showKTrendProgress()
+        
+        try {
+            console.log(`🇰🇷 K-트렌드 ${aiModel} 모델로 블로그 생성 시작...`)
+            
+            const response = await axios.post('/api/generate-k-trend', {
+                topic,
+                audience,
+                tone,
+                aiModel,
+                apiKey,
+                useKoreanContext: true
+            })
+            
+            if (response.data.success) {
+                const result = response.data
+                
+                // 결과 표시
+                this.displayKTrendResult(result)
+                
+                console.log('✅ K-트렌드 블로그 생성 완료:', result.model)
+            } else {
+                throw new Error(response.data.error || 'K-트렌드 블로그 생성에 실패했습니다.')
+            }
+        } catch (error) {
+            console.error('❌ K-트렌드 블로그 생성 실패:', error)
+            this.showError('K-트렌드 블로그 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')
+        } finally {
+            this.setLoadingState(false)
+        }
+    }
+    
+    // K-트렌드 진행상황 표시
+    showKTrendProgress() {
+        const progressContainer = document.getElementById('progressContainer')
+        if (!progressContainer) return
+        
+        progressContainer.style.display = 'block'
+        progressContainer.innerHTML = `
+            <div class="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-lg border border-blue-200 mb-6">
+                <h3 class="font-bold text-lg text-blue-800 mb-4 flex items-center">
+                    <span class="animate-spin mr-3">🇰🇷</span>
+                    K-트렌드 블로그 생성 중...
+                </h3>
+                <div class="space-y-3">
+                    <div class="flex items-center text-blue-700">
+                        <div class="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-3"></div>
+                        <span>1단계: 한국 시장 컨텍스트 분석 중...</span>
+                    </div>
+                    <div class="flex items-center text-gray-500">
+                        <div class="w-4 h-4 border-2 border-gray-300 rounded-full mr-3"></div>
+                        <span>2단계: AI 특화 콘텐츠 생성</span>
+                    </div>
+                    <div class="flex items-center text-gray-500">
+                        <div class="w-4 h-4 border-2 border-gray-300 rounded-full mr-3"></div>
+                        <span>3단계: 한국 마켓 인사이트 통합</span>
+                    </div>
+                </div>
+                <div class="mt-4 bg-blue-100 rounded-full h-2">
+                    <div class="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full animate-pulse" style="width: 33%"></div>
+                </div>
+            </div>
+        `
+    }
+    
+    // K-트렌드 결과 표시
+    displayKTrendResult(result) {
+        const resultContainer = document.getElementById('resultContainer')
+        if (!resultContainer) return
+        
+        resultContainer.style.display = 'block'
+        
+        // 한국 시장 데이터 추출
+        const marketData = result.koreanMarketData
+        
+        resultContainer.innerHTML = `
+            <div class="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+                <!-- K-트렌드 데이터 요약 -->
+                <div class="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg mb-6 border border-blue-200">
+                    <h3 class="font-bold text-lg text-blue-800 mb-3 flex items-center">
+                        🇰🇷 한국 시장 분석 결과
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                        <div class="bg-white p-3 rounded border">
+                            <div class="font-semibold text-blue-700">타겟 세대</div>
+                            <div class="text-blue-600">${marketData.trendAnalysis.targetGeneration}</div>
+                        </div>
+                        <div class="bg-white p-3 rounded border">
+                            <div class="font-semibold text-purple-700">바이럴 가능성</div>
+                            <div class="text-purple-600 font-bold">${marketData.trendAnalysis.viralPotential}%</div>
+                        </div>
+                        <div class="bg-white p-3 rounded border">
+                            <div class="font-semibold text-green-700">트렌드 점수</div>
+                            <div class="text-green-600 font-bold">${marketData.trendAnalysis.trendScore}/100</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 모델 정보 -->
+                <div class="flex justify-between items-center mb-4 pb-4 border-b">
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-800">🇰🇷 K-트렌드 블로그</h2>
+                        <p class="text-sm text-gray-600">생성 모델: ${result.model}</p>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm text-gray-500">생성 시간</div>
+                        <div class="text-xs text-gray-400">${new Date().toLocaleString('ko-KR')}</div>
+                    </div>
+                </div>
+                
+                <!-- 콘텐츠 -->
+                <div class="prose max-w-none" id="blogContent">
+                    ${this.markdownToHtml(result.content)}
+                </div>
+                
+                <!-- 한국 시장 인사이트 -->
+                <div class="mt-8 bg-gradient-to-r from-yellow-50 to-orange-50 p-6 rounded-lg border border-yellow-200">
+                    <h4 class="font-bold text-lg text-orange-800 mb-4 flex items-center">
+                        💡 한국 시장 인사이트
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <div class="font-semibold text-orange-700 mb-2">시장 기회</div>
+                            <p class="text-orange-600">${marketData.marketInsights.marketOpportunity}</p>
+                        </div>
+                        <div>
+                            <div class="font-semibold text-orange-700 mb-2">콘텐츠 전략</div>
+                            <ul class="text-orange-600 space-y-1">
+                                ${marketData.marketInsights.contentStrategy.map(strategy => 
+                                    `<li class="flex items-start"><span class="text-orange-500 mr-2">•</span>${strategy}</li>`
+                                ).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 액션 버튼들 -->
+                <div class="flex flex-wrap gap-2 mt-6 pt-6 border-t">
+                    <button onclick="blogGenerator.copyToClipboard()" 
+                            class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                        <i class="fas fa-copy mr-2"></i>콘텐츠 복사
+                    </button>
+                    <button onclick="blogGenerator.editBlog()" 
+                            class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                        <i class="fas fa-edit mr-2"></i>편집 모드
+                    </button>
+                    <button onclick="blogGenerator.regenerateBlog()" 
+                            class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                        <i class="fas fa-refresh mr-2"></i>다시 생성
+                    </button>
+                </div>
+            </div>
+        `
+        
+        // 스크롤 이동
+        resultContainer.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+    
+    // 임시 메시지 표시 함수
+    showTemporaryMessage(message, type = 'success') {
+        const messageDiv = document.createElement('div')
+        const bgColor = type === 'success' ? 'bg-green-100 border-green-400 text-green-700' : 
+                       type === 'info' ? 'bg-blue-100 border-blue-400 text-blue-700' :
+                       'bg-red-100 border-red-400 text-red-700'
+        
+        messageDiv.className = `fixed top-4 right-4 ${bgColor} border px-4 py-3 rounded shadow-lg z-50 animate-pulse`
+        messageDiv.innerHTML = message
+        
+        document.body.appendChild(messageDiv)
+        
+        setTimeout(() => {
+            messageDiv.remove()
+        }, 3000)
+    }
+    
     async generateQABlog() {
         console.log('🔥 품질 검증 버튼 클릭됨!')
         
@@ -4458,6 +4970,220 @@ function initializeBlogGenerator() {
     if (window.blogGenerator) {
         console.log('⚠️ BlogGenerator 이미 초기화됨, 재초기화 방지')
         return
+    }
+
+    // 네이버 API 설정 모달 표시
+    showNaverApiSetup() {
+        const modal = document.createElement('div')
+        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'
+        modal.innerHTML = `
+            <div class="bg-white rounded-lg p-6 w-96 max-w-90vw">
+                <h3 class="text-lg font-semibold mb-4">네이버 DataLab API 설정</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Client ID</label>
+                        <input type="text" id="naverClientId" class="w-full border border-gray-300 rounded-md px-3 py-2" 
+                               placeholder="네이버 애플리케이션 Client ID">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Client Secret</label>
+                        <input type="password" id="naverClientSecret" class="w-full border border-gray-300 rounded-md px-3 py-2" 
+                               placeholder="네이버 애플리케이션 Client Secret">
+                    </div>
+                    <div class="text-xs text-gray-500">
+                        <p>네이버 개발자센터에서 DataLab API 사용 승인을 받으신 후 여기에 입력해주세요.</p>
+                        <a href="https://developers.naver.com/main/" target="_blank" class="text-blue-600 hover:underline">
+                            네이버 개발자센터 바로가기
+                        </a>
+                    </div>
+                </div>
+                <div class="flex space-x-3 mt-6">
+                    <button onclick="window.blogGenerator.testNaverApi()" 
+                            class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                        연결 테스트
+                    </button>
+                    <button onclick="this.closest('.fixed').remove()" 
+                            class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400">
+                        취소
+                    </button>
+                </div>
+                <div id="naverApiTestResult" class="mt-4 hidden"></div>
+            </div>
+        `
+        document.body.appendChild(modal)
+    }
+
+    // 네이버 API 연결 테스트
+    async testNaverApi() {
+        const clientId = document.getElementById('naverClientId').value
+        const clientSecret = document.getElementById('naverClientSecret').value
+        const resultDiv = document.getElementById('naverApiTestResult')
+
+        if (!clientId || !clientSecret) {
+            resultDiv.className = 'mt-4 p-3 bg-red-100 border border-red-300 rounded text-red-700'
+            resultDiv.innerHTML = '❌ Client ID와 Client Secret을 모두 입력해주세요.'
+            resultDiv.classList.remove('hidden')
+            return
+        }
+
+        resultDiv.className = 'mt-4 p-3 bg-blue-100 border border-blue-300 rounded text-blue-700'
+        resultDiv.innerHTML = '🔄 API 연결 테스트 중...'
+        resultDiv.classList.remove('hidden')
+
+        try {
+            const response = await axios.post('/api/naver-datalab/test', {
+                clientId,
+                clientSecret
+            })
+
+            if (response.data.success) {
+                resultDiv.className = 'mt-4 p-3 bg-green-100 border border-green-300 rounded text-green-700'
+                resultDiv.innerHTML = '✅ API 연결 성공! 실시간 데이터를 사용할 수 있습니다.'
+                
+                // API 키를 저장 (실제 구현시에는 보안 저장소 사용)
+                localStorage.setItem('naverApiEnabled', 'true')
+                
+                // 모달 닫기
+                setTimeout(() => {
+                    document.querySelector('.fixed').remove()
+                    this.loadRealTimeTrends()
+                }, 2000)
+            } else {
+                resultDiv.className = 'mt-4 p-3 bg-red-100 border border-red-300 rounded text-red-700'
+                resultDiv.innerHTML = `❌ API 연결 실패: ${response.data.error}`
+            }
+        } catch (error) {
+            resultDiv.className = 'mt-4 p-3 bg-red-100 border border-red-300 rounded text-red-700'
+            resultDiv.innerHTML = '❌ 연결 오류가 발생했습니다. 다시 시도해주세요.'
+        }
+    }
+
+    // 실시간 트렌드 데이터 로드
+    async loadRealTimeTrends() {
+        try {
+            const response = await axios.get('/api/real-time-trends')
+            
+            if (response.data.success) {
+                const trendData = response.data.data
+                this.updateRealTimeDataStatus(trendData)
+                
+                // 기존 트렌드 데이터와 실시간 데이터 병합
+                if (this.koreanTrends && trendData.trends) {
+                    this.koreanTrends.trendingTopics = trendData.trends.slice(0, 10)
+                    this.updateTrendKeywordSuggestions()
+                }
+            }
+        } catch (error) {
+            console.error('실시간 트렌드 로드 실패:', error)
+        }
+    }
+
+    // 소셜미디어 트렌드 데이터 로드
+    async loadSocialMediaTrends() {
+        try {
+            const response = await axios.get('/api/social-media-trends')
+            
+            if (response.data.success) {
+                const socialData = response.data.data
+                this.updateSocialMediaUI(socialData)
+            }
+        } catch (error) {
+            console.error('소셜미디어 트렌드 로드 실패:', error)
+        }
+    }
+
+    // 소셜미디어 UI 업데이트
+    updateSocialMediaUI(socialData) {
+        const socialContainer = document.getElementById('socialMediaTrends')
+        if (!socialContainer) return
+
+        const socialHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                <div class="bg-gradient-to-r from-purple-500 to-pink-500 text-white p-4 rounded-lg">
+                    <h4 class="font-semibold mb-2">📸 Instagram</h4>
+                    <div class="space-y-1">
+                        ${socialData.instagram.slice(0, 3).map(trend => 
+                            `<div class="text-sm">#${trend.hashtag} (${trend.posts})</div>`
+                        ).join('')}
+                    </div>
+                </div>
+                <div class="bg-gradient-to-r from-red-500 to-red-600 text-white p-4 rounded-lg">
+                    <h4 class="font-semibold mb-2">🎥 YouTube</h4>
+                    <div class="space-y-1">
+                        ${socialData.youtube.slice(0, 3).map(trend => 
+                            `<div class="text-sm">${trend.title} (${trend.views})</div>`
+                        ).join('')}
+                    </div>
+                </div>
+                <div class="bg-gradient-to-r from-gray-800 to-gray-900 text-white p-4 rounded-lg">
+                    <h4 class="font-semibold mb-2">🎵 TikTok</h4>
+                    <div class="space-y-1">
+                        ${socialData.tiktok.slice(0, 3).map(trend => 
+                            `<div class="text-sm">#${trend.hashtag} (${trend.views})</div>`
+                        ).join('')}
+                    </div>
+                </div>
+            </div>
+        `
+        socialContainer.innerHTML = socialHTML
+    }
+
+    // 키워드 상세 분석
+    async analyzeKeywordDetail(keyword) {
+        try {
+            const response = await axios.post('/api/keyword-analysis', { keyword })
+            
+            if (response.data.success) {
+                const analysis = response.data.data
+                
+                // 분석 결과 모달 표시
+                const modal = document.createElement('div')
+                modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'
+                modal.innerHTML = `
+                    <div class="bg-white rounded-lg p-6 w-4/5 max-w-4xl max-h-90vh overflow-y-auto">
+                        <h3 class="text-xl font-semibold mb-4">'${keyword}' 상세 분석</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <h4 class="font-semibold mb-2">검색 트렌드</h4>
+                                <div class="bg-gray-100 p-4 rounded">
+                                    <p>검색량 지수: ${analysis.searchVolume}</p>
+                                    <p>트렌드 방향: ${analysis.trend}</p>
+                                    <p>관련도 점수: ${analysis.relevance}</p>
+                                </div>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold mb-2">연관 키워드</h4>
+                                <div class="flex flex-wrap gap-2">
+                                    ${analysis.relatedKeywords.map(kw => 
+                                        `<span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm">${kw}</span>`
+                                    ).join('')}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-6">
+                            <h4 class="font-semibold mb-2">소셜미디어 언급</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                ${Object.entries(analysis.socialMentions).map(([platform, data]) => `
+                                    <div class="bg-gray-50 p-3 rounded">
+                                        <p class="font-medium">${platform}</p>
+                                        <p class="text-sm text-gray-600">언급수: ${data.mentions}</p>
+                                        <p class="text-sm text-gray-600">감정: ${data.sentiment}</p>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        <button onclick="this.closest('.fixed').remove()" 
+                                class="mt-6 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                            닫기
+                        </button>
+                    </div>
+                `
+                document.body.appendChild(modal)
+            }
+        } catch (error) {
+            console.error('키워드 분석 실패:', error)
+            this.showAlert('키워드 분석 중 오류가 발생했습니다.', 'error')
+        }
     }
     
     console.log('🚀 BlogGenerator 초기화 시작...')
