@@ -1,5 +1,5 @@
-// ==================== AI 블로그 생성기 v3.3-FINAL ====================
-// 완전 최종 안정화 버전 - 중복 초기화 방지 + 성능 최적화
+// ==================== AI 블로그 생성기 v4.0 ====================
+// 차세대 멀티미디어 콘텐츠 플랫폼 - 비디오 생성 기능 추가
 
 class BlogGenerator {
     constructor() {
@@ -10,7 +10,7 @@ class BlogGenerator {
         this.initializeTutorial()
         this.initializeBlogEditor()
         
-        console.log('🚀 AI 블로그 생성기 v3.3-FINAL 초기화 완료 (완전 최종 안정화 버전)')
+        console.log('🚀 AI 블로그 생성기 v4.0 초기화 완료 (비디오 생성 기능 추가)')
         
         // 블로그 에디터 상태
         this.isEditMode = false
@@ -72,6 +72,13 @@ class BlogGenerator {
         this.contentLengthSelect = document.getElementById('contentLength')
         this.includeStructuredDataInput = document.getElementById('includeStructuredData')
         
+        // 비디오 생성 관련 요소들 (v4.0 NEW! 🎬)
+        this.toggleVideoOptionsBtn = document.getElementById('toggleVideoOptions')
+        this.videoOptionsSection = document.getElementById('videoOptionsSection')
+        this.includeVideoInput = document.getElementById('includeVideo')
+        this.videoStyleSelect = document.getElementById('videoStyle')
+        this.videoAspectRatioSelect = document.getElementById('videoAspectRatio')
+
         // 이미지 생성 관련 요소들 (NEW! 🎨)
         this.toggleImageOptionsBtn = document.getElementById('toggleImageOptions')
         this.imageOptionsSection = document.getElementById('imageOptionsSection')
@@ -82,6 +89,12 @@ class BlogGenerator {
         // 이미지 생성 관련 새 버튼
         this.generateWithImagesBtn = document.getElementById('generateWithImagesBtn')
         
+        // 비디오 생성 상태 추적 (v4.0 NEW!)
+        this.videoGenerationStatus = {
+            isGenerating: false,
+            generatedVideo: null
+        }
+
         // 이미지 생성 상태 추적
         this.imageGenerationStatus = {
             isGenerating: false,
@@ -224,9 +237,10 @@ class BlogGenerator {
         }
 
         // 이미지 생성 옵션 토글 버튼 (NEW! 🎨)
-        if (this.toggleImageOptionsBtn) {
-            this.toggleImageOptionsBtn.addEventListener('click', () => {
-                this.toggleImageOptionsSection()
+        // 비디오 옵션 토글 버튼 (v4.0 NEW! 🎬)
+        if (this.toggleVideoOptionsBtn) {
+            this.toggleVideoOptionsBtn.addEventListener('click', () => {
+                this.toggleVideoOptionsSection()
             })
         }
 
@@ -362,6 +376,21 @@ class BlogGenerator {
             } else {
                 this.seoOptionsSection.classList.add('hidden')
                 this.toggleSeoOptionsBtn.innerHTML = '<i class="fas fa-chevron-down"></i>'
+            }
+        }
+    }
+
+    // 비디오 옵션 섹션 토글 (v4.0 NEW! 🎬)
+    toggleVideoOptionsSection() {
+        if (this.videoOptionsSection) {
+            const isHidden = this.videoOptionsSection.classList.contains('hidden')
+            
+            if (isHidden) {
+                this.videoOptionsSection.classList.remove('hidden')
+                this.toggleVideoOptionsBtn.innerHTML = '<i class="fas fa-chevron-up"></i>'
+            } else {
+                this.videoOptionsSection.classList.add('hidden')
+                this.toggleVideoOptionsBtn.innerHTML = '<i class="fas fa-chevron-down"></i>'
             }
         }
     }
@@ -573,12 +602,17 @@ class BlogGenerator {
         const tone = this.toneSelect?.value
         const aiModel = this.aiModelSelect?.value
         
+        // 비디오 생성 옵션 확인 (v4.0 NEW! 🎬)
+        const includeVideo = this.includeVideoInput?.checked || false
+        const videoStyle = this.videoStyleSelect?.value || 'professional'
+        const videoAspectRatio = this.videoAspectRatioSelect?.value || '16:9'
+
         // 이미지 생성 옵션 확인 (NEW! 🎨)
         const includeImages = this.includeImagesInput?.checked || false
         const imageStyle = this.imageStyleSelect?.value || 'professional'
         const imageCount = parseInt(this.imageCountSelect?.value || '3')
         
-        console.log('📝 입력값 확인:', { topic, audience, tone, aiModel, includeImages, imageStyle, imageCount })
+        console.log('📝 입력값 확인:', { topic, audience, tone, aiModel, includeVideo, videoStyle, videoAspectRatio, includeImages, imageStyle, imageCount })
         
         if (!topic) {
             this.showError('⚠️ 주제를 입력해주세요!\n\n예시: "인공지능 기술", "디지털 마케팅", "건강한 생활습관"')
@@ -693,12 +727,22 @@ class BlogGenerator {
                 imageCount
             })
             
-            // 이미지 포함 여부에 따라 다른 API 엔드포인트 사용
-            const apiEndpoint = includeImages ? '/api/generate-with-images' : '/api/generate'
+            // 멀티미디어 콘텐츠에 따라 API 엔드포인트 선택
+            let apiEndpoint = '/api/generate'
+            if (includeImages && includeVideo) {
+                // 텍스트 + 이미지 + 비디오 (v4.0 풀스택)
+                apiEndpoint = '/api/generate-multimedia'
+            } else if (includeImages) {
+                // 텍스트 + 이미지
+                apiEndpoint = '/api/generate-with-images'
+            } else if (includeVideo) {
+                // 텍스트 + 비디오 (v4.0)
+                apiEndpoint = '/api/generate-with-video'
+            }
             
-            // 진행상황 업데이트 (이미지 생성 포함시 상세 안내)
-            if (includeImages) {
-                this.showImageGenerationProgress(topic, finalAiModel, imageCount)
+            // 진행상황 업데이트
+            if (includeImages || includeVideo) {
+                this.showMultimediaGenerationProgress(topic, finalAiModel, includeImages, includeVideo, imageCount, videoStyle)
             }
             
             const response = await axios.post(apiEndpoint, {
@@ -709,7 +753,10 @@ class BlogGenerator {
                 apiKey,
                 includeImages,
                 imageStyle,
-                imageCount
+                imageCount,
+                includeVideo,
+                videoStyle,
+                videoAspectRatio
             })
 
             console.log('🎉 API 응답 받음:', response.status)
@@ -2108,6 +2155,13 @@ class BlogGenerator {
             infoHtml += ` <span class="ml-2 px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded-full">데모 모드</span>`
         }
         
+        // v4.0 비디오 생성 정보 표시 (NEW! 🎬)
+        if (result.video) {
+            infoHtml += ` <span class="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">
+                <i class="fas fa-video mr-1"></i>타이틀 영상 포함
+            </span>`
+        }
+
         // 이미지 생성 정보 표시 (NEW! 🎨)
         if (result.images && result.images.length > 0) {
             infoHtml += ` <span class="ml-2 px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
@@ -2119,9 +2173,20 @@ class BlogGenerator {
             infoHtml += `<br><i class="fas fa-info-circle mr-2"></i>${result.message}`
         }
         
+        // v4.0 비디오 생성 통계 정보 추가 (NEW! 🎬)
+        if (result.video) {
+            const videoInfo = result.metadata?.videoStyle ? ` (${result.metadata.videoStyle} 스타일)` : ''
+            infoHtml += `<br><i class="fas fa-video mr-2 text-red-600"></i>AI 타이틀 영상 자동 생성 완료${videoInfo} 🎬`
+        }
+
         // 이미지 생성 통계 정보 추가
         if (result.includeImages && result.imageCount > 0) {
             infoHtml += `<br><i class="fas fa-magic mr-2 text-purple-600"></i>AI 이미지 ${result.imageCount}개 자동 생성 및 삽입 완료 🎨`
+        }
+
+        // v4.0 풀스택 멀티미디어 완성 정보
+        if (result.video && result.images && result.images.length > 0) {
+            infoHtml += `<br><i class="fas fa-rocket mr-2 text-orange-600"></i><strong>v4.0 풀스택 멀티미디어 블로그 완성!</strong> 텍스트 + 이미지 + 영상 🚀`
         }
         
         this.generationInfo.innerHTML = infoHtml
@@ -2133,8 +2198,14 @@ class BlogGenerator {
         console.log('🔄 콘텐츠 변환 중...')
         console.log('📝 원본 콘텐츠:', result.content?.substring(0, 100) + '...')
         
-        const convertedHtml = this.markdownToHtml(result.content)
+        let convertedHtml = this.markdownToHtml(result.content)
         console.log('🔧 변환된 HTML:', convertedHtml?.substring(0, 100) + '...')
+        
+        // v4.0 비디오를 콘텐츠 상단에 추가
+        if (result.video) {
+            const videoHtml = this.generateVideoHtml(result.video, result.metadata?.topic || '타이틀 영상')
+            convertedHtml = videoHtml + convertedHtml
+        }
         
         if (this.contentReader) {
             console.log('✅ contentReader에 HTML 설정 중...')
@@ -2221,6 +2292,107 @@ class BlogGenerator {
                 this.showImageLoadingComplete(totalImages)
             }
         }, 1000)
+    }
+
+    // v4.0 비디오 HTML 생성 함수 (NEW! 🎬)
+    generateVideoHtml(video, title = '타이틀 영상') {
+        if (!video || !video.url) {
+            return ''
+        }
+
+        // 비디오 스타일 정보
+        const styleInfo = video.style ? ` (${video.style} 스타일)` : ''
+        const aspectRatio = video.aspectRatio || '16:9'
+        
+        // 반응형 비디오 컨테이너 클래스 결정
+        const aspectRatioClass = aspectRatio === '9:16' ? 'aspect-[9/16]' : 
+                                aspectRatio === '1:1' ? 'aspect-square' : 
+                                'aspect-video'
+
+        return `
+            <div class="video-section bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-xl p-6 mb-8">
+                <div class="flex items-center mb-4">
+                    <i class="fas fa-video text-red-600 text-xl mr-3"></i>
+                    <div>
+                        <h3 class="text-lg font-bold text-red-800">
+                            🎬 AI 생성 타이틀 영상${styleInfo}
+                        </h3>
+                        <p class="text-sm text-red-600">
+                            v4.0 혁신 기능으로 자동 생성된 5초 인트로 영상
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="relative ${aspectRatioClass} max-w-4xl mx-auto bg-black rounded-lg overflow-hidden shadow-lg">
+                    <video 
+                        class="absolute inset-0 w-full h-full object-cover"
+                        controls 
+                        preload="metadata"
+                        poster="${video.url.replace(/\.(mp4|mov|avi)$/i, '_thumb.jpg')}"
+                        playsinline
+                    >
+                        <source src="${video.url}" type="video/mp4">
+                        <p class="text-white p-4">
+                            죄송합니다. 브라우저에서 비디오를 재생할 수 없습니다.
+                            <a href="${video.url}" class="text-blue-300 underline" target="_blank">
+                                직접 다운로드하여 재생하세요
+                            </a>
+                        </p>
+                    </video>
+                    
+                    <!-- 비디오 오버레이 컨트롤 -->
+                    <div class="absolute bottom-4 left-4 bg-black bg-opacity-50 text-white px-3 py-1 rounded-full text-sm">
+                        <i class="fas fa-clock mr-1"></i>
+                        ${video.duration || '5'}초
+                    </div>
+                    
+                    <div class="absolute bottom-4 right-4 bg-black bg-opacity-50 text-white px-3 py-1 rounded-full text-sm">
+                        ${aspectRatio}
+                    </div>
+                </div>
+                
+                <div class="mt-4 flex justify-center space-x-4">
+                    <button 
+                        onclick="this.previousElementSibling.querySelector('video').play()" 
+                        class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                    >
+                        <i class="fas fa-play mr-2"></i>재생
+                    </button>
+                    
+                    <a 
+                        href="${video.url}" 
+                        download="${title.replace(/[^a-zA-Z0-9가-힣]/g, '_')}_video.mp4"
+                        class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                    >
+                        <i class="fas fa-download mr-2"></i>다운로드
+                    </a>
+                    
+                    <button 
+                        onclick="navigator.share ? navigator.share({title: '${title}', url: '${video.url}'}) : alert('공유 기능이 지원되지 않는 브라우저입니다.')"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                        <i class="fas fa-share mr-2"></i>공유
+                    </button>
+                </div>
+                
+                <div class="mt-4 text-sm text-gray-600 bg-white rounded-lg p-3 border border-red-100">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="flex items-center">
+                            <i class="fas fa-magic text-red-500 mr-2"></i>
+                            <span>AI 자동 생성</span>
+                        </div>
+                        <div class="flex items-center">
+                            <i class="fas fa-clock text-blue-500 mr-2"></i>
+                            <span>${video.duration || '5'}초 최적 길이</span>
+                        </div>
+                        <div class="flex items-center">
+                            <i class="fas fa-mobile-alt text-green-500 mr-2"></i>
+                            <span>모든 플랫폼 호환</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `
     }
     
     // 이미지 로딩 완료 알림 (NEW! 🎨)
@@ -4288,6 +4460,153 @@ class BlogGenerator {
     }
     
     // 이미지 생성 진행 상황 표시 (NEW! 🎨)
+    // v4.0 멀티미디어 진행상황 표시 (비디오 + 이미지 통합)
+    showMultimediaGenerationProgress(topic, aiModel, includeImages, includeVideo, imageCount, videoStyle) {
+        // 기존 메시지 제거
+        const existingMessages = document.querySelectorAll('.message')
+        existingMessages.forEach(msg => msg.remove())
+        
+        // 진행 단계 계산
+        let totalSteps = 2 // 텍스트 생성 + 최종 완성
+        let currentStep = 0
+        
+        const steps = []
+        
+        // 1단계: 텍스트 생성
+        steps.push({
+            icon: 'fas fa-file-text',
+            title: '1단계: AI 텍스트 생성',
+            description: '(30-60초)',
+            color: 'green'
+        })
+        currentStep++
+        
+        // 비디오 생성 단계 (v4.0)
+        if (includeVideo) {
+            totalSteps++
+            steps.push({
+                icon: 'fas fa-video',
+                title: `${currentStep + 1}단계: 🎬 AI 타이틀 영상 생성`,
+                description: `${videoStyle} 스타일 5초 영상 (30초-2분)`,
+                color: 'red'
+            })
+            currentStep++
+        }
+        
+        // 이미지 생성 단계
+        if (includeImages) {
+            totalSteps++
+            steps.push({
+                icon: 'fas fa-images',
+                title: `${currentStep + 1}단계: 🎨 AI 이미지 생성`,
+                description: `맞춤형 이미지 ${imageCount}개 (30초-2분)`,
+                color: 'purple'
+            })
+            currentStep++
+        }
+        
+        // 최종 완성 단계
+        steps.push({
+            icon: 'fas fa-puzzle-piece',
+            title: `${currentStep + 1}단계: 멀티미디어 블로그 최종 완성`,
+            description: '(5-10초)',
+            color: 'blue'
+        })
+        
+        // 예상 시간 계산
+        let estimatedTime = '2-4분'
+        if (includeImages && includeVideo) {
+            estimatedTime = '4-8분'
+        } else if (includeImages || includeVideo) {
+            estimatedTime = '3-6분'
+        }
+        
+        // v4.0 기술 설명
+        const techDescription = []
+        if (includeVideo) {
+            techDescription.push('🎬 업계 최초 블로그→영상 자동 변환 (v4.0)')
+        }
+        if (includeImages) {
+            techDescription.push('🎨 실제 AI 이미지 맞춤 생성')
+        }
+        
+        // 진행상황 메시지 생성
+        const progressDiv = document.createElement('div')
+        progressDiv.className = 'message multimedia-progress'
+        progressDiv.id = 'multimediaGenerationProgress'
+        
+        progressDiv.innerHTML = `
+            <div class="bg-gradient-to-r from-red-50 via-purple-50 to-blue-50 border-l-4 border-red-500 p-6 rounded-lg shadow-lg">
+                <div class="flex items-center mb-4">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mr-4"></div>
+                    <div class="flex-1">
+                        <h4 class="text-xl font-bold text-red-800">
+                            <i class="fas fa-rocket mr-2"></i>
+                            v4.0 AI 멀티미디어 콘텐츠 생성 중... 🎬🎨✨
+                        </h4>
+                        <p class="text-red-600 text-sm mt-1">
+                            ${aiModel.toUpperCase()} 모델로 "${topic}" 주제의 완전한 멀티미디어 블로그를 생성하고 있습니다
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="space-y-3 mb-4">
+                    ${steps.map(step => `
+                        <div class="flex items-center text-sm">
+                            <div class="animate-pulse bg-${step.color}-500 w-3 h-3 rounded-full mr-3"></div>
+                            <span class="text-${step.color}-700">
+                                <i class="${step.icon} mr-1"></i>
+                                <strong>${step.title}</strong> ${step.description}
+                            </span>
+                        </div>
+                    `).join('')}
+                </div>
+                
+                ${techDescription.length > 0 ? `
+                <div class="mb-4 p-3 bg-gradient-to-r from-orange-50 to-red-50 rounded border-l-4 border-orange-400">
+                    <div class="text-sm text-orange-700">
+                        <i class="fas fa-star text-orange-500 mr-2"></i>
+                        <strong>🚀 v4.0 혁신 기술!</strong>
+                        <br>${techDescription.join(' + ')}
+                    </div>
+                </div>
+                ` : ''}
+                
+                <div class="bg-white rounded p-3 border">
+                    <div class="w-full bg-gray-200 rounded-full h-3">
+                        <div class="bg-gradient-to-r from-red-500 via-purple-500 to-blue-500 h-3 rounded-full animate-pulse" style="width: 25%"></div>
+                    </div>
+                    <div class="text-xs text-gray-600 mt-2 text-center flex justify-between">
+                        <span>예상 완료까지 ${estimatedTime} 소요</span>
+                        <span>${totalSteps}단계 진행</span>
+                    </div>
+                </div>
+            </div>
+        `
+        
+        // 메시지를 페이지 상단에 삽입
+        const container = document.querySelector('.container')
+        if (container) {
+            container.insertBefore(progressDiv, container.firstChild)
+        } else {
+            document.body.insertBefore(progressDiv, document.body.firstChild)
+        }
+        
+        // 애니메이션 효과
+        progressDiv.style.opacity = '0'
+        progressDiv.style.transform = 'translateY(-20px)'
+        requestAnimationFrame(() => {
+            progressDiv.style.transition = 'all 0.5s ease-out'
+            progressDiv.style.opacity = '1'
+            progressDiv.style.transform = 'translateY(0)'
+        })
+        
+        // 자동 스크롤
+        setTimeout(() => {
+            progressDiv.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }, 100)
+    }
+
     showImageGenerationProgress(topic, aiModel, imageCount) {
         // 기존 메시지 제거
         const existingMessages = document.querySelectorAll('.message')
@@ -4955,13 +5274,14 @@ function initializeBlogGenerator() {
     console.log('🚀 BlogGenerator 초기화 시작...')
     window.blogGenerator = new BlogGenerator()
     
-    console.log('📱 AI 블로그 생성기 v3.3-FINAL - 완전 최종 안정화 버전!')
-    console.log('✨ 기능: 품질 검증 + SEO 최적화 + 블로그 에디터 + 네이버 실시간 트렌드')  
+    console.log('📱 AI 블로그 생성기 v4.0 - 차세대 멀티미디어 콘텐츠 플랫폼!')
+    console.log('✨ 기능: 품질 검증 + SEO 최적화 + 블로그 에디터 + 네이버 실시간 트렌드 + 영상 생성')  
     console.log('🤖 지원 모델: Claude, Gemini, GPT, GROK + nano-banana 이미지 생성')
     console.log('📡 실시간 데이터: 네이버 DataLab + Google Trends + 소셜미디어')
     console.log('🛡️ 3단계 품질 검증 + Claude Artifacts 스타일 에디터')
-    console.log('🔧 최적화: 싱글톤 패턴 + 중복 초기화 방지 + 성능 개선')
-    console.log('✅ BlogGenerator v3.3-FINAL 초기화 완료!')
+    console.log('🎬 v4.0 혁신: 업계 최초 블로그→영상 자동 변환 + 멀티미디어 통합')
+    console.log('🚀 멀티미디어: 텍스트 + 이미지 + 타이틀 영상 원클릭 생성')
+    console.log('✅ BlogGenerator v4.0 초기화 완료!')
     
     return window.blogGenerator
 }
