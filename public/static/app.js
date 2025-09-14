@@ -1,5 +1,5 @@
-// ==================== AI 블로그 생성기 v3.0 ====================
-// 품질 검증 시스템(QA System) 포함 고급 버전
+// ==================== AI 블로그 생성기 v3.3-FINAL ====================
+// 완전 최종 안정화 버전 - 중복 초기화 방지 + 성능 최적화
 
 class BlogGenerator {
     constructor() {
@@ -10,22 +10,13 @@ class BlogGenerator {
         this.initializeTutorial()
         this.initializeBlogEditor()
         
-        console.log('🚀 AI 블로그 생성기 v3.2-K 초기화 완료 (한국 트렌드 특화 + GROK 통합 + 사용자 가이드 시스템 + 블로그 에디터)')
+        console.log('🚀 AI 블로그 생성기 v3.3-FINAL 초기화 완료 (완전 최종 안정화 버전)')
         
         // 블로그 에디터 상태
         this.isEditMode = false
         this.editHistory = []
         this.currentHistoryIndex = -1
         this.currentContent = ''
-        
-        // 디버깅: 전역 클릭 이벤트 감지
-        document.addEventListener('click', (e) => {
-            if (e.target.id === 'generateBtn') {
-                console.log('🔴 전역 클릭 감지: generateBtn 클릭됨!')
-                console.log('🔴 클릭된 요소:', e.target)
-                console.log('🔴 this.generateBtn:', this.generateBtn)
-            }
-        })
         
         // 한국 트렌드 상태 초기화
         this.koreanTrends = {
@@ -4952,31 +4943,45 @@ window.BlogEditor = BlogEditor
 // ==================== 통합 초기화 ====================
 // BlogGenerator 단일 초기화로 중복 이벤트 리스너 문제 해결
 function initializeBlogGenerator() {
-    if (window.blogGenerator) {
+    // 강력한 싱글톤 패턴: 여러 중복 초기화 방지
+    if (window.blogGenerator || window.blogGeneratorInitialized) {
         console.log('⚠️ BlogGenerator 이미 초기화됨, 재초기화 방지')
-        return
+        return window.blogGenerator
     }
     
+    // 초기화 플래그 설정
+    window.blogGeneratorInitialized = true
+    
     console.log('🚀 BlogGenerator 초기화 시작...')
     window.blogGenerator = new BlogGenerator()
     
-    
-    console.log('🚀 BlogGenerator 초기화 시작...')
-    window.blogGenerator = new BlogGenerator()
-    
-    console.log('📱 AI 블로그 생성기 v3.2 - 완전 최종 버전!')
+    console.log('📱 AI 블로그 생성기 v3.3-FINAL - 완전 최종 안정화 버전!')
     console.log('✨ 기능: 품질 검증 + SEO 최적화 + 블로그 에디터 + 네이버 실시간 트렌드')  
     console.log('🤖 지원 모델: Claude, Gemini, GPT, GROK + nano-banana 이미지 생성')
     console.log('📡 실시간 데이터: 네이버 DataLab + Google Trends + 소셜미디어')
     console.log('🛡️ 3단계 품질 검증 + Claude Artifacts 스타일 에디터')
-    console.log('✅ BlogGenerator 완전 최종 버전 초기화 완료!')
+    console.log('🔧 최적화: 싱글톤 패턴 + 중복 초기화 방지 + 성능 개선')
+    console.log('✅ BlogGenerator v3.3-FINAL 초기화 완료!')
+    
+    return window.blogGenerator
 }
 
-// DOM 로드 상태에 따라 적절히 초기화
-if (document.readyState === 'loading') {
-    console.log('⏳ DOM 로딩 중... 완료 대기')
-    document.addEventListener('DOMContentLoaded', initializeBlogGenerator)
-} else {
-    console.log('🚀 DOM 이미 로드됨, BlogGenerator 즉시 초기화...')
-    initializeBlogGenerator()
+// DOM 로드 상태에 따라 적절히 초기화 (중복 방지)
+function safeInitialize() {
+    // 이미 초기화되었으면 건너뛰기
+    if (window.blogGeneratorInitialized) {
+        console.log('⚠️ BlogGenerator 이미 초기화됨, 중복 실행 방지')
+        return
+    }
+    
+    if (document.readyState === 'loading') {
+        console.log('⏳ DOM 로딩 중... 완료 대기')
+        document.addEventListener('DOMContentLoaded', initializeBlogGenerator, { once: true })
+    } else {
+        console.log('🚀 DOM 이미 로드됨, BlogGenerator 즉시 초기화...')
+        initializeBlogGenerator()
+    }
 }
+
+// 안전한 초기화 실행
+safeInitialize()
