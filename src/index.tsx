@@ -15,20 +15,20 @@ declare function image_generation(params: {
   }>
 }>
 
-// AI 비디오 생성 도구 import (v4.0 신규)
-declare function video_generation(params: {
-  query: string
-  model: string
-  aspect_ratio: string
-  duration: number
-  task_summary: string
-  image_urls: string[]
-  file_name?: string
-}): Promise<{
-  generated_videos?: Array<{
-    video_url?: string
-  }>
-}>
+// AI 비디오 생성 도구 import (v4.0 신규) - 일시 비활성화
+// declare function video_generation(params: {
+//   query: string
+//   model: string
+//   aspect_ratio: string
+//   duration: number
+//   task_summary: string
+//   image_urls: string[]
+//   file_name?: string
+// }): Promise<{
+//   generated_videos?: Array<{
+//     video_url?: string
+//   }>
+// }>
 
 type Bindings = {
   OPENAI_API_KEY?: string
@@ -2260,14 +2260,21 @@ app.post('/api/generate-seo', async (c) => {
       finalApiKey = env.GROK_API_KEY || apiKey
     }
 
+    // Cloudflare 환경변수에서 API 키 자동 가져오기
     if (!finalApiKey) {
-      const demoContent = generateDemoSEOContent(topic, audience, tone)
-      return c.json({
-        ...demoContent,
-        model: `${aiModel} (데모 모드)`,
-        // 라이브 모드: 실제 AI 생성
-        message: 'API 키가 설정되지 않아 데모 SEO 콘텐츠를 생성했습니다.'
-      })
+      // 환경변수에서 사용 가능한 첫 번째 API 키 사용
+      if (env?.CLAUDE_API_KEY) {
+        finalApiKey = env.CLAUDE_API_KEY
+        selectedModel = 'claude'
+      } else if (env?.GEMINI_API_KEY) {
+        finalApiKey = env.GEMINI_API_KEY
+        selectedModel = 'gemini'
+      } else if (env?.OPENAI_API_KEY) {
+        finalApiKey = env.OPENAI_API_KEY
+        selectedModel = 'openai'
+      } else {
+        return c.json({ error: 'API 키가 설정되지 않았습니다.' }, 400)
+      }
     }
 
     // 전문가 시스템: 최적 모델 자동 선택 (사용자가 선택하지 않은 경우)
@@ -4297,8 +4304,8 @@ app.get('/', (c) => {
                             </div>
                         </div>
 
-                        <!-- 비디오 생성 옵션 섹션 (v4.0 NEW! 🎬) -->
-                        <div class="bg-gradient-to-r from-red-50 to-pink-50 p-4 rounded-lg border border-red-200">
+                        <!-- 비디오 생성 옵션 섹션 (v4.0 NEW! 🎬) - 일시 비활성화 -->
+                        <!-- <div class="bg-gradient-to-r from-red-50 to-pink-50 p-4 rounded-lg border border-red-200">
                             <div class="flex items-center justify-between mb-3">
                                 <h3 class="text-lg font-medium text-gray-800">
                                     <i class="fas fa-video mr-2 text-red-600"></i>
@@ -4362,7 +4369,7 @@ app.get('/', (c) => {
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </div> -->
 
                         <!-- 이미지 생성 옵션 섹션 (NEW! 🎨) -->
                         <div class="bg-purple-50 p-4 rounded-lg">
@@ -5078,8 +5085,8 @@ function selectOptimalVideoModel(style: string): string {
   return modelMapping[style as keyof typeof modelMapping] || 'gemini/veo3/fast'
 }
 
-// 텍스트 + 비디오 통합 생성 API (v4.0)
-app.post('/api/generate-with-video', async (c) => {
+// 텍스트 + 비디오 통합 생성 API (v4.0) - 일시 비활성화
+/* app.post('/api/generate-with-video', async (c) => {
   try {
     const { topic, audience, tone, aiModel, apiKey, videoStyle = 'professional', videoAspectRatio = '16:9' } = await c.req.json()
     
@@ -5166,9 +5173,10 @@ app.post('/api/generate-with-video', async (c) => {
     }, 500)
   }
 })
+*/
 
-// 텍스트 + 이미지 + 비디오 풀스택 생성 API (v4.0 풀스택)
-app.post('/api/generate-multimedia', async (c) => {
+// 텍스트 + 이미지 + 비디오 풀스택 생성 API (v4.0 풀스택) - 일시 비활성화
+/* app.post('/api/generate-multimedia', async (c) => {
   try {
     const { 
       topic, audience, tone, aiModel, apiKey, 
@@ -5302,9 +5310,10 @@ function integateImagesToContent(content: string, images: any[]): string {
     return section
   }).join('\n\n')
 }
+*/
 
-// 메인 타이틀 5초 영상 생성 API
-app.post('/api/generate-title-video', async (c) => {
+// 메인 타이틀 5초 영상 생성 API - 일시 비활성화
+/* app.post('/api/generate-title-video', async (c) => {
   try {
     const { title, style = 'professional', aspectRatio = '16:9' } = await c.req.json()
     
@@ -5393,9 +5402,10 @@ app.post('/api/generate-title-video', async (c) => {
     }, 500)
   }
 })
+*/
 
-// 비디오 생성 상태 확인 API (선택사항)
-app.get('/api/video-generation-status', async (c) => {
+// 비디오 생성 상태 확인 API (선택사항) - 일시 비활성화
+/* app.get('/api/video-generation-status', async (c) => {
   return c.json({
     success: true,
     status: 'active',
@@ -5413,5 +5423,6 @@ app.get('/api/video-generation-status', async (c) => {
     message: 'AI 비디오 생성 기능이 활성화되었습니다!'
   })
 })
+*/
 
 export default app

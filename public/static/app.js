@@ -3,6 +3,9 @@
 
 class BlogGenerator {
     constructor() {
+        // 세션 ID 생성 (API 키 관리용)
+        this.sessionId = this.generateSessionId()
+        
         this.initializeElements()
         this.attachEventListeners()
         this.loadApiKeys()
@@ -504,6 +507,16 @@ class BlogGenerator {
         }
     }
     
+    generateSessionId() {
+        // 세션 ID 생성 (브라우저 세션 기반)
+        let sessionId = localStorage.getItem('blogGenerator_sessionId')
+        if (!sessionId) {
+            sessionId = 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
+            localStorage.setItem('blogGenerator_sessionId', sessionId)
+        }
+        return sessionId
+    }
+    
     showApiKeyRequiredMessage() {
         const apiKeysSection = this.apiKeysSection
         if (apiKeysSection) {
@@ -602,10 +615,10 @@ class BlogGenerator {
         const tone = this.toneSelect?.value
         const aiModel = this.aiModelSelect?.value
         
-        // 비디오 생성 옵션 확인 (v4.0 NEW! 🎬)
-        const includeVideo = this.includeVideoInput?.checked || false
-        const videoStyle = this.videoStyleSelect?.value || 'professional'
-        const videoAspectRatio = this.videoAspectRatioSelect?.value || '16:9'
+        // 비디오 생성 옵션 확인 (v4.0 NEW! 🎬) - 일시 비활성화
+        const includeVideo = false // this.includeVideoInput?.checked || false
+        const videoStyle = 'professional' // this.videoStyleSelect?.value || 'professional'
+        const videoAspectRatio = '16:9' // this.videoAspectRatioSelect?.value || '16:9'
 
         // 이미지 생성 옵션 확인 (NEW! 🎨)
         const includeImages = this.includeImagesInput?.checked || false
@@ -727,22 +740,19 @@ class BlogGenerator {
                 imageCount
             })
             
-            // 멀티미디어 콘텐츠에 따라 API 엔드포인트 선택
+            // 멀티미디어 콘텐츠에 따라 API 엔드포인트 선택 (비디오 기능 일시 비활성화)
             let apiEndpoint = '/api/generate'
-            if (includeImages && includeVideo) {
-                // 텍스트 + 이미지 + 비디오 (v4.0 풀스택)
-                apiEndpoint = '/api/generate-multimedia'
-            } else if (includeImages) {
-                // 텍스트 + 이미지
+            if (includeImages) {
+                // 텍스트 + 이미지만 지원 (비디오 기능 비활성화)
                 apiEndpoint = '/api/generate-with-images'
-            } else if (includeVideo) {
-                // 텍스트 + 비디오 (v4.0)
-                apiEndpoint = '/api/generate-with-video'
             }
+            // 비디오 관련 엔드포인트들은 일시 비활성화
+            // if (includeImages && includeVideo) apiEndpoint = '/api/generate-multimedia'
+            // if (includeVideo) apiEndpoint = '/api/generate-with-video'
             
-            // 진행상황 업데이트
-            if (includeImages || includeVideo) {
-                this.showMultimediaGenerationProgress(topic, finalAiModel, includeImages, includeVideo, imageCount, videoStyle)
+            // 진행상황 업데이트 (비디오 기능 비활성화)
+            if (includeImages) {
+                this.showMultimediaGenerationProgress(topic, finalAiModel, includeImages, false, imageCount, videoStyle)
             }
             
             const response = await axios.post(apiEndpoint, {
@@ -756,7 +766,8 @@ class BlogGenerator {
                 imageCount,
                 includeVideo,
                 videoStyle,
-                videoAspectRatio
+                videoAspectRatio,
+                sessionId: this.sessionId
             })
 
             console.log('🎉 API 응답 받음:', response.status)
