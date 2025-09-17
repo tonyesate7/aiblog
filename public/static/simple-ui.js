@@ -4,6 +4,7 @@ class SimpleUI {
         this.currentStep = 1;
         this.formData = {};
         this.liveStatus = null;
+        this.isGenerating = false; // 중복 요청 방지 플래그
         this.initializeEventListeners();
         this.setDefaults();
         this.checkLiveStatus();
@@ -339,6 +340,14 @@ class SimpleUI {
     
     // 🚀 블로그 생성 메인 함수
     async generateBlog() {
+        // 중복 요청 방지
+        if (this.isGenerating) {
+            console.warn('⚠️ 이미 생성 중입니다. 잠시만 기다려주세요.');
+            return;
+        }
+        
+        this.isGenerating = true;
+        
         try {
             // 1. 폼 데이터 수집
             const topic = document.getElementById('topic').value.trim();
@@ -348,6 +357,7 @@ class SimpleUI {
             
             if (!topic) {
                 alert('블로그 주제를 입력해주세요!');
+                this.isGenerating = false;
                 return;
             }
             
@@ -362,7 +372,13 @@ class SimpleUI {
             if (loadingDiv) loadingDiv.classList.remove('hidden');
             if (contentDiv) contentDiv.classList.add('hidden');
             
-            // 3. API 호출
+            // 3. API 호출 (타임아웃 포함)
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => {
+                controller.abort();
+                console.warn('⏰ API 호출 타임아웃 (30초)');
+            }, 30000);
+            
             const response = await fetch('/api/generate', {
                 method: 'POST',
                 headers: {
@@ -375,14 +391,31 @@ class SimpleUI {
                     aiModel,
                     enablePhase1: true,
                     enableSEO: false
-                })
+                }),
+                signal: controller.signal
             });
+            
+            clearTimeout(timeoutId);
             
             if (!response.ok) {
                 throw new Error(`API 오류: ${response.status}`);
             }
             
-            const result = await response.json();
+            // 안전한 JSON 파싱
+            const responseText = await response.text();
+            if (!responseText || responseText.trim() === '') {
+                throw new Error('서버에서 빈 응답을 받았습니다');
+            }
+            
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('JSON 파싱 실패:', parseError);
+                console.error('응답 텍스트:', responseText.substring(0, 200) + '...');
+                throw new Error('서버 응답을 해석할 수 없습니다');
+            }
+            
             console.log('✅ 블로그 생성 완료:', result.metadata);
             
             // 4. 결과 화면 표시
@@ -390,12 +423,29 @@ class SimpleUI {
             
         } catch (error) {
             console.error('❌ 블로그 생성 오류:', error);
-            alert('블로그 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+            
+            let errorMessage = '블로그 생성 중 오류가 발생했습니다.';
+            
+            if (error.name === 'AbortError') {
+                errorMessage = '요청이 시간 초과되었습니다. 잠시 후 다시 시도해주세요.';
+            } else if (error.message.includes('네트워크')) {
+                errorMessage = '네트워크 연결을 확인하고 다시 시도해주세요.';
+            } else if (error.message.includes('JSON')) {
+                errorMessage = '서버 응답에 문제가 있습니다. 잠시 후 다시 시도해주세요.';
+            }
+            
+            alert(errorMessage);
             
             // 에러 시 UI 초기화
             const resultDiv = document.getElementById('result');
+            const loadingDiv = document.getElementById('loading');
             if (resultDiv) resultDiv.classList.add('hidden');
+            if (loadingDiv) loadingDiv.classList.add('hidden');
+        } finally {
+            // 생성 완료/실패와 관계없이 플래그 리셋
+            this.isGenerating = false;
         }
+    }
     }
     
     // 🎨 결과 표시 함수
@@ -468,7 +518,23 @@ class SimpleUI {
     async loadKoreanTrends() {
         try {
             const response = await fetch('/api/korean-trends');
-            const trends = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(`트렌드 API 오류: ${response.status}`);
+            }
+            
+            const responseText = await response.text();
+            if (!responseText || responseText.trim() === '') {
+                throw new Error('트렌드 API에서 빈 응답을 받았습니다');
+            }
+            
+            let trends;
+            try {
+                trends = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('트렌드 JSON 파싱 실패:', parseError);
+                throw new Error('트렌드 데이터를 해석할 수 없습니다');
+            }
             
             // 기존 API 구조에 맞춰 처리
             if (trends.success && trends.data && trends.data.hotKeywords) {
@@ -478,6 +544,7 @@ class SimpleUI {
                 this.displayTrendSuggestions(trends.realtime.slice(0, 6));
             } else {
                 console.warn('트렌드 데이터 형식을 인식할 수 없습니다:', trends);
+                this.showTrendError();
             }
         } catch (error) {
             console.error('트렌드 로드 실패:', error);
@@ -539,8 +606,22 @@ class SimpleUI {
                 body: JSON.stringify({ topic, content, imageType })
             });
             
-            const result = await response.json();
-            return result;
+            if (!response.ok) {
+                throw new Error(`이미지 API 오류: ${response.status}`);
+            }
+            
+            const responseText = await response.text();
+            if (!responseText || responseText.trim() === '') {
+                throw new Error('이미지 API에서 빈 응답을 받았습니다');
+            }
+            
+            try {
+                const result = JSON.parse(responseText);
+                return result;
+            } catch (parseError) {
+                console.error('이미지 JSON 파싱 실패:', parseError);
+                return null;
+            }
         } catch (error) {
             console.error('이미지 생성 실패:', error);
             return null;
@@ -586,7 +667,21 @@ class SimpleUI {
                 })
             });
             
-            return await response.json();
+            if (!response.ok) {
+                throw new Error(`다중 이미지 API 오류: ${response.status}`);
+            }
+            
+            const responseText = await response.text();
+            if (!responseText || responseText.trim() === '') {
+                return null;
+            }
+            
+            try {
+                return JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('다중 이미지 JSON 파싱 실패:', parseError);
+                return null;
+            }
         } catch (error) {
             console.error('다중 이미지 생성 실패:', error);
             return null;
@@ -701,11 +796,27 @@ async function analyzeTrend(keyword) {
             body: JSON.stringify({ keyword, period: '7d' })
         });
         
-        const analysis = await response.json();
+        if (!response.ok) {
+            throw new Error(`트렌드 분석 API 오류: ${response.status}`);
+        }
+        
+        const responseText = await response.text();
+        if (!responseText || responseText.trim() === '') {
+            throw new Error('트렌드 분석에서 빈 응답을 받았습니다');
+        }
+        
+        let analysis;
+        try {
+            analysis = JSON.parse(responseText);
+        } catch (parseError) {
+            console.error('트렌드 분석 JSON 파싱 실패:', parseError);
+            throw new Error('트렌드 분석 결과를 해석할 수 없습니다');
+        }
+        
         displayTrendAnalysis(analysis);
     } catch (error) {
         console.error('트렌드 분석 실패:', error);
-        alert('트렌드 분석에 실패했습니다.');
+        alert(`트렌드 분석에 실패했습니다: ${error.message}`);
     }
 }
 
