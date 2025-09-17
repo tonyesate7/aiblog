@@ -1,8 +1,8 @@
 {
   "name": "ai-blog-generator-v2",
-  "version": "2.0.0",
+  "version": "4.1.0",
   "type": "module",
-  "description": "AI-powered blog content generator with complete blog management system - Version 2.0",
+  "description": "AI-powered blog content generator with Phase 1 Quality Enhancement System - Version 4.1",
   "scripts": {
     "dev": "vite",
     "dev:sandbox": "wrangler pages dev dist --ip 0.0.0.0 --port 3000",
@@ -20,11 +20,10 @@
     "hono": "^4.9.5"
   },
   "devDependencies": {
-    "@hono/vite-build": "^1.2.0",
-    "@hono/vite-dev-server": "^0.18.2",
-    "@cloudflare/workers-types": "4.20250705.0",
+    "@hono/vite-cloudflare-pages": "^0.4.2",
+    "@cloudflare/workers-types": "^4.20250917.0",
     "typescript": "^5.0.0",
-    "vite": "^6.3.5",
-    "wrangler": "^4.4.0"
+    "vite": "^6.3.5", 
+    "wrangler": "^3.78.0"
   }
 }

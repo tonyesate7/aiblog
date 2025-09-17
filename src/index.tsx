@@ -15,21 +15,6 @@ declare function image_generation(params: {
   }>
 }>
 
-// AI 비디오 생성 도구 import (v4.0 신규) - 일시 비활성화
-// declare function video_generation(params: {
-//   query: string
-//   model: string
-//   aspect_ratio: string
-//   duration: number
-//   task_summary: string
-//   image_urls: string[]
-//   file_name?: string
-// }): Promise<{
-//   generated_videos?: Array<{
-//     video_url?: string
-//   }>
-// }>
-
 type Bindings = {
   OPENAI_API_KEY?: string
   CLAUDE_API_KEY?: string
@@ -136,86 +121,6 @@ const aiModels: Record<string, AIModel> = {
 
 // AI API 호출 함수
 async function callAI(model: string, prompt: string, apiKey: string, options: any = {}): Promise<string> {
-  // 🧪 테스트 모드: Phase 1 시스템 데모를 위한 mock 응답
-  if (apiKey === 'demo_mode') {
-    console.log('🎭 Mock AI 응답 생성 중...')
-    
-    // prompt에서 주제 추출
-    const topicMatch = prompt.match(/주제[:\s]*([^\n]+)/)
-    const audienceMatch = prompt.match(/대상[:\s]*([^\n]+)/)
-    const topic = topicMatch ? topicMatch[1].trim() : '건강한 생활습관'
-    const audience = audienceMatch ? audienceMatch[1].trim() : '일반인'
-    
-    // Phase 1 요소가 포함된 고품질 mock 블로그 콘텐츠 생성
-    const mockContent = `# ${topic}에 대한 완벽 가이드
-
-## 혹시 이런 경험 하셨죠? 🤔
-
-${topic}에 대해 고민하면서 "과연 나에게 맞는 방법이 있을까?"라고 생각해본 적이 있으신가요? 
-
-놀랍게도 87%의 사람들이 ${topic}을 시작하고 싶어하지만, 정작 어떻게 시작해야 할지 몰라 포기한다고 합니다.
-
-## 즉시 실행 가능한 3단계 실천법 ✅
-
-### 1단계: 현재 상황 점검하기
-- **지금 바로 할 수 있는 것**: 5분간 현재 상황을 종이에 적어보세요
-- **체크포인트**: 하루 1번, 주 3회 이상 점검
-- **구체적 수치**: 매일 10분씩 투자하면 한 달 후 5시간의 진전을 경험할 수 있습니다
-
-### 2단계: 작은 습관부터 시작
-- **즉시 행동**: 오늘부터 매일 같은 시간에 5분씩 실천하세요  
-- **측정 가능한 목표**: 첫 주는 3회, 둘째 주는 5회, 셋째 주는 7회
-- **실패 방지책**: 알람 설정과 체크리스트 활용
-
-### 3단계: 점진적 확장
-- **단계별 증가**: 주차별로 2-3분씩 시간 연장
-- **구체적 지표**: 한 달 후 20분, 두 달 후 30분 목표
-- **체크포인트**: 매주 일요일 진행 상황 점검
-
-## 전문가들이 말하는 핵심 포인트 📊
-
-서울대 건강증진연구소의 김○○ 교授는 "**작은 변화가 큰 결과를 만든다**"며 "매일 5분의 꾸준한 실천이 6개월 후 완전히 다른 삶을 만든다"고 강조했습니다.
-
-**최신 연구 결과** (2024년 한국건강관리학회):
-- 21일 연속 실천시 습관화 확률: 78%
-- 66일 연속 실천시 자동화 확률: 95%
-- 3개월 지속시 장기 유지 확률: 87%
-
-## 실제 성공 사례 💪
-
-**사례 1**: 직장인 이○○님(32세)
-- **시작 전**: 매일 피곤하고 의욕 없음
-- **3개월 후**: 업무 효율성 40% 향상, 스트레스 50% 감소
-- **핵심 전략**: 아침 5분 루틴으로 시작해서 점진적 확장
-
-## 지금 당장 시작하는 법 🚀
-
-### 오늘 할 일 (5분 투자)
-1. 휴대폰에 알람 3개 설정하기
-2. 체크리스트 앱 다운로드하기  
-3. 가족/친구에게 목표 선언하기
-
-### 이번 주 할 일
-- 월: 5분 실천 + 기록
-- 화: 5분 실천 + 어려웠던 점 메모
-- 수: 5분 실천 + 개선점 찾기
-- 목~일: 지속적 실천 및 패턴 정착
-
-## 마무리하며
-
-${topic}는 하루아침에 이뤄지는 것이 아닙니다. 하지만 **오늘 시작한 5분**이 한 달 후 당신의 일상을 완전히 바꿀 것입니다.
-
-기억하세요: **시작이 반**이라는 말이 있듯이, 완벽한 계획보다는 **지금 당장의 작은 실천**이 더 중요합니다.
-
----
-
-*이 글이 도움이 되셨다면, 지금 바로 첫 번째 단계를 실행해보세요. 작은 시작이 큰 변화의 출발점이 됩니다!*`
-    
-    // 실제 응답처럼 약간의 지연 시뮬레이션
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    
-    return mockContent
-  }
   
   const aiModel = aiModels[model]
   if (!aiModel) {
@@ -2580,24 +2485,67 @@ app.get('/api/keys/status', (c) => {
         ? `✅ ${availableModels.join(', ')} 모델을 API 키 설정 없이 바로 사용하실 수 있습니다! (일일 10회 무료)`
         : '❌ 서버에 구성된 API 키가 없습니다. 개별 API 키를 설정해주세요.'
     })
-  } catch (error) {
-    console.error('API 키 상태 확인 오류:', error)
-    return c.json({
-      claude: false,
-      gemini: false,
-      openai: false,
-      grok: false,
-      availableCount: 0,
-      availableModels: [],
-      canUseDirectly: false,
-      freeUsage: {
-        enabled: false,
-        dailyLimit: 0,
-        note: 'API 키 상태를 확인할 수 없습니다.'
-      },
-      message: '❌ API 키 상태 확인 중 오류가 발생했습니다. 개별 API 키를 설정해주세요.',
-      error: error.message
+  } catch (error: any) {
+    console.error('라이브 API 키 상태 확인 오류:', {
+      error: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
     })
+    
+    return c.json({
+      status: 'error',
+      version: 'v4.1 - 안정화된 버전',
+      summary: {
+        totalConfigured: 0,
+        validLiveKeys: 0,
+        activeLiveKeys: [],
+        message: '❌ 라이브 API 키 상태를 확인할 수 없습니다.',
+        recommendations: [
+          'Cloudflare Pages 대시보드 접속 확인',
+          '환경변수 설정 상태 점검',
+          '서비스 재시작 후 다시 시도'
+        ]
+      },
+      keys: {
+        claude: {
+          exists: false,
+          keyLength: 0,
+          isValid: false,
+          validationReason: '시스템 오류로 인한 확인 불가',
+          dailyLimit: 0,
+          note: '❌ 시스템 오류'
+        },
+        gemini: {
+          exists: false,
+          keyLength: 0,
+          isValid: false,
+          validationReason: '시스템 오류로 인한 확인 불가',
+          dailyLimit: 0,
+          note: '❌ 시스템 오류'
+        },
+        openai: {
+          exists: false,
+          keyLength: 0,
+          isValid: false,
+          validationReason: '시스템 오류로 인한 확인 불가',
+          dailyLimit: 0,
+          note: '❌ 시스템 오류'
+        },
+        grok: {
+          exists: false,
+          keyLength: 0,
+          isValid: false,
+          validationReason: '시스템 오류로 인한 확인 불가',
+          dailyLimit: 0,
+          note: '❌ 시스템 오류'
+        }
+      },
+      timestamp: new Date().toISOString(),
+      message: '❌ 라이브 API 키 상태 확인 중 시스템 오류가 발생했습니다.',
+      error: error.message,
+      code: 'SYSTEM_ERROR',
+      principle: '라이브 API 키 사용 원칙'
+    }, 500)
   }
 })
 
@@ -3298,10 +3246,10 @@ app.post('/api/generate', async (c) => {
         finalApiKey = env.OPENAI_API_KEY
         selectedModel = 'openai'
       } else {
-        // 테스트 모드: API 키가 없을 때 Phase 1 시스템 데모를 위한 mock 응답
-        console.log('🧪 테스트 모드: Mock 응답으로 Phase 1 시스템 데모')
-        finalApiKey = 'demo_mode'
-        selectedModel = 'openai'
+        return c.json({ 
+          error: 'API 키가 설정되지 않았습니다. Cloudflare Pages 환경에서는 wrangler secret으로 API 키를 설정해주세요.',
+          help: 'npx wrangler pages secret put CLAUDE_API_KEY --project-name ai-blog-generator-v2'
+        }, 400)
       }
     }
 
@@ -4428,10 +4376,10 @@ app.get('/', (c) => {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>AI 블로그 생성기 v4.0 - 네이버 실시간 트렌드 + 5개 AI 모델 + 영상 생성</title>
-        <meta name="description" content="실시간 네이버 트렌드와 5개 AI 모델(Claude, Gemini, GPT, GROK, nano-banana)로 고품질 블로그를 자동 생성하고 타이틀 영상까지 제작하는 완전 무료 플랫폼">
-        <meta name="keywords" content="AI 블로그 생성, 네이버 트렌드, Claude, Gemini, GPT, GROK, nano-banana, 이미지 생성, 영상 생성, SEO 최적화">
-        <meta property="og:title" content="AI 블로그 생성기 v4.0 - 영상 생성 추가">
+        <title>AI 블로그 생성기 v4.1 - Phase 1 품질 향상 + 5개 AI 모델</title>
+        <meta name="description" content="실시간 네이버 트렌드와 5개 AI 모델(Claude, Gemini, GPT, GROK, nano-banana)로 89점 품질의 고급 블로그를 자동 생성하는 완전 무료 플랫폼">
+        <meta name="keywords" content="AI 블로그 생성, Phase 1 품질 향상, 네이버 트렌드, Claude, Gemini, GPT, GROK, 이미지 생성, SEO 최적화">
+        <meta property="og:title" content="AI 블로그 생성기 v4.1 - Phase 1 품질 향상 시스템">
         <meta property="og:description" content="네이버 실시간 트렌드 + 5개 AI 모델로 고품질 블로그 자동 생성">
         <meta property="og:type" content="website">
         <meta name="twitter:card" content="summary_large_image">
@@ -4494,16 +4442,16 @@ app.get('/', (c) => {
             <div class="text-center mb-12">
                 <h1 class="text-4xl font-bold text-gray-800 mb-4">
                     <i class="fas fa-robot mr-3 text-blue-600"></i>
-                    AI 블로그 생성기 v4.0 🎬🚀
+                    AI 블로그 생성기 v4.1
                 </h1>
                 <p class="text-xl text-gray-600">
-                    네이버 실시간 트렌드 + 5개 AI 모델 + 타이틀 영상 생성으로 완벽한 멀티미디어 콘텐츠 제작
+                    네이버 실시간 트렌드 + 5개 AI 모델 + Phase 1 품질 향상으로 89점 고품질 콘텐츠 제작
                 </p>
                 <div class="mt-4 flex justify-center space-x-4 text-sm text-gray-500 flex-wrap">
                     <span><i class="fas fa-check text-green-500 mr-1"></i>📡 네이버 실시간 트렌드</span>
                     <span><i class="fas fa-check text-green-500 mr-1"></i>🧠 5-AI 모델 통합</span>
-                    <span><i class="fas fa-check text-green-500 mr-1"></i>🎨 nano-banana 이미지 생성</span>
-                    <span><i class="fas fa-check text-red-500 mr-1"></i>🎬 AI 영상 생성 (v4.0 NEW!)</span>
+                    <span><i class="fas fa-check text-green-500 mr-1"></i>🎨 AI 이미지 생성</span>
+                    <span><i class="fas fa-check text-red-500 mr-1"></i>🔥 Phase 1 품질 향상 (v4.1 NEW!)</span>
                     <span><i class="fas fa-check text-green-500 mr-1"></i>🛡️ 3단계 품질 검증</span>
                     <span><i class="fas fa-check text-blue-500 mr-1"></i>⚡ 완전 무료 사용</span>
                 </div>
@@ -4753,72 +4701,7 @@ app.get('/', (c) => {
                             </div>
                         </div>
 
-                        <!-- 비디오 생성 옵션 섹션 (v4.0 NEW! 🎬) - 일시 비활성화 -->
-                        <!-- <div class="bg-gradient-to-r from-red-50 to-pink-50 p-4 rounded-lg border border-red-200">
-                            <div class="flex items-center justify-between mb-3">
-                                <h3 class="text-lg font-medium text-gray-800">
-                                    <i class="fas fa-video mr-2 text-red-600"></i>
-                                    🎬 AI 타이틀 영상 생성 (v4.0 NEW! 혁신!)
-                                </h3>
-                                <button type="button" id="toggleVideoOptions" class="text-red-600 hover:text-red-800">
-                                    <i class="fas fa-chevron-down"></i>
-                                </button>
-                            </div>
-                            
-                            <div id="videoOptionsSection" class="space-y-4">
-                                <div class="flex items-center">
-                                    <input type="checkbox" id="includeVideo" class="mr-2">
-                                    <label for="includeVideo" class="text-sm text-gray-700 font-medium">블로그 타이틀에 어울리는 5초 인트로 영상 생성</label>
-                                </div>
-                                
-                                <div class="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">영상 스타일</label>
-                                        <select id="videoStyle" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                                            <option value="professional" selected>💼 전문적 - 깔끔한 비즈니스 스타일</option>
-                                            <option value="creative">🎨 창의적 - 다이나믹한 트렌디 스타일</option>
-                                            <option value="news">📺 뉴스 - 브로드캐스트 스타일</option>
-                                            <option value="cinematic">🎭 시네마틱 - 영화같은 드라마틱</option>
-                                            <option value="minimal">⚪ 미니멀 - 깔끔하고 단순한</option>
-                                            <option value="tech">🚀 하이테크 - 미래지향적 기술</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">화면 비율</label>
-                                        <select id="videoAspectRatio" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                                            <option value="16:9" selected>16:9 - 유튜브/웹 표준</option>
-                                            <option value="9:16">9:16 - 쇼츠/틱톡/인스타</option>
-                                            <option value="1:1">1:1 - 인스타그램 피드</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                
-                                <div class="text-sm text-red-600 bg-white p-3 rounded border">
-                                    <div class="space-y-2">
-                                        <div class="flex items-start">
-                                            <i class="fas fa-rocket text-red-500 mr-2 mt-0.5"></i>
-                                            <span><strong>🚀 v4.0 혁신:</strong> 업계 최초 블로그→영상 자동 변환 시스템</span>
-                                        </div>
-                                        <div class="flex items-start">
-                                            <i class="fas fa-magic text-purple-500 mr-2 mt-0.5"></i>
-                                            <span><strong>AI 맞춤 생성:</strong> 타이틀 분석으로 완벽하게 어울리는 5초 인트로 영상</span>
-                                        </div>
-                                        <div class="flex items-start">
-                                            <i class="fas fa-clock text-blue-500 mr-2 mt-0.5"></i>
-                                            <span><strong>생성 시간:</strong> 30초-2분 (Gemini Veo3 등 최신 모델 사용)</span>
-                                        </div>
-                                        <div class="flex items-start">
-                                            <i class="fas fa-share-alt text-green-500 mr-2 mt-0.5"></i>
-                                            <span><strong>소셜미디어 최적화:</strong> 유튜브, 틱톡, 인스타그램 바로 업로드 가능</span>
-                                        </div>
-                                        <div class="flex items-start">
-                                            <i class="fas fa-chart-line text-orange-500 mr-2 mt-0.5"></i>
-                                            <span><strong>참여도 300% 증가:</strong> 영상 콘텐츠로 클릭률과 공유율 대폭 향상</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div> -->
+
 
                         <!-- 이미지 생성 옵션 섹션 (NEW! 🎨) -->
                         <div class="bg-purple-50 p-4 rounded-lg">
@@ -5498,381 +5381,14 @@ async function callGeminiImageAPI(prompt: string, apiKey: string, referenceImage
   throw new Error('Gemini에서 유효한 응답을 받지 못했습니다')
 }
 
-// ==================== 비디오 생성 시스템 (v4.0) ====================
 
-// 비디오 스타일별 프롬프트 최적화
-function optimizeVideoPromptForStyle(title: string, style: string): string {
-  const basePrompt = `Create a 5-second professional video intro for the title: "${title}"`
-  
-  const stylePrompts = {
-    professional: `${basePrompt}. Corporate style with clean typography animation, professional blue/gray color scheme, subtle particle effects, elegant text reveals. Modern business aesthetic with smooth transitions.`,
-    
-    creative: `${basePrompt}. Creative and dynamic style with vibrant colors, energetic transitions, modern gradients (purple/blue/pink), floating elements, kinetic typography. Trendy and engaging visual effects.`,
-    
-    news: `${basePrompt}. News broadcast style with breaking news aesthetic, red/white/blue color scheme, lower third graphics, professional news room ambiance, bold typography, urgent feel.`,
-    
-    cinematic: `${basePrompt}. Cinematic movie trailer style with dramatic lighting, film grain effect, epic orchestral mood, dark atmospheric background, golden hour lighting, Hollywood-style text reveals.`,
-    
-    minimal: `${basePrompt}. Clean minimal design with white background, simple black typography, subtle shadows, gentle fade animations, Swiss design aesthetic, plenty of white space.`,
-    
-    tech: `${basePrompt}. High-tech futuristic style with neon blue/cyan colors, digital grid background, glitch effects, holographic elements, sci-fi aesthetic, circuit board patterns.`
-  }
-  
-  return stylePrompts[style as keyof typeof stylePrompts] || stylePrompts.professional
-}
 
-// 비디오 모델 선택 로직
-function selectOptimalVideoModel(style: string): string {
-  const modelMapping = {
-    professional: 'gemini/veo3/fast',      // 빠르고 전문적
-    creative: 'kling/v2.1/standard',       // 고품질 창의적 
-    news: 'minimax/hailuo-02/standard',    // 뉴스 스타일 특화
-    cinematic: 'gemini/veo3',              // 최고 품질 시네마틱
-    minimal: 'gemini/veo3/fast',           // 빠른 미니멀
-    tech: 'kling/v2.1/standard'            // 하이테크 효과
-  }
-  
-  return modelMapping[style as keyof typeof modelMapping] || 'gemini/veo3/fast'
-}
 
-// 텍스트 + 비디오 통합 생성 API (v4.0) - 일시 비활성화
-/* app.post('/api/generate-with-video', async (c) => {
-  try {
-    const { topic, audience, tone, aiModel, apiKey, videoStyle = 'professional', videoAspectRatio = '16:9' } = await c.req.json()
-    
-    console.log(`🎬 텍스트+비디오 생성 시작: "${topic}" (${aiModel} + ${videoStyle} 영상)`)
-    
-    // 1단계: 텍스트 생성
-    let blogContent = ''
-    try {
-      const textResponse = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic, audience, tone, aiModel, apiKey })
-      })
-      
-      if (textResponse.ok) {
-        const textResult = await textResponse.json()
-        blogContent = textResult.content
-        console.log('✅ 1단계: 텍스트 생성 완료')
-      } else {
-        throw new Error('텍스트 생성 실패')
-      }
-    } catch (error) {
-      console.error('❌ 텍스트 생성 실패:', error)
-      return c.json({
-        success: false,
-        error: '텍스트 생성 중 오류가 발생했습니다',
-        stage: 'text_generation'
-      }, 500)
-    }
-    
-    // 2단계: 비디오 생성
-    let generatedVideo = null
-    try {
-      console.log('🎬 2단계: 타이틀 영상 생성 시작...')
-      
-      const videoResponse = await fetch('/api/generate-title-video', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          title: topic, 
-          style: videoStyle, 
-          aspectRatio: videoAspectRatio 
-        })
-      })
-      
-      if (videoResponse.ok) {
-        const videoResult = await videoResponse.json()
-        if (videoResult.success) {
-          generatedVideo = videoResult.video
-          console.log('✅ 2단계: 비디오 생성 완료')
-        } else {
-          console.log('⚠️ 비디오 생성 실패, 텍스트만 제공')
-        }
-      }
-    } catch (error) {
-      console.error('❌ 비디오 생성 실패 (계속 진행):', error)
-    }
-    
-    // 최종 결과
-    return c.json({
-      success: true,
-      content: blogContent,
-      video: generatedVideo,
-      metadata: {
-        model: aiModel,
-        topic: topic,
-        audience: audience,
-        tone: tone,
-        videoStyle: videoStyle,
-        videoAspectRatio: videoAspectRatio,
-        generatedAt: new Date().toISOString(),
-        hasVideo: !!generatedVideo
-      },
-      message: `"${topic}" 주제의 텍스트+비디오 블로그가 성공적으로 생성되었습니다!`
-    })
-    
-  } catch (error: any) {
-    console.error('텍스트+비디오 생성 중 오류:', error)
-    
-    return c.json({
-      success: false,
-      error: '텍스트+비디오 생성 중 오류가 발생했습니다',
-      details: error.message
-    }, 500)
-  }
-})
-*/
 
-// 텍스트 + 이미지 + 비디오 풀스택 생성 API (v4.0 풀스택) - 일시 비활성화
-/* app.post('/api/generate-multimedia', async (c) => {
-  try {
-    const { 
-      topic, audience, tone, aiModel, apiKey, 
-      imageStyle = 'professional', imageCount = 3,
-      videoStyle = 'professional', videoAspectRatio = '16:9' 
-    } = await c.req.json()
-    
-    console.log(`🚀 풀스택 멀티미디어 생성 시작: "${topic}" (${aiModel} + 이미지 ${imageCount}개 + 영상)`)
-    
-    // 1단계: 텍스트 생성
-    let blogContent = ''
-    try {
-      const textResponse = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic, audience, tone, aiModel, apiKey })
-      })
-      
-      if (textResponse.ok) {
-        const textResult = await textResponse.json()
-        blogContent = textResult.content
-        console.log('✅ 1단계: 텍스트 생성 완료')
-      } else {
-        throw new Error('텍스트 생성 실패')
-      }
-    } catch (error) {
-      console.error('❌ 텍스트 생성 실패:', error)
-      return c.json({
-        success: false,
-        error: '텍스트 생성 중 오류가 발생했습니다',
-        stage: 'text_generation'
-      }, 500)
-    }
-    
-    // 2단계: 병렬로 이미지와 비디오 생성
-    const [imageResult, videoResult] = await Promise.allSettled([
-      // 이미지 생성
-      fetch('/api/generate-images', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          topic, 
-          content: blogContent,
-          style: imageStyle, 
-          count: imageCount 
-        })
-      }).then(res => res.ok ? res.json() : null),
-      
-      // 비디오 생성
-      fetch('/api/generate-title-video', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          title: topic, 
-          style: videoStyle, 
-          aspectRatio: videoAspectRatio 
-        })
-      }).then(res => res.ok ? res.json() : null)
-    ])
-    
-    // 결과 처리
-    let generatedImages = []
-    let generatedVideo = null
-    
-    if (imageResult.status === 'fulfilled' && imageResult.value?.success) {
-      generatedImages = imageResult.value.images || []
-      console.log(`✅ 2-A단계: 이미지 생성 완료 (${generatedImages.length}개)`)
-    } else {
-      console.log('⚠️ 이미지 생성 실패')
-    }
-    
-    if (videoResult.status === 'fulfilled' && videoResult.value?.success) {
-      generatedVideo = videoResult.value.video
-      console.log('✅ 2-B단계: 비디오 생성 완료')
-    } else {
-      console.log('⚠️ 비디오 생성 실패')
-    }
-    
-    // 3단계: 이미지를 블로그 콘텐츠에 통합
-    let finalContent = blogContent
-    if (generatedImages.length > 0) {
-      finalContent = integateImagesToContent(blogContent, generatedImages)
-    }
-    
-    return c.json({
-      success: true,
-      content: finalContent,
-      images: generatedImages,
-      video: generatedVideo,
-      metadata: {
-        model: aiModel,
-        topic: topic,
-        audience: audience,
-        tone: tone,
-        imageStyle: imageStyle,
-        imageCount: generatedImages.length,
-        videoStyle: videoStyle,
-        videoAspectRatio: videoAspectRatio,
-        generatedAt: new Date().toISOString(),
-        hasImages: generatedImages.length > 0,
-        hasVideo: !!generatedVideo,
-        isFullMultimedia: generatedImages.length > 0 && !!generatedVideo
-      },
-      message: `"${topic}" 주제의 완전한 멀티미디어 블로그가 성공적으로 생성되었습니다! (텍스트 + 이미지 ${generatedImages.length}개 + 영상)`
-    })
-    
-  } catch (error: any) {
-    console.error('풀스택 멀티미디어 생성 중 오류:', error)
-    
-    return c.json({
-      success: false,
-      error: '풀스택 멀티미디어 생성 중 오류가 발생했습니다',
-      details: error.message
-    }, 500)
-  }
-})
 
-// 이미지를 콘텐츠에 통합하는 유틸리티 함수
-function integateImagesToContent(content: string, images: any[]): string {
-  if (!images || images.length === 0) return content
-  
-  const sections = content.split('\n\n')
-  let imageIndex = 0
-  
-  return sections.map((section, index) => {
-    if (imageIndex < images.length && (index === 1 || index === Math.floor(sections.length / 2) || index === sections.length - 2)) {
-      const image = images[imageIndex]
-      imageIndex++
-      return `${section}\n\n![${image.alt || '관련 이미지'}](${image.url})`
-    }
-    return section
-  }).join('\n\n')
-}
-*/
 
-// 메인 타이틀 5초 영상 생성 API - 일시 비활성화
-/* app.post('/api/generate-title-video', async (c) => {
-  try {
-    const { title, style = 'professional', aspectRatio = '16:9' } = await c.req.json()
-    
-    if (!title) {
-      return c.json({
-        success: false,
-        error: '영상을 생성할 타이틀을 입력해주세요.'
-      }, 400)
-    }
 
-    console.log(`🎬 타이틀 영상 생성 시작: "${title}" (${style} 스타일)`)
 
-    // 프롬프트 최적화
-    const optimizedPrompt = optimizeVideoPromptForStyle(title, style)
-    
-    // 최적 모델 선택
-    const selectedModel = selectOptimalVideoModel(style)
-    
-    // 파일명 생성
-    const fileName = `title_video_${Date.now()}`
-    
-    console.log(`🎯 선택된 모델: ${selectedModel}`)
-    console.log(`📝 최적화된 프롬프트: ${optimizedPrompt.substring(0, 100)}...`)
 
-    // 비디오 생성 API 호출
-    const videoResult = await video_generation({
-      query: optimizedPrompt,
-      model: selectedModel,
-      aspect_ratio: aspectRatio,
-      duration: 5,
-      task_summary: `Generate a 5-second ${style} style video intro for blog title: "${title}"`,
-      image_urls: [],
-      file_name: fileName
-    })
-
-    if (videoResult.generated_videos && videoResult.generated_videos.length > 0) {
-      const videoUrl = videoResult.generated_videos[0].video_url
-      
-      if (videoUrl) {
-        console.log(`✅ 타이틀 영상 생성 성공: ${videoUrl}`)
-        
-        return c.json({
-          success: true,
-          video: {
-            url: videoUrl,
-            title: title,
-            style: style,
-            duration: 5,
-            aspectRatio: aspectRatio,
-            model: selectedModel
-          },
-          metadata: {
-            generatedAt: new Date().toISOString(),
-            prompt: optimizedPrompt,
-            fileName: fileName
-          },
-          message: `"${title}" 타이틀 영상이 성공적으로 생성되었습니다! (${style} 스타일)`
-        })
-      }
-    }
-
-    // 영상 생성 실패시 대체 응답
-    console.log(`❌ 타이틀 영상 생성 실패 - 대체 플레이스홀더 제공`)
-    
-    return c.json({
-      success: false,
-      error: '영상 생성에 실패했습니다',
-      fallback: {
-        placeholderVideo: `https://via.placeholder.com/1280x720/4F46E5/FFFFFF?text=${encodeURIComponent(title)}`,
-        title: title,
-        style: style,
-        message: '현재 영상 생성 서비스에 일시적인 문제가 있습니다. 잠시 후 다시 시도해주세요.'
-      }
-    }, 500)
-
-  } catch (error: any) {
-    console.error('타이틀 영상 생성 중 오류:', error)
-    
-    return c.json({
-      success: false,
-      error: '타이틀 영상 생성 중 오류가 발생했습니다',
-      details: error.message,
-      fallback: {
-        message: '영상 생성 기능을 일시적으로 사용할 수 없습니다. 텍스트 블로그로 계속 진행하시거나 나중에 다시 시도해주세요.'
-      }
-    }, 500)
-  }
-})
-*/
-
-// 비디오 생성 상태 확인 API (선택사항) - 일시 비활성화
-/* app.get('/api/video-generation-status', async (c) => {
-  return c.json({
-    success: true,
-    status: 'active',
-    supportedStyles: [
-      { id: 'professional', name: '전문적', description: '깔끔한 비즈니스 스타일' },
-      { id: 'creative', name: '창의적', description: '다이나믹하고 트렌디한 스타일' },
-      { id: 'news', name: '뉴스', description: '뉴스 브로드캐스트 스타일' },
-      { id: 'cinematic', name: '시네마틱', description: '영화같은 드라마틱 스타일' },
-      { id: 'minimal', name: '미니멀', description: '깔끔하고 단순한 스타일' },
-      { id: 'tech', name: '하이테크', description: '미래지향적 기술 스타일' }
-    ],
-    supportedAspectRatios: ['16:9', '9:16', '1:1'],
-    maxDuration: 5,
-    version: '4.0',
-    message: 'AI 비디오 생성 기능이 활성화되었습니다!'
-  })
-})
-*/
 
 export default app

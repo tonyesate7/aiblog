@@ -1,5 +1,5 @@
-// ==================== AI 블로그 생성기 v4.0 ====================
-// 차세대 멀티미디어 콘텐츠 플랫폼 - 비디오 생성 기능 추가
+// ==================== AI 블로그 생성기 v4.1 ====================
+// Phase 1 품질 향상 시스템 + 5개 AI 모델 통합 플랫폼
 
 class BlogGenerator {
     constructor() {
@@ -13,7 +13,7 @@ class BlogGenerator {
         this.initializeTutorial()
         this.initializeBlogEditor()
         
-        console.log('🚀 AI 블로그 생성기 v4.0 초기화 완료 (비디오 생성 기능 추가)')
+        console.log('🚀 AI 블로그 생성기 v4.1 초기화 완료 (Phase 1 품질 향상 시스템)')
         
         // 블로그 에디터 상태
         this.isEditMode = false
