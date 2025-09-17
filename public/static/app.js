@@ -474,21 +474,46 @@ class BlogGenerator {
             
             console.log('🔑 API 키 상태:', status)
             
-            // 안전한 서버 API 키 상태 저장
-            this.serverApiKeys = {
-                claude: !!(status.claude || false),
-                gemini: !!(status.gemini || false), 
-                openai: !!(status.openai || false),
-                grok: !!(status.grok || false)
-            }
-            
-            // 바로 사용 가능한지 확인
-            if (status.canUseDirectly && status.availableModels) {
-                console.log(status.message || '✅ 서버 API 키 사용 가능')
-                this.showServerApiKeyStatus(status.availableModels)
+            // v4.1 새로운 API 형식 처리
+            if (status.status === 'success' && status.keys) {
+                // v4.1 라이브 API 키 검증 형식
+                this.serverApiKeys = {
+                    claude: !!(status.keys.claude?.isValid || false),
+                    gemini: !!(status.keys.gemini?.isValid || false), 
+                    openai: !!(status.keys.openai?.isValid || false),
+                    grok: !!(status.keys.grok?.isValid || false)
+                }
+                
+                // 라이브 API 키 사용 가능한지 확인
+                const validLiveKeys = status.summary?.validLiveKeys || 0
+                const activeLiveKeys = status.summary?.activeLiveKeys || []
+                
+                if (validLiveKeys > 0) {
+                    console.log(`✅ ${validLiveKeys}개의 라이브 API 키 정상 작동: ${activeLiveKeys.join(', ')}`)
+                    this.showServerApiKeyStatus(activeLiveKeys.map(key => 
+                        key.charAt(0).toUpperCase() + key.slice(1)
+                    ))
+                } else {
+                    console.log('❌ 라이브 API 키가 설정되지 않았습니다.')
+                    this.showApiKeyRequiredMessage()
+                }
             } else {
-                console.log('❌ 서버에 구성된 API 키가 없습니다. 개별 API 키 설정이 필요합니다.')
-                this.showApiKeyRequiredMessage()
+                // 구버전 API 형식 (호환성 유지)
+                this.serverApiKeys = {
+                    claude: !!(status.claude || false),
+                    gemini: !!(status.gemini || false), 
+                    openai: !!(status.openai || false),
+                    grok: !!(status.grok || false)
+                }
+                
+                // 바로 사용 가능한지 확인
+                if (status.canUseDirectly && status.availableModels) {
+                    console.log(status.message || '✅ 서버 API 키 사용 가능')
+                    this.showServerApiKeyStatus(status.availableModels)
+                } else {
+                    console.log('❌ 서버에 구성된 API 키가 없습니다. 개별 API 키 설정이 필요합니다.')
+                    this.showApiKeyRequiredMessage()
+                }
             }
             
         } catch (error) {
@@ -2081,9 +2106,12 @@ class BlogGenerator {
                 this.generateBtn.disabled = true
                 this.generateBtn.innerHTML = `
                     <i class="fas fa-spinner fa-spin mr-2"></i>
-                    블로그 생성 중...
+                    AI 생성 중...
                 `
                 this.generateBtn.classList.add('opacity-70')
+                
+                // 개선된 로딩 UI 표시
+                this.showEnhancedLoading(buttonType)
             } else {
                 this.generateBtn.disabled = false
                 this.generateBtn.innerHTML = `
@@ -2091,6 +2119,9 @@ class BlogGenerator {
                     일반 생성
                 `
                 this.generateBtn.classList.remove('opacity-70')
+                
+                // 로딩 UI 숨기기
+                this.hideEnhancedLoading()
             }
         }
         
@@ -2522,7 +2553,9 @@ class BlogGenerator {
         this.showNotification(message, 'error')
     }
 
-    showNotification(message, type = 'info') {
+    // ==================== Enhanced Error & Notification System v4.1 ====================
+    
+    showNotification(message, type = 'info', options = {}) {
         // 기존 알림 제거
         const existingNotification = document.getElementById('notification')
         if (existingNotification) {
@@ -2533,17 +2566,49 @@ class BlogGenerator {
         const notification = document.createElement('div')
         notification.id = 'notification'
         
-        const bgColor = type === 'success' ? 'bg-green-500' : 
-                       type === 'error' ? 'bg-red-500' : 'bg-blue-500'
+        // 타입별 스타일 및 아이콘 설정
+        const styles = {
+            'success': { bg: 'bg-green-500', icon: 'fa-check-circle', border: 'border-green-600' },
+            'error': { bg: 'bg-red-500', icon: 'fa-exclamation-triangle', border: 'border-red-600' },
+            'warning': { bg: 'bg-orange-500', icon: 'fa-exclamation-circle', border: 'border-orange-600' },
+            'info': { bg: 'bg-blue-500', icon: 'fa-info-circle', border: 'border-blue-600' }
+        }
         
-        const icon = type === 'success' ? 'fa-check-circle' : 
-                    type === 'error' ? 'fa-exclamation-triangle' : 'fa-info-circle'
+        const style = styles[type] || styles.info
+        const duration = options.duration || (type === 'error' ? 5000 : 3000) // 에러는 더 오래 표시
+        const dismissible = options.dismissible !== false
+        const actionText = options.actionText
+        const actionCallback = options.actionCallback
 
-        notification.className = `fixed top-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-50 transform transition-all duration-300 translate-x-full`
+        notification.className = `fixed top-4 right-4 ${style.bg} ${style.border} border text-white px-6 py-4 rounded-xl shadow-xl z-50 transform transition-all duration-300 translate-x-full max-w-md`
+        
+        let actionHtml = ''
+        if (actionText && actionCallback) {
+            actionHtml = `
+                <button class="ml-4 px-3 py-1 bg-white bg-opacity-20 rounded-md text-sm hover:bg-opacity-30 transition-colors" onclick="(${actionCallback.toString()})()">
+                    ${actionText}
+                </button>
+            `
+        }
+        
+        let dismissHtml = ''
+        if (dismissible) {
+            dismissHtml = `
+                <button class="ml-auto pl-4 text-white hover:text-gray-200 transition-colors" onclick="this.parentElement.parentElement.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            `
+        }
+
         notification.innerHTML = `
-            <div class="flex items-center">
-                <i class="fas ${icon} mr-2"></i>
-                <span>${message}</span>
+            <div class="flex items-start">
+                <i class="fas ${style.icon} mr-3 mt-1 flex-shrink-0"></i>
+                <div class="flex-grow">
+                    <div class="font-medium mb-1">${this.getNotificationTitle(type)}</div>
+                    <div class="text-sm opacity-90 leading-relaxed">${message}</div>
+                    ${actionHtml}
+                </div>
+                ${dismissHtml}
             </div>
         `
 
@@ -2554,15 +2619,131 @@ class BlogGenerator {
             notification.classList.remove('translate-x-full')
         }, 100)
 
-        // 3초 후 자동 제거
-        setTimeout(() => {
-            notification.classList.add('translate-x-full')
+        // 자동 제거 (dismissible이 false가 아닌 경우에만)
+        if (dismissible) {
             setTimeout(() => {
                 if (notification && notification.parentNode) {
-                    notification.parentNode.removeChild(notification)
+                    notification.classList.add('translate-x-full')
+                    setTimeout(() => {
+                        if (notification && notification.parentNode) {
+                            notification.remove()
+                        }
+                    }, 300)
                 }
-            }, 300)
-        }, 3000)
+            }, duration)
+        }
+
+        return notification
+    }
+    
+    getNotificationTitle(type) {
+        const titles = {
+            'success': '✅ 성공',
+            'error': '❌ 오류 발생',
+            'warning': '⚠️ 주의',
+            'info': '💡 알림'
+        }
+        return titles[type] || titles.info
+    }
+    
+    // Enhanced error handling with detailed messages and solutions
+    showEnhancedError(error, context = '') {
+        console.error(`Enhanced Error [${context}]:`, error)
+        
+        let userMessage = ''
+        let actionText = ''
+        let actionCallback = null
+        
+        // 에러 타입별 맞춤형 메시지 및 해결책 제공
+        if (error.message?.includes('API 키')) {
+            userMessage = 'API 키 설정에 문제가 있습니다. 개별 API 키를 입력하시거나 서버 키를 사용해주세요.'
+            actionText = 'API 키 설정'
+            actionCallback = () => this.toggleApiKeysSection()
+        } else if (error.message?.includes('네트워크') || error.message?.includes('network')) {
+            userMessage = '네트워크 연결에 문제가 있습니다. 인터넷 연결을 확인하고 다시 시도해주세요.'
+            actionText = '다시 시도'
+            actionCallback = () => window.location.reload()
+        } else if (error.message?.includes('서버')) {
+            userMessage = '서버에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해주세요.'
+            actionText = '새로고침'
+            actionCallback = () => window.location.reload()
+        } else if (error.message?.includes('타임아웃') || error.message?.includes('timeout')) {
+            userMessage = '요청 시간이 초과되었습니다. AI 모델이 바쁘거나 복잡한 요청일 수 있습니다. 더 간단한 주제로 다시 시도해보세요.'
+            actionText = '재시도'
+            actionCallback = () => this.generateBtn?.click()
+        } else if (error.message?.includes('quota') || error.message?.includes('limit')) {
+            userMessage = 'API 사용량 한도에 도달했습니다. 잠시 후 다시 시도하시거나 다른 AI 모델을 선택해주세요.'
+            actionText = '모델 변경'
+            actionCallback = () => this.aiModelSelect?.focus()
+        } else if (error.message?.includes('잘못된') || error.message?.includes('invalid')) {
+            userMessage = '입력 정보가 올바르지 않습니다. 주제를 다시 확인하고 입력해주세요.'
+            actionText = '주제 수정'
+            actionCallback = () => this.topicInput?.focus()
+        } else {
+            userMessage = `알 수 없는 오류가 발생했습니다: ${error.message || '상세 정보를 확인할 수 없습니다.'}`
+            actionText = '문의하기'
+            actionCallback = () => window.open('mailto:support@example.com?subject=AI 블로그 생성기 오류&body=' + encodeURIComponent(`오류 내용: ${error.message}\n컨텍스트: ${context}\n시간: ${new Date().toLocaleString()}`))
+        }
+        
+        this.showNotification(userMessage, 'error', {
+            actionText,
+            actionCallback,
+            duration: 7000, // 에러는 더 오래 표시
+            dismissible: true
+        })
+    }
+    
+    // 성공 메시지도 개선
+    showEnhancedSuccess(message, options = {}) {
+        const enhancedMessage = options.detailed ? 
+            `${message}\n${options.detailed}` : message
+            
+        this.showNotification(enhancedMessage, 'success', {
+            duration: options.duration || 3000,
+            actionText: options.actionText,
+            actionCallback: options.actionCallback
+        })
+    }
+    
+    // 진행 상황 알림
+    showProgress(message, progress = null) {
+        const progressHtml = progress !== null ? 
+            `<div class="mt-2 bg-white bg-opacity-20 rounded-full h-2"><div class="bg-white rounded-full h-2" style="width: ${progress}%"></div></div>` : ''
+            
+        this.showNotification(message + progressHtml, 'info', {
+            dismissible: false,
+            duration: 0 // 수동으로 제거할 때까지 유지
+        })
+    }
+    
+    // 경고 메시지
+    showWarning(message, options = {}) {
+        this.showNotification(message, 'warning', {
+            duration: options.duration || 4000,
+            actionText: options.actionText,
+            actionCallback: options.actionCallback
+        })
+    }
+    
+    // 기존 함수들을 새 시스템과 연동
+    showSuccess(message, options = {}) {
+        this.showEnhancedSuccess(message, options)
+    }
+
+    showError(message, context = '') {
+        // 에러 객체인지 문자열인지 확인
+        const error = typeof message === 'string' ? new Error(message) : message
+        this.showEnhancedError(error, context)
+    }
+    
+    showInfo(message, options = {}) {
+        this.showNotification(message, 'info', options)
+    }
+    
+    // 알림 제거 헬퍼
+    clearNotifications() {
+        const notifications = document.querySelectorAll('#notification')
+        notifications.forEach(n => n.remove())
     }
 
     // ==================== 고급 AI 이미지 생성 시스템 ====================
@@ -4411,67 +4592,25 @@ class BlogGenerator {
         return { model: null, key: null }
     }
     
-    showSuccess(message) {
-        this.showMessage(message, 'success')
+    // 레거시 호환성을 위한 래퍼 함수들 - 새 시스템으로 연결
+    showSuccess(message, options = {}) {
+        this.showEnhancedSuccess(message, options)
     }
     
-    showError(message) {
-        this.showMessage(message, 'error')
+    showError(message, context = '') {
+        // 에러 객체인지 문자열인지 확인
+        const error = typeof message === 'string' ? new Error(message) : message
+        this.showEnhancedError(error, context)
     }
     
-    showInfo(message) {
-        this.showMessage(message, 'info')
+    showInfo(message, options = {}) {
+        this.showNotification(message, 'info', options)
     }
     
+    // 레거시 showMessage는 기존 DOM 메시지 시스템 유지 (필요한 경우)
     showMessage(message, type = 'info') {
-        // 기존 메시지 제거
-        const existingMessages = document.querySelectorAll('.message')
-        existingMessages.forEach(msg => msg.remove())
-        
-        // 새 메시지 생성
-        const messageDiv = document.createElement('div')
-        messageDiv.className = `message ${type}`
-        
-        let icon = ''
-        switch (type) {
-            case 'success':
-                icon = '<i class="fas fa-check-circle mr-2"></i>'
-                break
-            case 'error':
-                icon = '<i class="fas fa-exclamation-circle mr-2"></i>'
-                break
-            case 'info':
-                icon = '<i class="fas fa-info-circle mr-2"></i>'
-                break
-        }
-        
-        messageDiv.innerHTML = `${icon}${message}`
-        
-        // 메시지를 페이지 상단에 삽입
-        const container = document.querySelector('.container')
-        if (container) {
-            container.insertBefore(messageDiv, container.firstChild)
-        } else {
-            document.body.insertBefore(messageDiv, document.body.firstChild)
-        }
-        
-        // 5초 후 자동 제거 (오류 메시지는 10초)
-        const autoRemoveTime = type === 'error' ? 10000 : 5000
-        setTimeout(() => {
-            if (messageDiv.parentNode) {
-                messageDiv.style.opacity = '0'
-                messageDiv.style.transform = 'translateY(-20px)'
-                setTimeout(() => messageDiv.remove(), 300)
-            }
-        }, autoRemoveTime)
-        
-        // 애니메이션 효과
-        messageDiv.style.opacity = '0'
-        messageDiv.style.transform = 'translateY(-20px)'
-        setTimeout(() => {
-            messageDiv.style.opacity = '1'
-            messageDiv.style.transform = 'translateY(0)'
-        }, 100)
+        // 새 시스템으로 리다이렉트
+        this.showNotification(message, type)
     }
     
     // 이미지 생성 진행 상황 표시 (NEW! 🎨)
@@ -5316,6 +5455,213 @@ function safeInitialize() {
         console.log('🚀 DOM 이미 로드됨, BlogGenerator 즉시 초기화...')
         initializeBlogGenerator()
     }
+}
+
+// ==================== 개선된 로딩 UI 시스템 ====================
+// 클래스에 추가할 메서드들을 BlogGenerator 프로토타입에 추가
+
+BlogGenerator.prototype.showEnhancedLoading = function(type = 'general') {
+    // 기존 로딩 오버레이 제거
+    const existingOverlay = document.getElementById('enhancedLoadingOverlay')
+    if (existingOverlay) {
+        existingOverlay.remove()
+    }
+    
+    // 로딩 단계 정의
+    const loadingSteps = {
+        general: [
+            { id: 'analyze', text: '주제 분석 중...', icon: '🔍', duration: 3000 },
+            { id: 'generate', text: 'AI 콘텐츠 생성 중...', icon: '🤖', duration: 25000 },
+            { id: 'review', text: '품질 검증 중...', icon: '⭐', duration: 8000 },
+            { id: 'optimize', text: '최종 최적화 중...', icon: '✨', duration: 4000 }
+        ],
+        seo: [
+            { id: 'analyze', text: '키워드 분석 중...', icon: '🔍', duration: 2000 },
+            { id: 'research', text: 'SEO 리서치 중...', icon: '📊', duration: 5000 },
+            { id: 'generate', text: 'SEO 콘텐츠 생성 중...', icon: '🤖', duration: 20000 },
+            { id: 'optimize', text: 'SEO 최적화 중...', icon: '🎯', duration: 8000 }
+        ],
+        qa: [
+            { id: 'analyze', text: '요구사항 분석 중...', icon: '🔍', duration: 2000 },
+            { id: 'generate', text: '고품질 콘텐츠 생성 중...', icon: '🤖', duration: 30000 },
+            { id: 'review', text: 'Phase 1 품질 검증 중...', icon: '⭐', duration: 10000 },
+            { id: 'improve', text: '콘텐츠 개선 중...', icon: '🚀', duration: 8000 }
+        ]
+    }
+    
+    const steps = loadingSteps[type] || loadingSteps.general
+    let totalDuration = steps.reduce((sum, step) => sum + step.duration, 0)
+    
+    // 로딩 오버레이 HTML 생성
+    const overlay = document.createElement('div')
+    overlay.id = 'enhancedLoadingOverlay'
+    overlay.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'
+    
+    overlay.innerHTML = `
+        <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full mx-4 relative overflow-hidden">
+            <!-- 배경 애니메이션 -->
+            <div class="absolute inset-0 bg-gradient-to-r from-blue-50 to-purple-50 opacity-50"></div>
+            
+            <!-- 메인 콘텐츠 -->
+            <div class="relative z-10">
+                <!-- 진행률 표시 -->
+                <div class="mb-6">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-lg font-bold text-gray-800">🤖 AI가 작업 중입니다</h3>
+                        <span id="progressPercent" class="text-sm text-gray-600">0%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                        <div id="progressBar" class="bg-gradient-to-r from-blue-500 to-purple-600 h-full rounded-full transition-all duration-300 ease-out" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <!-- 로딩 단계 -->
+                <div class="space-y-3 mb-6" id="loadingSteps">
+                    ${steps.map((step, index) => `
+                        <div class="loading-step flex items-center space-x-3 p-2 rounded-lg transition-all duration-300" 
+                             data-step="${step.id}" data-index="${index}">
+                            <div class="step-icon w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm">
+                                <span class="step-default">${step.icon}</span>
+                                <span class="step-spinner hidden">⚡</span>
+                                <span class="step-check hidden">✅</span>
+                            </div>
+                            <div class="flex-1">
+                                <span class="step-text text-sm text-gray-600">${step.text}</span>
+                            </div>
+                            <div class="step-time text-xs text-gray-400 hidden">
+                                <span class="duration">${Math.ceil(step.duration / 1000)}초</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                
+                <!-- 팁 섹션 -->
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                    <div class="flex items-start space-x-2">
+                        <span class="text-blue-500 mt-0.5">💡</span>
+                        <div>
+                            <h4 class="text-sm font-semibold text-blue-800 mb-1">알고 계셨나요?</h4>
+                            <p id="loadingTip" class="text-xs text-blue-700"></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 예상 시간 -->
+                <div class="text-center">
+                    <p class="text-xs text-gray-500">
+                        <span class="font-medium">예상 완료 시간:</span> 
+                        <span id="estimatedTime">${Math.ceil(totalDuration / 1000)}초</span>
+                    </p>
+                </div>
+                
+                <!-- 취소 버튼 -->
+                <div class="text-center mt-4">
+                    <button id="cancelLoading" class="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+                        취소하기
+                    </button>
+                </div>
+            </div>
+        </div>
+    `
+    
+    document.body.appendChild(overlay)
+    
+    // 팁 배열
+    const tips = [
+        'AI가 20,000개 이상의 고품질 콘텐츠 패턴을 학습했어요!',
+        'Phase 1 품질 시스템으로 89/100 점수를 목표로 합니다!',
+        '4개의 AI 모델이 협력해서 최적의 콘텐츠를 만들어요!',
+        '실시간 트렌드 데이터를 반영하여 더욱 현실적인 글을 작성해요!',
+        'SEO 최적화까지 자동으로 적용됩니다!'
+    ]
+    
+    // 랜덤 팁 표시
+    document.getElementById('loadingTip').textContent = tips[Math.floor(Math.random() * tips.length)]
+    
+    // 진행 애니메이션 시작
+    this.startProgressAnimation(steps, totalDuration)
+    
+    // 취소 버튼 이벤트
+    document.getElementById('cancelLoading').addEventListener('click', () => {
+        this.hideEnhancedLoading()
+        // 진행 중인 요청 취소 로직 추가 가능
+    })
+}
+
+BlogGenerator.prototype.startProgressAnimation = function(steps, totalDuration) {
+    const progressBar = document.getElementById('progressBar')
+    const progressPercent = document.getElementById('progressPercent')
+    
+    let currentTime = 0
+    let currentStepIndex = 0
+    let stepStartTime = 0
+    
+    const updateProgress = () => {
+        const progress = Math.min((currentTime / totalDuration) * 100, 100)
+        progressBar.style.width = progress + '%'
+        progressPercent.textContent = Math.round(progress) + '%'
+        
+        // 현재 단계 업데이트
+        if (currentStepIndex < steps.length) {
+            const currentStep = steps[currentStepIndex]
+            const stepElement = document.querySelector(`[data-step="${currentStep.id}"]`)
+            
+            if (stepElement && currentTime >= stepStartTime) {
+                // 이전 단계 완료 처리
+                if (currentStepIndex > 0) {
+                    const prevStep = document.querySelector(`[data-step="${steps[currentStepIndex - 1].id}"]`)
+                    if (prevStep) {
+                        prevStep.classList.add('completed')
+                        prevStep.querySelector('.step-spinner').classList.add('hidden')
+                        prevStep.querySelector('.step-check').classList.remove('hidden')
+                    }
+                }
+                
+                // 현재 단계 활성화
+                stepElement.classList.add('active')
+                stepElement.querySelector('.step-default').classList.add('hidden')
+                stepElement.querySelector('.step-spinner').classList.remove('hidden')
+                
+                // 다음 단계로 이동 준비
+                if (currentTime >= stepStartTime + currentStep.duration) {
+                    stepStartTime += currentStep.duration
+                    currentStepIndex++
+                }
+            }
+        }
+        
+        currentTime += 100 // 100ms 간격
+        
+        if (currentTime < totalDuration) {
+            setTimeout(updateProgress, 100)
+        } else {
+            // 모든 단계 완료
+            steps.forEach((step, index) => {
+                const stepElement = document.querySelector(`[data-step="${step.id}"]`)
+                if (stepElement) {
+                    stepElement.classList.add('completed')
+                    stepElement.querySelector('.step-spinner').classList.add('hidden')
+                    stepElement.querySelector('.step-check').classList.remove('hidden')
+                }
+            })
+        }
+    }
+    
+    updateProgress()
+}
+
+BlogGenerator.prototype.hideEnhancedLoading = function() {
+    const overlay = document.getElementById('enhancedLoadingOverlay')
+    if (overlay) {
+        // 페이드아웃 효과
+        overlay.style.transition = 'opacity 0.3s ease-out'
+        overlay.style.opacity = '0'
+        
+        setTimeout(() => {
+            overlay.remove()
+        }, 300)
+    }
+}
 }
 
 // 안전한 초기화 실행

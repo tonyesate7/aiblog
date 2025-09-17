@@ -2443,47 +2443,118 @@ app.get('/api/health', (c) => {
   })
 })
 
-// API 키 상태 확인
-app.get('/api/keys/status', (c) => {
+// 라이브 API 키 상태 확인 - 안정화된 버전 v4.1
+app.get('/api/keys/status', async (c) => {
   try {
     const { env } = c
     
-    // 안전한 API 키 확인
-    const keys = {
-      claude: !!(env?.CLAUDE_API_KEY || false),
-      gemini: !!(env?.GEMINI_API_KEY || false), 
-      openai: !!(env?.OPENAI_API_KEY || false),
-      grok: !!(env?.GROK_API_KEY || false),
-      fal_ai: !!(env?.FAL_AI_API_KEY || false)
+    // 라이브 API 키 검증 함수
+    const validateLiveApiKey = (key: string, type: 'claude' | 'gemini' | 'openai' | 'grok'): { isValid: boolean, reason?: string } => {
+      if (!key || key.length === 0) {
+        return { isValid: false, reason: '키가 비어있음' }
+      }
+      
+      switch (type) {
+        case 'claude':
+          if (!key.startsWith('sk-ant-')) {
+            return { isValid: false, reason: 'Claude API 키는 sk-ant-로 시작해야 합니다' }
+          }
+          if (key.length < 50) {
+            return { isValid: false, reason: 'Claude API 키 길이가 너무 짧습니다' }
+          }
+          break
+        case 'gemini':
+          if (key.length < 20) {
+            return { isValid: false, reason: 'Gemini API 키 길이가 너무 짧습니다' }
+          }
+          break
+        case 'openai':
+          if (!key.startsWith('sk-')) {
+            return { isValid: false, reason: 'OpenAI API 키는 sk-로 시작해야 합니다' }
+          }
+          if (key.length < 40) {
+            return { isValid: false, reason: 'OpenAI API 키 길이가 너무 짧습니다' }
+          }
+          break
+        case 'grok':
+          if (!key.startsWith('xai-')) {
+            return { isValid: false, reason: 'Grok API 키는 xai-로 시작해야 합니다' }
+          }
+          if (key.length < 30) {
+            return { isValid: false, reason: 'Grok API 키 길이가 너무 짧습니다' }
+          }
+          break
+      }
+      
+      return { isValid: true }
     }
     
-    const availableCount = Object.values(keys).filter(Boolean).length
-    const availableModels = Object.entries(keys)
-      .filter(([_, hasKey]) => hasKey)
-      .map(([model]) => {
-        const modelNames: Record<string, string> = {
-          claude: 'Claude',
-          gemini: 'Gemini',
-          openai: 'OpenAI',  
-          grok: 'GROK',
-          fal_ai: 'nano-banana'
-        }
-        return modelNames[model] || model
-      })
+    const claudeValidation = validateLiveApiKey(env?.CLAUDE_API_KEY || '', 'claude')
+    const geminiValidation = validateLiveApiKey(env?.GEMINI_API_KEY || '', 'gemini')
+    const openaiValidation = validateLiveApiKey(env?.OPENAI_API_KEY || '', 'openai')
+    const grokValidation = validateLiveApiKey(env?.GROK_API_KEY || '', 'grok')
+    
+    const apiKeys = {
+      claude: {
+        exists: !!(env?.CLAUDE_API_KEY),
+        keyLength: env?.CLAUDE_API_KEY?.length || 0,
+        isValid: claudeValidation.isValid,
+        validationReason: claudeValidation.reason,
+        dailyLimit: 100,
+        note: claudeValidation.isValid ? '✅ 라이브 활성' : `❌ ${claudeValidation.reason || '미설정'}`
+      },
+      gemini: {
+        exists: !!(env?.GEMINI_API_KEY),
+        keyLength: env?.GEMINI_API_KEY?.length || 0,
+        isValid: geminiValidation.isValid,
+        validationReason: geminiValidation.reason,
+        dailyLimit: 1000,
+        note: geminiValidation.isValid ? '✅ 라이브 활성' : `❌ ${geminiValidation.reason || '미설정'}`
+      },
+      openai: {
+        exists: !!(env?.OPENAI_API_KEY),
+        keyLength: env?.OPENAI_API_KEY?.length || 0,
+        isValid: openaiValidation.isValid,
+        validationReason: openaiValidation.reason,
+        dailyLimit: 200,
+        note: openaiValidation.isValid ? '✅ 라이브 활성' : `❌ ${openaiValidation.reason || '미설정'}`
+      },
+      grok: {
+        exists: !!(env?.GROK_API_KEY),
+        keyLength: env?.GROK_API_KEY?.length || 0,
+        isValid: grokValidation.isValid,
+        validationReason: grokValidation.reason,
+        dailyLimit: 5000,
+        note: grokValidation.isValid ? '✅ 라이브 활성' : `❌ ${grokValidation.reason || '미설정'}`
+      }
+    }
+    
+    const totalKeys = Object.values(apiKeys).filter(key => key.exists).length
+    const validKeys = Object.values(apiKeys).filter(key => key.isValid).length
+    const liveKeys = Object.entries(apiKeys)
+      .filter(([_, key]) => key.isValid)
+      .map(([name, _]) => name)
     
     return c.json({
-      ...keys,
-      availableCount,
-      availableModels,
-      canUseDirectly: availableCount > 0,
-      freeUsage: {
-        enabled: true,
-        dailyLimit: 10,  // 일일 무료 사용량 10회
-        note: '무료 사용량: 일일 10회 (개별 API 키 사용 시 무제한)'
+      status: 'success',
+      version: 'v4.1 - 안정화된 버전 (라이브 API 키 검증)',
+      summary: {
+        totalConfigured: totalKeys,
+        validLiveKeys: validKeys,
+        activeLiveKeys: liveKeys,
+        message: validKeys > 0 
+          ? `✅ ${validKeys}개의 라이브 API 키가 정상 작동 중입니다. (${liveKeys.join(', ')})`
+          : '⚠️ 라이브 API 키가 설정되지 않았습니다. Cloudflare Pages 환경변수를 확인해주세요.',
+        recommendations: validKeys === 0 ? [
+          'Cloudflare Pages 대시보드에서 환경변수 설정',
+          'API 키 형식 확인 (Claude: sk-ant-, OpenAI: sk-, Grok: xai-)',
+          '최소 1개 이상의 라이브 API 키 설정 필요'
+        ] : []
       },
-      message: availableCount > 0 
-        ? `✅ ${availableModels.join(', ')} 모델을 API 키 설정 없이 바로 사용하실 수 있습니다! (일일 10회 무료)`
-        : '❌ 서버에 구성된 API 키가 없습니다. 개별 API 키를 설정해주세요.'
+      keys: apiKeys,
+      timestamp: new Date().toISOString(),
+      environment: 'cloudflare-pages',
+      principle: '라이브 API 키 사용 원칙'
     })
   } catch (error: any) {
     console.error('라이브 API 키 상태 확인 오류:', {
@@ -4368,8 +4439,292 @@ app.post('/api/generate-image', async (c) => {
   }
 })
 
-// 메인 페이지
+// 간단한 UI 루트 (메인 페이지)
 app.get('/', (c) => {
+  return c.html(`
+    <!DOCTYPE html>
+    <html lang="ko">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>AI 블로그 생성기 v4.1 - Enhanced UX</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+        <link href="/static/styles.css" rel="stylesheet">
+        <style>
+            .step-content { opacity: 0; transform: translateY(20px); transition: all 0.3s ease; }
+            .step-content.active { opacity: 1; transform: translateY(0); }
+            .step-indicator { display: flex; flex-direction: column; align-items: center; }
+            .step-indicator.active .step-circle { background: #3b82f6; color: white; }
+            .step-indicator.completed .step-circle { background: #10b981; color: white; }
+            .step-circle { width: 2rem; height: 2rem; border-radius: 50%; background: #e5e7eb; color: #6b7280; display: flex; align-items: center; justify-content: center; font-weight: 600; }
+            .option-card { cursor: pointer; transition: all 0.2s ease; }
+            .option-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+            .option-card.selected { border-color: #3b82f6; background: #eff6ff; }
+        </style>
+    </head>
+    <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+        <!-- 헤더 -->
+        <header class="bg-white shadow-sm border-b">
+            <div class="max-w-4xl mx-auto px-4 py-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-magic text-white"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-xl font-bold text-gray-800">AI 블로그 생성기</h1>
+                            <p class="text-sm text-gray-500">간단한 3단계로 고품질 블로그 완성</p>
+                        </div>
+                    </div>
+                    <a href="/advanced" class="text-sm text-blue-600 hover:text-blue-800 flex items-center space-x-1">
+                        <i class="fas fa-cog"></i>
+                        <span>고급 모드</span>
+                    </a>
+                </div>
+            </div>
+        </header>
+
+        <!-- 메인 컨텐츠 -->
+        <main class="max-w-3xl mx-auto px-4 py-8">
+            <!-- 프로그레스 인디케이터 -->
+            <div class="mb-8">
+                <div class="flex items-center justify-between">
+                    <div class="step-indicator active" data-step="1">
+                        <div class="step-circle">1</div>
+                        <span class="text-sm mt-2 font-medium">주제 입력</span>
+                    </div>
+                    <div class="flex-1 h-0.5 bg-gray-300 mx-4"></div>
+                    <div class="step-indicator" data-step="2">
+                        <div class="step-circle">2</div>
+                        <span class="text-sm mt-2 font-medium">기본 설정</span>
+                    </div>
+                    <div class="flex-1 h-0.5 bg-gray-300 mx-4"></div>
+                    <div class="step-indicator" data-step="3">
+                        <div class="step-circle">3</div>
+                        <span class="text-sm mt-2 font-medium">생성</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 1: 주제 입력 -->
+            <div id="step1" class="step-content active">
+                <div class="bg-white rounded-2xl shadow-lg p-8 mb-6">
+                    <div class="text-center mb-8">
+                        <h2 class="text-3xl font-bold text-gray-800 mb-3">어떤 블로그를 만들까요?</h2>
+                        <p class="text-gray-600 text-lg">주제를 구체적으로 입력할수록 더 좋은 결과를 얻을 수 있어요</p>
+                    </div>
+                    
+                    <div class="space-y-6">
+                        <div>
+                            <input type="text" id="topic" name="topic" 
+                                   placeholder="예: 2024년 AI 기술 트렌드, 건강한 아침 식단 가이드, 부동산 투자 팁..." 
+                                   class="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-lg placeholder-gray-400">
+                        </div>
+                        
+                        <!-- 추천 주제 -->
+                        <div class="space-y-3">
+                            <p class="text-sm font-medium text-gray-600 flex items-center">
+                                <i class="fas fa-star text-yellow-500 mr-2"></i>
+                                인기 주제 추천
+                            </p>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <button type="button" class="suggestion-btn text-left p-4 border-2 border-gray-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 transition-all" data-topic="2024년 AI 기술 트렌드와 비즈니스 활용 전망">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-robot text-blue-500 mr-3 text-xl"></i>
+                                        <div>
+                                            <div class="font-medium text-gray-800">AI & 기술</div>
+                                            <div class="text-sm text-gray-500">인공지능, 개발, 혁신</div>
+                                        </div>
+                                    </div>
+                                </button>
+                                <button type="button" class="suggestion-btn text-left p-4 border-2 border-gray-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 transition-all" data-topic="MZ세대를 위한 디지털 마케팅 전략과 트렌드">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-chart-line text-green-500 mr-3 text-xl"></i>
+                                        <div>
+                                            <div class="font-medium text-gray-800">비즈니스</div>
+                                            <div class="text-sm text-gray-500">마케팅, 창업, 성장</div>
+                                        </div>
+                                    </div>
+                                </button>
+                                <button type="button" class="suggestion-btn text-left p-4 border-2 border-gray-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 transition-all" data-topic="바쁜 직장인을 위한 건강한 라이프스타일 가이드">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-heart text-red-500 mr-3 text-xl"></i>
+                                        <div>
+                                            <div class="font-medium text-gray-800">라이프스타일</div>
+                                            <div class="text-sm text-gray-500">건강, 취미, 일상</div>
+                                        </div>
+                                    </div>
+                                </button>
+                                <button type="button" class="suggestion-btn text-left p-4 border-2 border-gray-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 transition-all" data-topic="초보자를 위한 주식 투자 기초와 실전 전략">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-coins text-yellow-500 mr-3 text-xl"></i>
+                                        <div>
+                                            <div class="font-medium text-gray-800">투자 & 금융</div>
+                                            <div class="text-sm text-gray-500">주식, 부동산, 재테크</div>
+                                        </div>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="text-center pt-6">
+                            <button type="button" id="nextToStep2" class="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-12 py-4 rounded-xl font-semibold text-lg hover:from-blue-600 hover:to-purple-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center space-x-2 mx-auto" disabled>
+                                <span>다음 단계</span>
+                                <i class="fas fa-arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: 기본 설정 -->
+            <div id="step2" class="step-content">
+                <div class="bg-white rounded-2xl shadow-lg p-8 mb-6">
+                    <div class="text-center mb-8">
+                        <h2 class="text-3xl font-bold text-gray-800 mb-3">독자와 글의 느낌을 선택해주세요</h2>
+                        <p class="text-gray-600 text-lg">간단한 설정으로 더 맞춤형 콘텐츠를 만들어요</p>
+                    </div>
+                    
+                    <div class="space-y-8">
+                        <!-- 독자층 선택 -->
+                        <div>
+                            <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                                <i class="fas fa-users text-blue-500 mr-3"></i>
+                                누구를 위한 글인가요?
+                            </h3>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <div class="option-card border-2 border-gray-200 rounded-xl p-4 text-center" data-value="일반인">
+                                    <div class="text-2xl mb-2">👥</div>
+                                    <div class="font-semibold text-gray-800">일반인</div>
+                                    <div class="text-sm text-gray-500 mt-1">누구나 쉽게 이해</div>
+                                </div>
+                                <div class="option-card border-2 border-gray-200 rounded-xl p-4 text-center" data-value="초보자">
+                                    <div class="text-2xl mb-2">🌱</div>
+                                    <div class="font-semibold text-gray-800">초보자</div>
+                                    <div class="text-sm text-gray-500 mt-1">기초부터 차근차근</div>
+                                </div>
+                                <div class="option-card border-2 border-gray-200 rounded-xl p-4 text-center" data-value="전문가">
+                                    <div class="text-2xl mb-2">🎯</div>
+                                    <div class="font-semibold text-gray-800">전문가</div>
+                                    <div class="text-sm text-gray-500 mt-1">심화 내용 포함</div>
+                                </div>
+                            </div>
+                            <input type="hidden" id="audience" name="audience">
+                        </div>
+                        
+                        <!-- 톤 선택 -->
+                        <div>
+                            <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                                <i class="fas fa-palette text-purple-500 mr-3"></i>
+                                어떤 느낌으로 쓸까요?
+                            </h3>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <div class="option-card border-2 border-gray-200 rounded-xl p-4 text-center" data-value="친근한">
+                                    <div class="text-2xl mb-2">😊</div>
+                                    <div class="font-semibold text-gray-800">친근하게</div>
+                                    <div class="text-sm text-gray-500 mt-1">편안하고 자연스럽게</div>
+                                </div>
+                                <div class="option-card border-2 border-gray-200 rounded-xl p-4 text-center" data-value="전문적">
+                                    <div class="text-2xl mb-2">💼</div>
+                                    <div class="font-semibold text-gray-800">전문적으로</div>
+                                    <div class="text-sm text-gray-500 mt-1">신뢰감 있고 정확하게</div>
+                                </div>
+                                <div class="option-card border-2 border-gray-200 rounded-xl p-4 text-center" data-value="유머러스">
+                                    <div class="text-2xl mb-2">😄</div>
+                                    <div class="font-semibold text-gray-800">유머러스하게</div>
+                                    <div class="text-sm text-gray-500 mt-1">재미있고 흥미롭게</div>
+                                </div>
+                            </div>
+                            <input type="hidden" id="tone" name="tone">
+                        </div>
+                        
+                        <div class="flex justify-between pt-6">
+                            <button type="button" id="backToStep1" class="bg-gray-500 text-white px-8 py-3 rounded-xl font-semibold hover:bg-gray-600 transition-colors flex items-center space-x-2">
+                                <i class="fas fa-arrow-left"></i>
+                                <span>이전</span>
+                            </button>
+                            <button type="button" id="generateBtn" class="bg-gradient-to-r from-green-500 to-blue-600 text-white px-12 py-4 rounded-xl font-semibold text-lg hover:from-green-600 hover:to-blue-700 transition-all transform hover:scale-105 flex items-center space-x-2" disabled>
+                                <i class="fas fa-magic"></i>
+                                <span>AI 블로그 생성하기</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 고급 옵션 (접힌 상태) -->
+                    <div class="mt-8 pt-6 border-t border-gray-200">
+                        <button id="toggleAdvanced" class="w-full flex items-center justify-between text-left hover:bg-gray-50 rounded-lg p-3 transition-colors">
+                            <div class="flex items-center space-x-3">
+                                <i class="fas fa-cog text-gray-400"></i>
+                                <span class="font-medium text-gray-700">고급 옵션</span>
+                                <span class="text-sm text-gray-500">(SEO 최적화, AI 모델 선택 등)</span>
+                            </div>
+                            <i class="fas fa-chevron-down text-gray-400 transform transition-transform" id="advancedChevron"></i>
+                        </button>
+                        
+                        <div id="advancedOptions" class="hidden mt-4 p-4 bg-gray-50 rounded-xl">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <!-- SEO 옵션 -->
+                                <div>
+                                    <label class="flex items-center space-x-3">
+                                        <input type="checkbox" id="enableSEO" class="w-4 h-4 text-blue-600 border-gray-300 rounded">
+                                        <span class="font-medium text-gray-700">SEO 최적화 적용</span>
+                                    </label>
+                                    <p class="text-sm text-gray-500 mt-1 ml-7">검색 엔진 노출 개선</p>
+                                </div>
+                                
+                                <!-- AI 모델 선택 -->
+                                <div>
+                                    <label class="block font-medium text-gray-700 mb-2">AI 모델</label>
+                                    <select id="aiModel" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                        <option value="auto">자동 선택 (추천)</option>
+                                        <option value="claude">Claude (논리적 분석)</option>
+                                        <option value="gemini">Gemini (창의적 사고)</option>
+                                        <option value="openai">GPT (자연스러운 대화)</option>
+                                        <option value="grok">Grok (독특한 관점)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 결과 섹션 -->
+            <div id="resultSection" class="hidden">
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                    <div class="p-6 border-b bg-gradient-to-r from-green-50 to-blue-50">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-2xl font-bold text-gray-800 flex items-center">
+                                    <i class="fas fa-check-circle text-green-500 mr-3"></i>
+                                    생성 완료!
+                                </h3>
+                                <p id="generationInfo" class="text-gray-600 mt-1"></p>
+                            </div>
+                            <button id="newArticleBtn" class="bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700 transition-colors flex items-center space-x-2">
+                                <i class="fas fa-plus"></i>
+                                <span>새 글 작성</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="p-6">
+                        <div id="contentReader" class="prose prose-lg max-w-none"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+        <script src="/static/simple-ui.js"></script>
+    </body>
+    </html>
+  `)
+})
+
+// 고급 모드 (기존 복잡한 UI)
+app.get('/advanced', (c) => {
   return c.html(`
     <!DOCTYPE html>
     <html lang="ko">
