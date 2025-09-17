@@ -26,7 +26,6 @@
     --color-yellow-50: oklch(98.7% 0.026 102.212);
     --color-yellow-100: oklch(97.3% 0.071 103.193);
     --color-yellow-200: oklch(94.5% 0.129 101.54);
-    --color-yellow-300: oklch(90.5% 0.182 98.111);
     --color-yellow-400: oklch(85.2% 0.199 91.936);
     --color-yellow-500: oklch(79.5% 0.184 86.047);
     --color-yellow-600: oklch(68.1% 0.162 75.834);
@@ -39,9 +38,6 @@
     --color-green-600: oklch(62.7% 0.194 149.214);
     --color-green-700: oklch(52.7% 0.154 150.069);
     --color-green-800: oklch(44.8% 0.119 151.328);
-    --color-emerald-50: oklch(97.9% 0.021 166.113);
-    --color-emerald-600: oklch(59.6% 0.145 163.225);
-    --color-emerald-700: oklch(50.8% 0.118 165.612);
     --color-blue-50: oklch(97% 0.014 254.604);
     --color-blue-100: oklch(93.2% 0.032 255.585);
     --color-blue-200: oklch(88.2% 0.059 254.128);
@@ -51,12 +47,8 @@
     --color-blue-600: oklch(54.6% 0.245 262.881);
     --color-blue-700: oklch(48.8% 0.243 264.376);
     --color-blue-800: oklch(42.4% 0.199 265.638);
-    --color-indigo-50: oklch(96.2% 0.018 272.314);
     --color-indigo-100: oklch(93% 0.034 272.788);
-    --color-indigo-200: oklch(87% 0.065 274.039);
-    --color-indigo-500: oklch(58.5% 0.233 277.117);
     --color-indigo-600: oklch(51.1% 0.262 276.966);
-    --color-indigo-700: oklch(45.7% 0.24 277.023);
     --color-indigo-800: oklch(39.8% 0.195 277.366);
     --color-purple-50: oklch(97.7% 0.014 308.299);
     --color-purple-100: oklch(94.6% 0.033 307.174);
@@ -67,8 +59,6 @@
     --color-purple-700: oklch(49.6% 0.265 301.924);
     --color-purple-800: oklch(43.8% 0.218 303.724);
     --color-pink-50: oklch(97.1% 0.014 343.198);
-    --color-pink-600: oklch(59.2% 0.249 0.584);
-    --color-pink-700: oklch(52.5% 0.223 3.958);
     --color-gray-50: oklch(98.5% 0.002 247.839);
     --color-gray-100: oklch(96.7% 0.003 264.542);
     --color-gray-200: oklch(92.8% 0.006 264.531);
@@ -86,7 +76,6 @@
     --container-md: 28rem;
     --container-3xl: 48rem;
     --container-4xl: 56rem;
-    --container-6xl: 72rem;
     --text-xs: 0.75rem;
     --text-xs--line-height: calc(1 / 0.75);
     --text-sm: 0.875rem;
@@ -109,12 +98,10 @@
     --radius-lg: 0.5rem;
     --radius-xl: 0.75rem;
     --radius-2xl: 1rem;
-    --radius-3xl: 1.5rem;
     --ease-out: cubic-bezier(0, 0, 0.2, 1);
     --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
     --animate-spin: spin 1s linear infinite;
     --animate-pulse: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-    --animate-bounce: bounce 1s infinite;
     --aspect-video: 16 / 9;
     --default-transition-duration: 150ms;
     --default-transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
@@ -559,9 +546,6 @@
   }
   .cursor-pointer {
     cursor: pointer;
-  }
-  .resize-none {
-    resize: none;
   }
   .list-inside {
     list-style-position: inside;
@@ -1841,16 +1825,6 @@
 @keyframes pulse {
   50% {
     opacity: 0.5;
-  }
-}
-@keyframes bounce {
-  0%, 100% {
-    transform: translateY(-25%);
-    animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
-  }
-  50% {
-    transform: none;
-    animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
   }
 }
 @layer properties {
