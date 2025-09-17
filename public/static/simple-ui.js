@@ -70,7 +70,7 @@ class SimpleUI {
         
         if (nextBtn) nextBtn.addEventListener('click', () => this.nextStep());
         if (backBtn) backBtn.addEventListener('click', () => this.prevStep());
-        if (generateBtn) generateBtn.addEventListener('click', () => this.generateContent());
+        if (generateBtn) generateBtn.addEventListener('click', () => this.generateBlog());
         if (newBtn) newBtn.addEventListener('click', () => this.resetForm());
         
         // 고급 옵션 토글
@@ -379,6 +379,13 @@ class SimpleUI {
                 console.warn('⏰ API 호출 타임아웃 (30초)');
             }, 30000);
             
+            console.log('📡 v4.2.0 API 요청 시작 - 동적 로드!');
+            console.log('📡 요청 본문:', JSON.stringify({
+                topic, audience, tone, aiModel,
+                enablePhase1: true,
+                enableSEO: false
+            }));
+            
             const response = await fetch('/api/generate', {
                 method: 'POST',
                 headers: {
@@ -397,12 +404,26 @@ class SimpleUI {
             
             clearTimeout(timeoutId);
             
+            console.log('📡 API 응답 받음:', response.status, response.statusText);
+            
             if (!response.ok) {
                 throw new Error(`API 오류: ${response.status}`);
             }
             
             // 안전한 JSON 파싱
+            console.log('📄 응답 텍스트 추출 중...');
             const responseText = await response.text();
+            console.log('📄 v4.2.0 응답 텍스트 길이:', responseText.length, '첫 100자:', responseText.substring(0, 100));
+            
+            // 디버그: 응답 헤더 정보도 출력
+            console.log('📄 응답 헤더 정보:', {
+                contentType: response.headers.get('content-type'),
+                contentLength: response.headers.get('content-length'),
+                status: response.status,
+                statusText: response.statusText,
+                url: response.url
+            });
+            
             if (!responseText || responseText.trim() === '') {
                 throw new Error('서버에서 빈 응답을 받았습니다');
             }
@@ -445,7 +466,6 @@ class SimpleUI {
             // 생성 완료/실패와 관계없이 플래그 리셋
             this.isGenerating = false;
         }
-    }
     }
     
     // 🎨 결과 표시 함수
@@ -639,6 +659,9 @@ class SimpleUI {
             const content = window.currentBlogContent;
             
             if (topic && content) {
+                console.log('🎯 블로그 내용 기반 이미지 생성 시작');
+                console.log('📝 블로그 내용 일부:', content.substring(0, 200) + '...');
+                
                 const imagePromise = this.generateBlogImage(topic, content, 'thumbnail');
                 const multiImagePromise = this.generateMultipleImages(topic);
                 
@@ -657,11 +680,18 @@ class SimpleUI {
     // 다중 이미지 생성
     async generateMultipleImages(topic) {
         try {
+            console.log('🖼️ 다중 이미지 생성 시작:', topic);
+            
+            // 현재 생성된 블로그 내용 가져오기
+            const content = window.currentBlogContent || '';
+            console.log('📝 블로그 내용 길이:', content.length);
+            
             const response = await fetch('/api/generate-blog-images', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     topic, 
+                    content: content, // 블로그 내용 추가
                     imageCount: 3,
                     sections: [`${topic} 개요`, `${topic} 활용법`, `${topic} 전망`]
                 })
@@ -853,22 +883,31 @@ function displayTrendAnalysis(analysis) {
     document.body.appendChild(modal);
 }
 
-// 즉시 초기화 함수
+// v4.1.2 완전 자체 포함 초기화 함수
 function initializeSimpleUI() {
-    console.log('🔥 SimpleUI 초기화 시작...');
+    console.log('🚀 v4.2.0 SimpleUI 초기화 시작 - 동적 로드 완료!');
     try {
         window.simpleUI = new SimpleUI();
-        console.log('✅ SimpleUI 초기화 완료');
+        console.log('✅ v4.2.0 SimpleUI 초기화 완료 - 동적 로드!');
         
         // 폼 요소 확인
         const form = document.getElementById('blogForm');
         if (form) {
             console.log('✅ blogForm 요소 발견');
         } else {
-            console.error('❌ blogForm 요소를 찾을 수 없습니다');
+            console.warn('⚠️ blogForm 요소를 찾을 수 없습니다');
         }
+        
+        // 한국 트렌드 데이터 자동 로딩 (지연 실행)
+        setTimeout(() => {
+            if (window.simpleUI && typeof window.simpleUI.loadKoreanTrends === 'function') {
+                window.simpleUI.loadKoreanTrends();
+                console.log('🇰🇷 v4.1.2 한국 트렌드 데이터 로딩 시작');
+            }
+        }, 1000);
+        
     } catch (error) {
-        console.error('❌ SimpleUI 초기화 실패:', error);
+        console.error('❌ v4.1.2 SimpleUI 초기화 실패:', error);
     }
 }
 

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>폼 제출 디버그</title>
+</head>
+<body>
+    <h1>블로그 생성 폼 제출 테스트</h1>
+    <div id="result"></div>
+    <button onclick="testFormSubmission()">폼 제출 테스트</button>
+    
+    <script>
+        async function testFormSubmission() {
+            console.log('폼 제출 테스트 시작...');
+            document.getElementById('result').innerHTML = '테스트 중...';
+            
+            try {
+                // 실제 메인 페이지를 iframe으로 로드하고 폼 제출 시뮬레이션
+                console.log('메인 페이지에서 폼 데이터 수집 시뮬레이션');
+                
+                const formData = {
+                    topic: '2026년 AI 전망직종',
+                    audience: '중급자',
+                    tone: '친근한',
+                    aiModel: 'auto',
+                    enablePhase1: true,
+                    enableSEO: false
+                };
+                
+                console.log('📡 폼 데이터:', formData);
+                console.log('📡 API 요청 시작...');
+                
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                console.log('📡 API 응답 받음:', response.status, response.statusText);
+                console.log('📡 응답 헤더들:', [...response.headers.entries()]);
+                
+                if (!response.ok) {
+                    throw new Error(`API 오류: ${response.status}`);
+                }
+                
+                console.log('📄 응답 텍스트 추출 중...');
+                const responseText = await response.text();
+                console.log('📄 응답 텍스트 길이:', responseText.length);
+                console.log('📄 응답 시작 200자:', responseText.substring(0, 200));
+                
+                if (!responseText || responseText.trim() === '') {
+                    throw new Error('서버에서 빈 응답을 받았습니다');
+                }
+                
+                let result;
+                try {
+                    result = JSON.parse(responseText);
+                    console.log('✅ JSON 파싱 성공');
+                } catch (parseError) {
+                    console.error('❌ JSON 파싱 실패:', parseError);
+                    console.error('응답 원문:', responseText);
+                    throw new Error('서버 응답을 해석할 수 없습니다');
+                }
+                
+                console.log('✅ 블로그 생성 완료:', result.metadata || result.model);
+                
+                document.getElementById('result').innerHTML = `
+                    <h3>✅ 폼 제출 테스트 성공!</h3>
+                    <p><strong>제목:</strong> ${result.title}</p>
+                    <p><strong>모델:</strong> ${result.model}</p>
+                    <p><strong>청중:</strong> ${result.metadata?.audience || 'N/A'}</p>
+                    <p><strong>톤:</strong> ${result.metadata?.tone || 'N/A'}</p>
+                    <p><strong>점수:</strong> ${result.metadata?.qualityScore || 'N/A'}</p>
+                    <p><strong>길이:</strong> ${result.content?.length || 0} 문자</p>
+                `;
+                
+            } catch (error) {
+                console.error('❌ 폼 제출 테스트 오류:', error);
+                document.getElementById('result').innerHTML = `
+                    <h3>❌ 폼 제출 테스트 실패</h3>
+                    <p><strong>오류:</strong> ${error.message}</p>
+                    <p><strong>스택:</strong> ${error.stack || '없음'}</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

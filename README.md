@@ -105,6 +105,7 @@
 ### 🔑 API 키 설정 방법
 **라이브 AI를 사용하려면 Cloudflare Pages 환경변수 설정이 필요합니다:**
 
+#### 🤖 **텍스트 생성 AI 모델**
 ```bash
 # Claude API 키 설정 (Anthropic)
 npx wrangler pages secret put CLAUDE_API_KEY --project-name ai-blog-generator-v2
@@ -119,6 +120,21 @@ npx wrangler pages secret put OPENAI_API_KEY --project-name ai-blog-generator-v2
 npx wrangler pages secret put GROK_API_KEY --project-name ai-blog-generator-v2
 ```
 
+#### 🖼️ **이미지 생성 AI (신규 추가!)**
+```bash
+# FAL AI API 키 설정 (Nano-Banana 모델)
+npx wrangler pages secret put FAL_AI_API_KEY --project-name ai-blog-generator-v2
+
+# 로컬 개발환경용
+echo 'FAL_AI_API_KEY=여기에_실제_API_키_입력' > .dev.vars
+```
+
+**🎨 Nano-Banana 이미지 생성 특징:**
+- **SOTA 성능**: Gemini 2.5 Flash 기반 최신 이미지 생성
+- **다양한 타입**: 썸네일, 인포그래픽, 히어로 이미지 생성
+- **빠른 속도**: 30초 내 고품질 이미지 생성
+- **자연어 편집**: 간단한 명령어로 이미지 수정
+
 ### 💡 운영 모드
 - **🔥 라이브 모드**: API 키 설정 시 → 실제 AI 생성 (고품질)
 - **🎭 데모 모드**: API 키 없을 시 → 고품질 시뮬레이션 (무료)
@@ -130,6 +146,22 @@ npx wrangler pages secret put GROK_API_KEY --project-name ai-blog-generator-v2
 - **확장성**: Cloudflare Edge Network 활용
 - **안정성**: 자동 Fallback 및 오류 복구 시스템
 - **성능 최적화**: Production CSS 번들링 (63KB → 51KB)
+
+## ⚠️ 브라우저 캐시 이슈 해결됨 (v4.1.3-FINAL)
+
+**문제 상황**: 일부 브라우저에서 "서버에서 빈 응답을 받았습니다" 오류 발생
+
+**해결 완료**:
+- ✅ **서버 측 API 수정**: `generateDemoResponse` 함수 JSON 반환 처리 완료
+- ✅ **JavaScript 이벤트 핸들러 수정**: 폼 제출 및 버튼 클릭 이벤트 연결 완료 
+- ✅ **강력한 캐시 무효화**: v4.1.3-FINAL + 랜덤 파라미터 적용
+
+**캐시 새로고침 방법**:
+1. **강제 새로고침**: `Ctrl+F5` (Windows) / `Cmd+Shift+R` (Mac)
+2. **개발자 도구**: F12 → Network → "Disable cache" 체크
+3. **시크릿 모드**: 완전 새로운 브라우저 세션으로 테스트
+
+**확인 방법**: 콘솔에서 `🚀 v4.1.3-FINAL SimpleUI 초기화 시작...` 메시지 확인
 
 ## 📈 v4.1 Enhanced UX 주요 개선사항
 

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>자동 테스트</title>
+</head>
+<body>
+    <h1>자동 블로그 생성 테스트</h1>
+    <div id="status">테스트 준비 중...</div>
+    
+    <script>
+        async function autoTest() {
+            document.getElementById('status').innerHTML = '테스트 시작...';
+            
+            try {
+                // 메인 페이지로 이동 후 폼 작성 및 제출 시뮬레이션
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        topic: '2026년 AI 전망직종',
+                        audience: '중급자',
+                        tone: '친근한',
+                        aiModel: 'auto',
+                        enablePhase1: true,
+                        enableSEO: false
+                    })
+                });
+                
+                console.log('응답 상태:', response.status);
+                console.log('응답 헤더:', [...response.headers.entries()]);
+                
+                if (!response.ok) {
+                    throw new Error(`API 오류: ${response.status}`);
+                }
+                
+                const responseText = await response.text();
+                console.log('응답 텍스트 길이:', responseText.length);
+                console.log('응답 시작:', responseText.substring(0, 500));
+                
+                if (!responseText || responseText.trim() === '') {
+                    throw new Error('빈 응답 받음');
+                }
+                
+                const result = JSON.parse(responseText);
+                console.log('JSON 파싱 성공');
+                console.log('제목:', result.title);
+                console.log('모델:', result.model);
+                console.log('점수:', result.metadata?.qualityScore);
+                
+                document.getElementById('status').innerHTML = `
+                    <h3>✅ 테스트 성공!</h3>
+                    <p><strong>제목:</strong> ${result.title}</p>
+                    <p><strong>모델:</strong> ${result.model}</p>
+                    <p><strong>점수:</strong> ${result.metadata?.qualityScore || 'N/A'}</p>
+                    <p><strong>응답 크기:</strong> ${responseText.length} bytes</p>
+                `;
+                
+            } catch (error) {
+                console.error('테스트 오류:', error);
+                document.getElementById('status').innerHTML = `
+                    <h3>❌ 테스트 실패</h3>
+                    <p><strong>오류:</strong> ${error.message}</p>
+                    <p><strong>상세:</strong> ${error.stack || '스택 정보 없음'}</p>
+                `;
+            }
+        }
+        
+        // 페이지 로드 후 자동 실행
+        window.addEventListener('load', () => {
+            setTimeout(autoTest, 1000);
+        });
+    </script>
+</body>
+</html>

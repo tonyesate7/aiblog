@@ -2,18 +2,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { serveStatic } from 'hono/cloudflare-workers'
 
-// AI 이미지 생성 도구 import
-declare function image_generation(params: {
-  query: string
-  model: string
-  aspect_ratio: string
-  task_summary: string
-  image_urls: string[]
-}): Promise<{
-  generated_images?: Array<{
-    image_urls_nowatermark?: string[]
-  }>
-}>
+// AI 이미지 생성을 위한 FAL AI nano-banana API 사용
 
 type Bindings = {
   OPENAI_API_KEY?: string
@@ -28,8 +17,264 @@ const app = new Hono<{ Bindings: Bindings }>()
 // CORS 설정
 app.use('/api/*', cors())
 
-// 정적 파일 서빙
-app.use('/static/*', serveStatic({ root: './public' }))
+// 정적 파일 서빙 (캐시 무효화 헤더 포함)
+app.use('/static/*', async (c, next) => {
+  const response = await serveStatic({ root: './public' })(c, next)
+  
+  // JavaScript 파일에 대해서는 강력한 캐시 무효화 헤더 적용
+  if (c.req.url.includes('.js')) {
+    c.header('Cache-Control', 'no-cache, no-store, must-revalidate')
+    c.header('Pragma', 'no-cache')
+    c.header('Expires', '0')
+  }
+  
+  return response
+})
+
+// 폼 제출 디버그 페이지
+app.get('/debug-form', (c) => {
+  return c.html(`
+<!DOCTYPE html>
+<html>
+<head>
+    <title>폼 제출 디버그</title>
+</head>
+<body>
+    <h1>블로그 생성 폼 제출 테스트</h1>
+    <div id="result"></div>
+    <button onclick="testFormSubmission()">폼 제출 테스트</button>
+    
+    <script>
+        async function testFormSubmission() {
+            console.log('폼 제출 테스트 시작...');
+            document.getElementById('result').innerHTML = '테스트 중...';
+            
+            try {
+                // 실제 메인 페이지를 iframe으로 로드하고 폼 제출 시뮬레이션
+                console.log('메인 페이지에서 폼 데이터 수집 시뮬레이션');
+                
+                const formData = {
+                    topic: '2026년 AI 전망직종',
+                    audience: '중급자',
+                    tone: '친근한',
+                    aiModel: 'auto',
+                    enablePhase1: true,
+                    enableSEO: false
+                };
+                
+                console.log('📡 폼 데이터:', formData);
+                console.log('📡 API 요청 시작...');
+                
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                console.log('📡 API 응답 받음:', response.status, response.statusText);
+                console.log('📡 응답 헤더들:', [...response.headers.entries()]);
+                
+                if (!response.ok) {
+                    throw new Error(\`API 오류: \${response.status}\`);
+                }
+                
+                console.log('📄 응답 텍스트 추출 중...');
+                const responseText = await response.text();
+                console.log('📄 응답 텍스트 길이:', responseText.length);
+                console.log('📄 응답 시작 200자:', responseText.substring(0, 200));
+                
+                if (!responseText || responseText.trim() === '') {
+                    throw new Error('서버에서 빈 응답을 받았습니다');
+                }
+                
+                let result;
+                try {
+                    result = JSON.parse(responseText);
+                    console.log('✅ JSON 파싱 성공');
+                } catch (parseError) {
+                    console.error('❌ JSON 파싱 실패:', parseError);
+                    console.error('응답 원문:', responseText);
+                    throw new Error('서버 응답을 해석할 수 없습니다');
+                }
+                
+                console.log('✅ 블로그 생성 완료:', result.metadata || result.model);
+                
+                document.getElementById('result').innerHTML = \`
+                    <h3>✅ 폼 제출 테스트 성공!</h3>
+                    <p><strong>제목:</strong> \${result.title}</p>
+                    <p><strong>모델:</strong> \${result.model}</p>
+                    <p><strong>청중:</strong> \${result.metadata?.audience || 'N/A'}</p>
+                    <p><strong>톤:</strong> \${result.metadata?.tone || 'N/A'}</p>
+                    <p><strong>점수:</strong> \${result.metadata?.qualityScore || 'N/A'}</p>
+                    <p><strong>길이:</strong> \${result.content?.length || 0} 문자</p>
+                \`;
+                
+            } catch (error) {
+                console.error('❌ 폼 제출 테스트 오류:', error);
+                document.getElementById('result').innerHTML = \`
+                    <h3>❌ 폼 제출 테스트 실패</h3>
+                    <p><strong>오류:</strong> \${error.message}</p>
+                    <p><strong>스택:</strong> \${error.stack || '없음'}</p>
+                \`;
+            }
+        }
+    </script>
+</body>
+</html>
+  `)
+})
+
+// 자동 테스트 페이지 라우트
+app.get('/auto-test', (c) => {
+  return c.html(`
+<!DOCTYPE html>
+<html>
+<head>
+    <title>자동 테스트</title>
+</head>
+<body>
+    <h1>자동 블로그 생성 테스트</h1>
+    <div id="status">테스트 준비 중...</div>
+    
+    <script>
+        async function autoTest() {
+            document.getElementById('status').innerHTML = '테스트 시작...';
+            
+            try {
+                // 메인 페이지로 이동 후 폼 작성 및 제출 시뮬레이션
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        topic: '2026년 AI 전망직종',
+                        audience: '중급자',
+                        tone: '친근한',
+                        aiModel: 'auto',
+                        enablePhase1: true,
+                        enableSEO: false
+                    })
+                });
+                
+                console.log('응답 상태:', response.status);
+                console.log('응답 헤더:', [...response.headers.entries()]);
+                
+                if (!response.ok) {
+                    throw new Error(\`API 오류: \${response.status}\`);
+                }
+                
+                const responseText = await response.text();
+                console.log('응답 텍스트 길이:', responseText.length);
+                console.log('응답 시작:', responseText.substring(0, 500));
+                
+                if (!responseText || responseText.trim() === '') {
+                    throw new Error('빈 응답 받음');
+                }
+                
+                const result = JSON.parse(responseText);
+                console.log('JSON 파싱 성공');
+                console.log('제목:', result.title);
+                console.log('모델:', result.model);
+                console.log('점수:', result.metadata?.qualityScore);
+                
+                document.getElementById('status').innerHTML = \`
+                    <h3>✅ 테스트 성공!</h3>
+                    <p><strong>제목:</strong> \${result.title}</p>
+                    <p><strong>모델:</strong> \${result.model}</p>
+                    <p><strong>점수:</strong> \${result.metadata?.qualityScore || 'N/A'}</p>
+                    <p><strong>응답 크기:</strong> \${responseText.length} bytes</p>
+                \`;
+                
+            } catch (error) {
+                console.error('테스트 오류:', error);
+                document.getElementById('status').innerHTML = \`
+                    <h3>❌ 테스트 실패</h3>
+                    <p><strong>오류:</strong> \${error.message}</p>
+                    <p><strong>상세:</strong> \${error.stack || '스택 정보 없음'}</p>
+                \`;
+            }
+        }
+        
+        // 페이지 로드 후 자동 실행
+        window.addEventListener('load', () => {
+            setTimeout(autoTest, 1000);
+        });
+    </script>
+</body>
+</html>
+  `)
+})
+
+// 테스트 페이지 라우트
+app.get('/test-fetch', (c) => {
+  return c.html(`
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API 테스트</title>
+</head>
+<body>
+    <h1>API 테스트 페이지</h1>
+    <button onclick="testAPI()">API 테스트</button>
+    <div id="result"></div>
+    
+    <script>
+        async function testAPI() {
+            console.log('테스트 시작...');
+            document.getElementById('result').innerHTML = '테스트 중...';
+            
+            try {
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        topic: '테스트 주제',
+                        audience: '일반인',
+                        tone: '친근한',
+                        aiModel: 'auto',
+                        enablePhase1: true,
+                        enableSEO: false
+                    })
+                });
+                
+                console.log('응답 받음:', response.status, response.statusText);
+                
+                if (!response.ok) {
+                    throw new Error(\`API 오류: \${response.status}\`);
+                }
+                
+                const responseText = await response.text();
+                console.log('응답 텍스트 길이:', responseText.length);
+                console.log('첫 200자:', responseText.substring(0, 200));
+                
+                const result = JSON.parse(responseText);
+                console.log('JSON 파싱 성공:', result.title);
+                
+                document.getElementById('result').innerHTML = \`
+                    <h3>성공!</h3>
+                    <p>제목: \${result.title}</p>
+                    <p>모델: \${result.model}</p>
+                    <p>점수: \${result.metadata.qualityScore}</p>
+                \`;
+                
+            } catch (error) {
+                console.error('오류:', error);
+                document.getElementById('result').innerHTML = \`
+                    <h3>오류 발생</h3>
+                    <p>\${error.message}</p>
+                \`;
+            }
+        }
+    </script>
+</body>
+</html>
+  `)
+})
 
 // ==================== AI 모델 관리 시스템 ====================
 
@@ -3235,7 +3480,7 @@ app.post('/api/generate', async (c) => {
     
     if (!modelApiKey) {
       console.log('⚠️ API 키 없음 - 데모 모드로 전환')
-      return generateDemoResponse(topic, audience, tone, selectedModel)
+      return c.json(generateDemoResponse(topic, audience, tone, selectedModel))
     }
 
     console.log(`✅ ${selectedModel} API 키 확인됨`)
@@ -3355,7 +3600,7 @@ app.post('/api/generate', async (c) => {
       
       // 모든 AI 모델 실패 시 고품질 데모 모드
       console.log('🎭 모든 AI 모델 실패 - 고품질 데모 모드')
-      return generateDemoResponse(topic, audience, tone, selectedModel, true)
+      return c.json(generateDemoResponse(topic, audience, tone, selectedModel, true))
     }
 
   } catch (error: any) {
@@ -3397,6 +3642,13 @@ app.get('/api/status', async (c) => {
         model: 'Grok Beta',
         description: '독특한 관점과 유머러스한 표현',
         setupCommand: 'npx wrangler pages secret put GROK_API_KEY --project-name ai-blog-generator-v2'
+      },
+      fal_ai: {
+        configured: !!env.FAL_AI_API_KEY,
+        model: 'Nano-Banana (이미지 생성)',
+        description: 'SOTA 이미지 생성 - Gemini 2.5 Flash 기반',
+        setupCommand: 'npx wrangler pages secret put FAL_AI_API_KEY --project-name ai-blog-generator-v2',
+        feature: 'image_generation'
       }
     }
     
@@ -3648,6 +3900,7 @@ function calculateQualityScore(content: string): number {
 }
 
 // 🎭 고품질 데모 모드 (API 키 없을 때)
+
 function generateDemoResponse(topic: string, audience: string, tone: string, model: string, isFailback = false) {
   const content = generateDemoContent(topic, audience, tone)
   const demoNote = isFailback ? 
@@ -3890,6 +4143,7 @@ ${topic}에 대해 ${toneAdjective} 살펴봤습니다. ${audience}을 위한 �
 
 // 메인 홈페이지 라우트
 app.get('/', (c) => {
+  const timestamp = Date.now()
   return c.html(`
     <!DOCTYPE html>
     <html lang="ko">
@@ -4015,7 +4269,8 @@ app.get('/', (c) => {
 
                     <div class="flex flex-col sm:flex-row justify-center gap-4">
                         <button 
-                            type="submit" 
+                            type="submit"
+                            id="generateBtn"
                             class="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-lg font-semibold text-lg hover:from-blue-700 hover:to-purple-700 transform hover:scale-105 transition-all duration-200 shadow-lg"
                         >
                             <i class="fas fa-magic mr-2"></i>
@@ -4058,31 +4313,26 @@ app.get('/', (c) => {
             </div>
         </div>
 
-        <!-- JavaScript -->
-        <script src="/static/simple-ui.js?v=4.1.1" onload="initializeAfterLoad()"></script>
+        <!-- JavaScript - 완전 새로운 캐시 무효화 v4.2.0 -->
         <script>
-            // 단순하고 안전한 초기화
-            function initializeAfterLoad() {
-                console.log('🚀 v4.1.1 JavaScript 파일 로드 완료');
-                
-                // SimpleUI가 이미 simple-ui.js에서 자동 초기화됨
-                // 추가로 트렌드 데이터만 로드
-                setTimeout(() => {
-                    if (window.simpleUI && typeof window.simpleUI.loadKoreanTrends === 'function') {
-                        window.simpleUI.loadKoreanTrends();
-                        console.log('🇰🇷 한국 트렌드 데이터 로딩 완료');
-                    } else {
-                        console.log('ℹ️ SimpleUI 자동 초기화 대기 중...');
-                    }
-                }, 1500);
-            }
-            
-            // 중복 실행 방지
-            if (typeof window.htmlInitialized === 'undefined') {
-                window.htmlInitialized = true;
-                console.log('📄 HTML v4.1.1 초기화 시작');
-            }
+          // 완전한 캐시 무효화를 위한 동적 스크립트 로드
+          const timestamp = Date.now();
+          const randomId = Math.random().toString(36).substring(7);
+          const scriptUrl = '/static/simple-ui.js?v=4.2.0&t=' + timestamp + '&r=' + randomId + '&force=true';
+          
+          const script = document.createElement('script');
+          script.src = scriptUrl;
+          script.onerror = function() {
+            console.error('❌ JavaScript 로드 실패:', scriptUrl);
+            alert('JavaScript 파일을 로드할 수 없습니다. 페이지를 새로고침해주세요.');
+          };
+          script.onload = function() {
+            console.log('✅ JavaScript 로드 성공:', scriptUrl);
+          };
+          
+          document.head.appendChild(script);
         </script>
+        <!-- 모든 초기화 로직을 simple-ui.js 내부에서 처리 -->
     </body>
     </html>
   `)
@@ -4148,6 +4398,121 @@ app.post('/api/trend-analysis', async (c) => {
   }
 })
 
+// ==================== AI 이미지 생성 헬퍼 함수들 ====================
+
+// 📝 블로그 내용에서 핵심 키워드 추출 (개선된 버전)
+function extractKeywordsFromContent(content: string, topic: string): string {
+  if (!content || content.length < 100) return ''
+  
+  console.log('🔍 콘텐츠 키워드 추출 시작...')
+  console.log('📄 분석할 내용:', content.substring(0, 200) + '...')
+  
+  // 의미 있는 키워드 패턴 추출
+  const meaningfulKeywords: string[] = []
+  
+  // 1. 전문 용어와 기술 키워드 (명사형)
+  const technicalKeywords = content.match(/[가-힣]*(?:기술|시스템|플랫폼|솔루션|서비스|프로그램|모델|알고리즘|데이터|분석|개발|운영|관리|전문가|엔지니어|분석가|자동화|머신러닝|딥러닝|인공지능|로봇|창의성|지능)[가-힣]*/g) || []
+  
+  // 2. 복합 명사 (2-4글자)
+  const compoundNouns = content.match(/[가-힣]{2,4}(?=[을를이가에서와과 ])/g) || []
+  
+  // 3. 영어 기술 용어
+  const englishTerms = content.match(/(?:AI|ML|IT|IoT|API|CPU|GPU|SaaS|PaaS|IaaS)[A-Za-z]*/g) || []
+  const englishKeywords = content.match(/\b[A-Za-z]{4,12}\b/g) || []
+  
+  // 불용어 제거 함수
+  const stopWords = ['있습니다', '됩니다', '합니다', '입니다', '그리고', '또한', '하지만', '그러나', '이러한', '이것은', '그것은', '우리는', '그들은', '매우', '정말', '아주', '조금', '많이', '대해서', '관해서', '때문에', '이유로', '위해서', '통해서', '따라서', '그래서']
+  
+  const isValidKeyword = (word: string): boolean => {
+    return word.length >= 2 && 
+           word.length <= 8 &&
+           !stopWords.includes(word) &&
+           !word.match(/^[을를이가에서와과의도만큼도나이더라고요네요아요어요다요죠지만하고그런이런좀좀더이제그냥진짜정말아주매우너무정말로]/) &&
+           !word.match(/[0-9]/) // 숫자 포함 제외
+  }
+  
+  // 키워드 수집 및 정리
+  [...technicalKeywords, ...compoundNouns, ...englishTerms, ...englishKeywords]
+    .filter(Boolean)
+    .forEach(word => {
+      const cleanWord = word.trim()
+      if (isValidKeyword(cleanWord)) {
+        meaningfulKeywords.push(cleanWord)
+      }
+    })
+  
+  // 빈도 계산 및 정렬
+  const keywordFreq: Record<string, number> = {}
+  meaningfulKeywords.forEach(keyword => {
+    keywordFreq[keyword] = (keywordFreq[keyword] || 0) + 1
+  })
+  
+  // 상위 키워드 선택
+  const topKeywords = Object.entries(keywordFreq)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([keyword]) => keyword)
+    .filter(keyword => keyword !== topic.split(' ')[0]) // 주제어와 중복 제거
+  
+  console.log('📊 키워드 빈도:', keywordFreq)
+  console.log('✅ 최종 선택된 키워드:', topKeywords)
+  
+  return topKeywords.slice(0, 3).join(', ')
+}
+
+// 🎨 시뮬레이션 이미지 생성 (개발/테스트용)
+function generateSimulatedImage(topic: string, imageType: string, keywords: string = ''): string {
+  console.log('🎨 시뮬레이션 이미지 생성:', { topic, imageType, keywords })
+  
+  const colors = ['#4F46E5', '#7C3AED', '#EC4899', '#EF4444', '#F59E0B', '#10B981']
+  const randomColor = colors[Math.floor(Math.random() * colors.length)]
+  
+  const displayText = keywords ? `${topic}\n핵심: ${keywords}` : topic
+  const displayLines = displayText.split('\n')
+  
+  let svgContent = `
+    <svg width="800" height="450" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:${randomColor};stop-opacity:1" />
+          <stop offset="100%" style="stop-color:#1F2937;stop-opacity:1" />
+        </linearGradient>
+      </defs>
+      <rect width="800" height="450" fill="url(#grad)"/>
+      <rect x="50" y="50" width="700" height="350" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.3)" stroke-width="2" rx="20"/>
+  `
+  
+  // 텍스트 요소들 추가
+  displayLines.forEach((line, index) => {
+    const y = 200 + (index * 40)
+    const fontSize = index === 0 ? 28 : 18
+    const opacity = index === 0 ? 1 : 0.8
+    
+    svgContent += `
+      <text x="400" y="${y}" text-anchor="middle" fill="white" 
+            font-family="Arial, sans-serif" font-size="${fontSize}" 
+            font-weight="bold" opacity="${opacity}">${line}</text>
+    `
+  })
+  
+  // 장식 요소 추가
+  svgContent += `
+    <circle cx="120" cy="120" r="8" fill="rgba(255,255,255,0.6)">
+      <animate attributeName="opacity" values="0.6;1;0.6" dur="3s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="680" cy="330" r="12" fill="rgba(255,255,255,0.4)">
+      <animate attributeName="opacity" values="0.4;0.8;0.4" dur="2s" repeatCount="indefinite"/>
+    </circle>
+    <text x="400" y="380" text-anchor="middle" fill="rgba(255,255,255,0.7)" 
+          font-family="Arial" font-size="14">AI 생성 이미지 (시뮬레이션)</text>
+  </svg>`
+  
+  const encodedSvg = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgContent)}`
+  console.log('✅ 시뮬레이션 이미지 URL 생성 완료')
+  
+  return encodedSvg
+}
+
 // ==================== AI 이미지 생성 시스템 ====================
 
 // 블로그 글에 맞는 이미지 생성
@@ -4159,35 +4524,95 @@ app.post('/api/generate-image', async (c) => {
       return c.json({ error: '주제가 필요합니다' }, 400)
     }
 
-    // 이미지 프롬프트 생성
+    // 블로그 내용 기반 이미지 프롬프트 생성
     let imagePrompt = ''
+    
+    // 블로그 내용이 있으면 핵심 키워드 추출
+    let contentKeywords = ''
+    if (content && content.length > 100) {
+      contentKeywords = extractKeywordsFromContent(content, topic)
+    }
+    
+    const enhancedTopic = contentKeywords ? `${topic} (${contentKeywords})` : topic
     
     switch (imageType) {
       case 'thumbnail':
-        imagePrompt = `Professional blog thumbnail for "${topic}". Clean, modern design with Korean text elements. High quality, 16:9 aspect ratio, suitable for social media sharing.`
+        imagePrompt = content 
+          ? `Professional blog thumbnail representing "${enhancedTopic}". Visual elements should reflect the main concepts: ${contentKeywords || topic}. Clean, modern design, 16:9 aspect ratio, suitable for Korean blog and social media.`
+          : `Professional blog thumbnail for "${topic}". Clean, modern design with Korean text elements. High quality, 16:9 aspect ratio, suitable for social media sharing.`
         break
       case 'infographic':
-        imagePrompt = `Modern infographic style illustration about "${topic}". Data visualization elements, charts, icons. Professional Korean business style.`
+        imagePrompt = content
+          ? `Modern infographic style illustration about "${enhancedTopic}". Include visual representations of key concepts: ${contentKeywords || topic}. Data visualization elements, charts, icons. Professional Korean business style.`
+          : `Modern infographic style illustration about "${topic}". Data visualization elements, charts, icons. Professional Korean business style.`
         break
       case 'hero':
-        imagePrompt = `Hero image for blog post about "${topic}". Professional, engaging, suitable for blog header. Modern Korean design aesthetic.`
+        imagePrompt = content
+          ? `Hero image for blog post about "${enhancedTopic}". Should visually represent the main themes: ${contentKeywords || topic}. Professional, engaging, suitable for blog header. Modern Korean design aesthetic.`
+          : `Hero image for blog post about "${topic}". Professional, engaging, suitable for blog header. Modern Korean design aesthetic.`
         break
       default:
-        imagePrompt = `Professional illustration related to "${topic}". Clean, modern, business-friendly style.`
+        imagePrompt = content
+          ? `Professional illustration related to "${enhancedTopic}". Visual focus on: ${contentKeywords || topic}. Clean, modern, business-friendly style.`
+          : `Professional illustration related to "${topic}". Clean, modern, business-friendly style.`
     }
 
-    // 실제 이미지 생성 (AI 이미지 생성 서비스 연동)
+    // 실제 이미지 생성 (FAL AI nano-banana 모델 직접 호출)
     try {
-      const imageResult = await image_generation({
-        query: imagePrompt,
-        model: 'flux-pro/ultra', // 빠르고 안정적인 모델
-        aspect_ratio: imageType === 'thumbnail' ? '16:9' : '1:1',
-        task_summary: `Generate ${imageType} image for blog about ${topic}`,
-        image_urls: []
-      })
+      console.log(`🖼️ 이미지 생성 시작: ${topic} (${imageType})`)
+      
+      const { env } = c
+      const falApiKey = env.FAL_AI_API_KEY
+      
+      if (!falApiKey) {
+        throw new Error('FAL_AI_API_KEY가 설정되지 않았습니다')
+      }
+      
+      console.log(`✅ FAL AI API 키 확인됨`)
+      
+      let imageResult
+      
+      // 개발환경에서는 시뮬레이션 모드
+      if (falApiKey.includes('development-test-key') || falApiKey.includes('sandbox-only')) {
+        console.log(`🎯 개발환경 이미지 시뮬레이션 모드`)
+        
+        // 고품질 시뮬레이션 이미지 생성 (테스트용)
+        const simulatedImageUrl = generateSimulatedImage(topic, imageType, contentKeywords)
+        imageResult = {
+          images: [{ url: simulatedImageUrl }]
+        }
+        
+        console.log(`✅ 시뮬레이션 이미지 생성 완료: ${simulatedImageUrl}`)
+      } else {
+        // 실제 FAL AI nano-banana API 호출 (프로덕션)
+        const falResponse = await fetch('https://fal.run/fal-ai/nano-banana', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Key ${falApiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          prompt: imagePrompt,
+          image_size: imageType === 'thumbnail' ? '16:9' : '1:1',
+          num_inference_steps: 28,
+          guidance_scale: 7.5,
+          num_images: 1,
+          enable_safety_checker: true
+        })
+        })
+        
+        if (!falResponse.ok) {
+          const errorText = await falResponse.text()
+          console.error('FAL AI API 오류:', falResponse.status, errorText)
+          throw new Error(`FAL AI API 오류: ${falResponse.status}`)
+        }
+        
+        imageResult = await falResponse.json()
+      }
 
-      if (imageResult?.generated_images?.[0]?.image_urls_nowatermark?.[0]) {
-        const imageUrl = imageResult.generated_images[0].image_urls_nowatermark[0]
+      if (imageResult?.images?.[0]?.url) {
+        const imageUrl = imageResult.images[0].url
+        console.log(`✅ 이미지 생성 성공: ${imageUrl}`)
         
         return c.json({
           success: true,
@@ -4200,7 +4625,7 @@ app.post('/api/generate-image', async (c) => {
           },
           metadata: {
             generated_at: new Date().toISOString(),
-            model: 'flux-pro/ultra',
+            model: 'fal-ai/nano-banana',
             aspect_ratio: imageType === 'thumbnail' ? '16:9' : '1:1'
           }
         })
@@ -4234,53 +4659,92 @@ app.post('/api/generate-image', async (c) => {
 // 블로그 포스트용 다중 이미지 생성
 app.post('/api/generate-blog-images', async (c) => {
   try {
-    const { topic, sections = [], imageCount = 3 } = await c.req.json()
+    const { topic, content, sections = [], imageCount = 3 } = await c.req.json()
     
     if (!topic) {
       return c.json({ error: '주제가 필요합니다' }, 400)
     }
 
+    console.log(`🖼️ 다중 이미지 생성 시작: ${topic} (${imageCount}개)`)
+    
+    // 블로그 내용에서 핵심 키워드 추출
+    const contentKeywords = content ? extractKeywordsFromContent(content, topic) : ''
+    console.log(`📝 추출된 키워드: ${contentKeywords}`)
+
     const images = []
-    const imageTypes = ['thumbnail', 'infographic', 'hero']
+    const imageTypes = ['infographic', 'hero', 'professional']
     
     for (let i = 0; i < Math.min(imageCount, 3); i++) {
       const imageType = imageTypes[i] || 'professional'
-      const sectionTopic = sections[i] || topic
+      const sectionTopic = sections[i] || `${topic} ${['개요', '활용법', '전망'][i] || '상세내용'}`
       
       try {
-        // 각 섹션별 이미지 생성
-        const imagePrompt = `Professional ${imageType} style image for "${sectionTopic}". Modern, clean design suitable for Korean blog post. High quality, engaging visual.`
+        // 블로그 내용 기반 섹션별 이미지 생성
+        let imagePrompt
+        
+        if (content && contentKeywords) {
+          // 내용 기반 프롬프트
+          imagePrompt = `Professional ${imageType} style image for "${sectionTopic}". Visual representation of key concepts: ${contentKeywords}. Modern, clean design suitable for Korean blog post. High quality, engaging visual that relates to the blog content about ${topic}.`
+        } else {
+          // 기본 프롬프트
+          imagePrompt = `Professional ${imageType} style image for "${sectionTopic}". Modern, clean design suitable for Korean blog post. High quality, engaging visual.`
+        }
+        
+        console.log(`🎨 ${imageType} 이미지 프롬프트: ${imagePrompt.substring(0, 100)}...`)
         
         // 실제 이미지 생성 시도
-        const imageResult = await image_generation({
-          query: imagePrompt,
-          model: 'flux-pro/ultra',
-          aspect_ratio: imageType === 'thumbnail' ? '16:9' : '4:3',
-          task_summary: `Generate ${imageType} for blog section about ${sectionTopic}`,
-          image_urls: []
-        })
-
-        if (imageResult?.generated_images?.[0]?.image_urls_nowatermark?.[0]) {
-          images.push({
-            url: imageResult.generated_images[0].image_urls_nowatermark[0],
-            type: imageType,
-            topic: sectionTopic,
-            prompt: imagePrompt,
-            index: i + 1
-          })
-        } else {
-          // 실패 시 플레이스홀더 (URL 인코딩된 SVG)
-          const fallbackSvgContent = `<svg width="600" height="400" xmlns="http://www.w3.org/2000/svg"><rect width="600" height="400" fill="#E5E7EB"/><text x="300" y="180" text-anchor="middle" fill="#6B7280" font-family="Arial" font-size="18">${sectionTopic}</text><text x="300" y="220" text-anchor="middle" fill="#9CA3AF" font-family="Arial" font-size="14">이미지 생성 실패</text></svg>`
-          const fallbackSvg = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(fallbackSvgContent)}`
-          
-          images.push({
-            url: fallbackSvg,
-            type: 'placeholder',
-            topic: sectionTopic,
-            index: i + 1,
-            note: '생성 실패로 인한 플레이스홀더'
-          })
+        const { env } = c
+        const falApiKey = env.FAL_AI_API_KEY
+        
+        if (falApiKey && !falApiKey.includes('development-test-key') && !falApiKey.includes('sandbox-only')) {
+          try {
+            // 실제 FAL AI nano-banana API 호출
+            const falResponse = await fetch('https://fal.run/fal-ai/nano-banana', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Key ${falApiKey}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                prompt: imagePrompt,
+                image_size: imageType === 'thumbnail' ? '16:9' : '4:3',
+                num_inference_steps: 28,
+                guidance_scale: 7.5,
+                num_images: 1,
+                enable_safety_checker: true
+              })
+            })
+            
+            if (falResponse.ok) {
+              const imageResult = await falResponse.json()
+              if (imageResult?.images?.[0]?.url) {
+                images.push({
+                  url: imageResult.images[0].url,
+                  type: imageType,
+                  topic: sectionTopic,
+                  prompt: imagePrompt,
+                  index: i + 1
+                })
+                continue
+              }
+            }
+          } catch (apiError) {
+            console.error(`FAL AI 호출 오류 (${i + 1}):`, apiError)
+          }
         }
+        
+        // API 호출 실패 시 또는 개발환경에서 시뮬레이션 이미지 생성
+        console.log(`🎨 시뮬레이션 이미지 생성 (${i + 1}): ${sectionTopic}`)
+        const simulatedImageUrl = generateSimulatedImage(sectionTopic, imageType, contentKeywords)
+        
+        images.push({
+          url: simulatedImageUrl,
+          type: 'simulation',
+          topic: sectionTopic,
+            prompt: imagePrompt,
+            index: i + 1,
+            note: '시뮬레이션 이미지'
+          })
       } catch (error) {
         console.error(`이미지 ${i + 1} 생성 실패:`, error)
         const errorSvgContent = `<svg width="600" height="400" xmlns="http://www.w3.org/2000/svg"><rect width="600" height="400" fill="#FEE2E2"/><text x="300" y="180" text-anchor="middle" fill="#DC2626" font-family="Arial" font-size="18">${sectionTopic}</text><text x="300" y="220" text-anchor="middle" fill="#EF4444" font-family="Arial" font-size="14">이미지 생성 오류</text></svg>`
