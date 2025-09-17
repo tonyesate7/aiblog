@@ -4765,18 +4765,8 @@ app.get('/advanced', (c) => {
           }
         </script>
         
-        <!-- Fallback to TailwindCSS with warning suppression -->
-        <script>
-          // 경고 무시 설정
-          const originalWarn = console.warn;
-          console.warn = function(msg) {
-            if (typeof msg === 'string' && msg.includes('tailwindcss.com should not be used in production')) {
-              return; // 이 경고는 무시
-            }
-            originalWarn.apply(console, arguments);
-          };
-        </script>
-        <script src="https://cdn.tailwindcss.com"></script>
+        <!-- Production TailwindCSS -->
+        <link href="/static/tailwind.css" rel="stylesheet">
         <script>
           tailwind.config = {
             theme: {

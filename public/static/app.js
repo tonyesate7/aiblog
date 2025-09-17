@@ -5662,7 +5662,6 @@ BlogGenerator.prototype.hideEnhancedLoading = function() {
         }, 300)
     }
 }
-}
 
 // 안전한 초기화 실행
 safeInitialize()
