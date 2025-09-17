@@ -1,10 +1,12 @@
-// 간단한 3단계 UI 제어
+// 🔥 라이브 AI 블로그 생성기 - 간단한 3단계 UI 제어
 class SimpleUI {
     constructor() {
         this.currentStep = 1;
         this.formData = {};
+        this.liveStatus = null;
         this.initializeEventListeners();
         this.setDefaults();
+        this.checkLiveStatus();
     }
     
     initializeEventListeners() {
@@ -277,6 +279,53 @@ class SimpleUI {
         
         // 페이지 맨 위로 스크롤
         window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    
+    // 🔑 라이브 상태 확인
+    async checkLiveStatus() {
+        try {
+            const response = await fetch('/api/status');
+            const status = await response.json();
+            
+            this.liveStatus = status;
+            this.updateStatusDisplay(status);
+            
+        } catch (error) {
+            console.log('상태 확인 실패:', error);
+            this.updateStatusDisplay({
+                status: 'demo',
+                summary: { 
+                    configured: '0/4',
+                    message: '⚠️ API 연결 확인 중...'
+                }
+            });
+        }
+    }
+    
+    updateStatusDisplay(status) {
+        // 헤더 상태 업데이트 (있는 경우)
+        const statusElement = document.getElementById('liveStatus');
+        if (statusElement) {
+            const isLive = status.status === 'live';
+            statusElement.innerHTML = isLive
+                ? `<i class="fas fa-bolt text-yellow-500 mr-1"></i>🔥 라이브 AI 활성화 (${status.summary.configured})`
+                : `<i class="fas fa-flask text-blue-500 mr-1"></i>🎭 데모 모드 (${status.summary.configured})`;
+            
+            statusElement.className = isLive 
+                ? 'px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium'
+                : 'px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium';
+        }
+        
+        // 생성 버튼 텍스트 업데이트
+        const generateBtn = document.getElementById('generateBtn');
+        if (generateBtn && status.status === 'live') {
+            const originalText = generateBtn.innerHTML;
+            if (!originalText.includes('🔥')) {
+                generateBtn.innerHTML = originalText.replace('AI 블로그 생성하기', '🔥 라이브 AI 블로그 생성하기');
+            }
+        }
+        
+        console.log(`🚀 시스템 상태: ${status.status} (${status.summary.configured})`, status.summary.message);
     }
 }
 

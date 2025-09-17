@@ -3204,38 +3204,462 @@ app.post('/api/generate-qa', async (c) => {
 })
 
 // Phase 1 강화된 블로그 생성 + AI 도구 편집 지원
+// 🔥 라이브 AI 생성 API - Phase 1 품질 향상 시스템 적용
 app.post('/api/generate', async (c) => {
   try {
-    const { topic, audience, tone, aiModel } = await c.req.json()
+    const { topic, audience, tone, aiModel, enableSEO, enablePhase1 } = await c.req.json()
     
     if (!topic) {
       return c.json({ error: '주제를 입력해주세요.' }, 400)
     }
 
-    // 시뮬레이션 지연 (실제 AI 생성하는 느낌)
-    await new Promise(resolve => setTimeout(resolve, 2000))
+    console.log(`🚀 라이브 AI 생성 시작 - 주제: ${topic}, 모델: ${aiModel || 'auto'}`)
 
-    // 데모 콘텐츠 생성
-    const modelUsed = aiModel === 'auto' ? 'Claude' : aiModel
-    const response = {
-      title: `${topic} - 완벽 가이드`,
-      content: generateDemoContent(topic, audience, tone),
-      model: modelUsed,
-      metadata: {
-        audience,
-        tone,
-        aiModel: modelUsed,
-        generatedAt: new Date().toISOString(),
-        isDemo: true
-      }
+    // 1. AI 모델 자동 선택 시스템
+    const selectedModel = aiModel === 'auto' ? selectOptimalAIModel(topic, audience, tone) : aiModel
+    console.log(`🧠 최적 모델 선택: ${selectedModel}`)
+
+    // 2. API 키 확인 및 선택
+    const apiKeys = await getAvailableApiKeys(c.env)
+    const modelApiKey = getModelApiKey(selectedModel, apiKeys, c.env)
+    
+    if (!modelApiKey) {
+      console.log('⚠️ API 키 없음 - 데모 모드로 전환')
+      return generateDemoResponse(topic, audience, tone, selectedModel)
     }
 
-    return c.json(response)
-  } catch (error) {
-    console.error('Generation error:', error)
-    return c.json({ error: '생성 중 오류가 발생했습니다.' }, 500)
+    console.log(`✅ ${selectedModel} API 키 확인됨`)
+
+    // 3. Phase 1 품질 향상 프롬프트 생성
+    const enhancedPrompt = enablePhase1 !== false 
+      ? generatePhase1EnhancedPrompt(topic, audience, tone, selectedModel)
+      : generateBasicPrompt(topic, audience, tone)
+
+    // 4. 실제 AI 모델 호출
+    let aiResponse
+    try {
+      switch (selectedModel) {
+        case 'claude':
+          aiResponse = await callClaudeAPI(enhancedPrompt, modelApiKey)
+          break
+        case 'gemini':
+          aiResponse = await callGeminiAPI(enhancedPrompt, modelApiKey)
+          break  
+        case 'openai':
+          aiResponse = await callOpenAIAPI(enhancedPrompt, modelApiKey)
+          break
+        case 'grok':
+          aiResponse = await callGrokAPI(enhancedPrompt, modelApiKey)
+          break
+        default:
+          throw new Error(`지원하지 않는 모델: ${selectedModel}`)
+      }
+
+      console.log(`✨ ${selectedModel} 응답 생성 완료`)
+
+      // 5. 응답 후처리 및 품질 검증
+      const processedContent = await postProcessContent(aiResponse, enableSEO)
+
+      return c.json({
+        title: extractTitle(processedContent) || `${topic} - 완벽 가이드`,
+        content: processedContent,
+        model: selectedModel,
+        metadata: {
+          audience,
+          tone,
+          aiModel: selectedModel,
+          generatedAt: new Date().toISOString(),
+          enablePhase1: enablePhase1 !== false,
+          enableSEO: enableSEO || false,
+          isLive: true,
+          qualityScore: calculateQualityScore(processedContent)
+        }
+      })
+
+    } catch (apiError: any) {
+      console.error(`❌ ${selectedModel} API 오류:`, apiError.message)
+      
+      // API 실패 시 다른 모델로 폴백
+      const fallbackModel = getFallbackModel(selectedModel, apiKeys, c.env)
+      if (fallbackModel) {
+        console.log(`🔄 ${fallbackModel}로 폴백 시도`)
+        try {
+          const fallbackKey = getModelApiKey(fallbackModel, apiKeys, c.env)
+          let fallbackResponse
+          
+          switch (fallbackModel) {
+            case 'claude':
+              fallbackResponse = await callClaudeAPI(enhancedPrompt, fallbackKey)
+              break
+            case 'gemini':
+              fallbackResponse = await callGeminiAPI(enhancedPrompt, fallbackKey)
+              break
+            case 'openai':
+              fallbackResponse = await callOpenAIAPI(enhancedPrompt, fallbackKey)
+              break
+          }
+          
+          const processedContent = await postProcessContent(fallbackResponse, enableSEO)
+          console.log(`✅ ${fallbackModel} 폴백 성공`)
+          
+          return c.json({
+            title: extractTitle(processedContent) || `${topic} - 완벽 가이드`,
+            content: processedContent,
+            model: `${fallbackModel} (폴백)`,
+            metadata: {
+              audience, tone, aiModel: fallbackModel,
+              generatedAt: new Date().toISOString(),
+              enablePhase1: enablePhase1 !== false,
+              enableSEO: enableSEO || false,
+              isLive: true, isFallback: true,
+              qualityScore: calculateQualityScore(processedContent)
+            }
+          })
+        } catch (fallbackError) {
+          console.error(`❌ ${fallbackModel} 폴백도 실패:`, fallbackError)
+        }
+      }
+      
+      // 모든 AI 모델 실패 시 고품질 데모 모드
+      console.log('🎭 모든 AI 모델 실패 - 고품질 데모 모드')
+      return generateDemoResponse(topic, audience, tone, selectedModel, true)
+    }
+
+  } catch (error: any) {
+    console.error('생성 시스템 오류:', error)
+    return c.json({ 
+      error: '생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+      details: error.message 
+    }, 500)
   }
 })
+
+// 🔑 API 키 상태 확인 및 설정 가이드
+app.get('/api/status', async (c) => {
+  try {
+    const { env } = c
+    const apiKeys = await getAvailableApiKeys(env)
+    
+    const modelStatus = {
+      claude: {
+        configured: !!apiKeys.claude,
+        model: 'Claude 3 Sonnet',
+        description: '논리적 분석과 체계적 글쓰기에 뛰어남',
+        setupCommand: 'npx wrangler pages secret put CLAUDE_API_KEY --project-name ai-blog-generator-v2'
+      },
+      gemini: {
+        configured: !!apiKeys.gemini,
+        model: 'Gemini Pro',
+        description: '창의적 사고와 다각도 분석 특화',
+        setupCommand: 'npx wrangler pages secret put GEMINI_API_KEY --project-name ai-blog-generator-v2'
+      },
+      openai: {
+        configured: !!apiKeys.openai,
+        model: 'GPT-4o-mini',
+        description: '자연스러운 대화체 글쓰기',
+        setupCommand: 'npx wrangler pages secret put OPENAI_API_KEY --project-name ai-blog-generator-v2'
+      },
+      grok: {
+        configured: !!apiKeys.grok,
+        model: 'Grok Beta',
+        description: '독특한 관점과 유머러스한 표현',
+        setupCommand: 'npx wrangler pages secret put GROK_API_KEY --project-name ai-blog-generator-v2'
+      }
+    }
+    
+    const configuredCount = Object.values(modelStatus).filter(m => m.configured).length
+    const totalModels = Object.keys(modelStatus).length
+    
+    return c.json({
+      version: 'v4.1 Live Edition',
+      status: configuredCount > 0 ? 'live' : 'demo',
+      summary: {
+        configured: `${configuredCount}/${totalModels}`,
+        message: configuredCount > 0 
+          ? `✅ ${configuredCount}개의 라이브 AI 모델이 활성화되어 있습니다!`
+          : '⚠️ API 키가 설정되지 않아 데모 모드로 작동 중입니다.',
+        recommendation: configuredCount === 0 
+          ? 'Cloudflare Pages 대시보드에서 환경변수를 설정해주세요.'
+          : '더 많은 AI 모델을 추가하면 더 다양한 스타일의 글을 생성할 수 있습니다.'
+      },
+      models: modelStatus,
+      setupGuide: {
+        step1: '1. Cloudflare Pages 대시보드 접속',
+        step2: '2. 프로젝트 > Settings > Environment variables',
+        step3: '3. Production 환경변수 추가',
+        step4: '4. 또는 wrangler CLI로 설정',
+        note: 'API 키는 각 서비스에서 발급받으세요 (Claude: Anthropic, Gemini: Google AI Studio, OpenAI: OpenAI Platform, Grok: xAI)'
+      },
+      timestamp: new Date().toISOString()
+    })
+  } catch (error: any) {
+    return c.json({ 
+      error: 'API 키 상태 확인 중 오류가 발생했습니다.',
+      details: error.message 
+    }, 500)
+  }
+})
+
+// 🧠 AI 모델 자동 선택 시스템
+function selectOptimalAIModel(topic: string, audience: string, tone: string): string {
+  const topicLower = topic.toLowerCase()
+  
+  // 기술/개발 관련 → Claude (분석력 뛰어남)
+  if (topicLower.includes('ai') || topicLower.includes('기술') || topicLower.includes('개발') || topicLower.includes('프로그래밍')) {
+    return 'claude'
+  }
+  
+  // 창의적/마케팅 관련 → Gemini (창의성 좋음)
+  if (topicLower.includes('마케팅') || topicLower.includes('창업') || topicLower.includes('브랜딩') || topicLower.includes('디자인')) {
+    return 'gemini'
+  }
+  
+  // 일상/라이프스타일 → OpenAI (자연스러운 톤)
+  if (topicLower.includes('건강') || topicLower.includes('요리') || topicLower.includes('여행') || topicLower.includes('라이프')) {
+    return 'openai'
+  }
+  
+  // 트렌드/유머 관련 → Grok (독특한 관점)
+  if (topicLower.includes('트렌드') || topicLower.includes('바이럴') || tone === '유머러스') {
+    return 'grok'
+  }
+  
+  // 기본값: Claude (가장 안정적)
+  return 'claude'
+}
+
+// 🔑 API 키 관리 시스템
+async function getAvailableApiKeys(env: any) {
+  return {
+    claude: env.CLAUDE_API_KEY,
+    gemini: env.GEMINI_API_KEY, 
+    openai: env.OPENAI_API_KEY,
+    grok: env.GROK_API_KEY
+  }
+}
+
+function getModelApiKey(model: string, apiKeys: any, env: any): string {
+  return apiKeys[model] || ''
+}
+
+function getFallbackModel(failedModel: string, apiKeys: any, env: any): string | null {
+  const priority = ['claude', 'openai', 'gemini', 'grok']
+  const available = priority.filter(model => model !== failedModel && getModelApiKey(model, apiKeys, env))
+  return available[0] || null
+}
+
+// 📝 Phase 1 품질 향상 프롬프트 시스템
+function generatePhase1EnhancedPrompt(topic: string, audience: string, tone: string, model: string): string {
+  const basePrompt = generateBasicPrompt(topic, audience, tone)
+  
+  const phase1Enhancement = `
+🔥 **Phase 1 품질 향상 시스템 적용**
+
+다음 4가지 핵심 요소를 반드시 포함하여 89/100 점수의 고품질 블로그를 작성하세요:
+
+1. **감정적 훅 (도입부 임팩트 300% 강화)**
+   - 첫 문장에 독자의 호기심을 자극하는 질문이나 놀라운 사실
+   - 개인적 경험이나 공감할 수 있는 상황 제시
+   - 예: "당신은 혹시 ${topic}에 대해 이런 고민을 해본 적이 있나요?"
+
+2. **실시간 데이터 통합 (최신성 보장)**
+   - 2024년 최신 통계, 트렌드, 연구 결과 인용
+   - 구체적인 수치와 출처 명시
+   - 한국 시장 데이터나 사례 우선 활용
+
+3. **실용성 극대화 (즉시 적용 가능)**
+   - 단계별 실행 가이드 제공
+   - 체크리스트나 템플릿 포함
+   - "오늘부터 바로 시작할 수 있는" 구체적 방법
+
+4. **구조적 완성도 (가독성 88/100)**
+   - 명확한 섹션 구분 (##, ###)
+   - 핵심 내용을 강조 (**굵게**)
+   - 리스트와 번호를 활용한 정리
+   - 요약 및 다음 단계 제시
+
+**추가 요구사항:**
+- 글자수: 1500-2500자 (적정 분량)
+- SEO 최적화: 주요 키워드 자연스럽게 배치
+- ${audience} 수준에 맞는 설명
+- ${tone} 톤으로 일관된 문체
+`
+
+  return `${basePrompt}\n\n${phase1Enhancement}`
+}
+
+function generateBasicPrompt(topic: string, audience: string, tone: string): string {
+  return `다음 조건으로 고품질 블로그 글을 작성해주세요:
+
+주제: ${topic}
+대상 독자: ${audience}
+글의 톤: ${tone}
+
+${audience === '일반인' ? '누구나 쉽게 이해할 수 있도록' : audience === '초보자' ? '기초부터 차근차근' : '전문적이고 심화된 내용으로'} 작성하고, ${tone === '친근한' ? '편안하고 자연스러운' : tone === '전문적' ? '신뢰할 수 있고 정확한' : '재미있고 유머러스한'} 톤으로 써주세요.
+
+구체적이고 실용적인 정보를 포함하여 독자가 실제로 도움받을 수 있는 내용으로 작성해주세요.`
+}
+
+// 🤖 AI 모델 API 호출 함수들
+async function callClaudeAPI(prompt: string, apiKey: string): Promise<string> {
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify({
+      model: 'claude-3-sonnet-20240229',
+      max_tokens: 4000,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  })
+  
+  if (!response.ok) {
+    throw new Error(`Claude API 오류: ${response.status}`)
+  }
+  
+  const data = await response.json()
+  return data.content[0].text
+}
+
+async function callGeminiAPI(prompt: string, apiKey: string): Promise<string> {
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }]
+    })
+  })
+  
+  if (!response.ok) {
+    throw new Error(`Gemini API 오류: ${response.status}`)
+  }
+  
+  const data = await response.json()
+  return data.candidates[0].content.parts[0].text
+}
+
+async function callOpenAIAPI(prompt: string, apiKey: string): Promise<string> {
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 4000
+    })
+  })
+  
+  if (!response.ok) {
+    throw new Error(`OpenAI API 오류: ${response.status}`)
+  }
+  
+  const data = await response.json()
+  return data.choices[0].message.content
+}
+
+async function callGrokAPI(prompt: string, apiKey: string): Promise<string> {
+  const response = await fetch('https://api.x.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: 'grok-beta',
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 4000
+    })
+  })
+  
+  if (!response.ok) {
+    throw new Error(`Grok API 오류: ${response.status}`)
+  }
+  
+  const data = await response.json()
+  return data.choices[0].message.content
+}
+
+// 📊 콘텐츠 후처리 및 품질 검증
+async function postProcessContent(content: string, enableSEO: boolean): Promise<string> {
+  let processed = content.trim()
+  
+  // SEO 최적화 적용
+  if (enableSEO) {
+    processed = await applySEOOptimization(processed)
+  }
+  
+  // 품질 검증 및 개선
+  processed = improveContentQuality(processed)
+  
+  return processed
+}
+
+async function applySEOOptimization(content: string): Promise<string> {
+  // SEO 메타데이터 추가, 키워드 최적화 등
+  return content // 현재는 기본 반환
+}
+
+function improveContentQuality(content: string): string {
+  // 문단 정리, 형식 개선 등
+  return content
+    .replace(/\n{3,}/g, '\n\n') // 과도한 줄바꿈 정리
+    .replace(/#{4,}/g, '###') // 제목 레벨 정리
+}
+
+function extractTitle(content: string): string | null {
+  const match = content.match(/^#\s+(.+)$/m)
+  return match ? match[1] : null
+}
+
+function calculateQualityScore(content: string): number {
+  let score = 70 // 기본 점수
+  
+  // 길이 점수 (1500-2500자 적정)
+  const length = content.length
+  if (length >= 1500 && length <= 2500) score += 10
+  else if (length >= 1000) score += 5
+  
+  // 구조 점수
+  const headers = (content.match(/^#{1,3}\s/gm) || []).length
+  if (headers >= 3) score += 5
+  
+  // 리스트/강조 점수
+  const lists = (content.match(/^[-*]\s/gm) || []).length
+  const bold = (content.match(/\*\*.*?\*\*/g) || []).length
+  if (lists >= 3 || bold >= 5) score += 5
+  
+  // 실용성 점수
+  if (content.includes('단계') || content.includes('방법') || content.includes('팁')) score += 10
+  
+  return Math.min(score, 100)
+}
+
+// 🎭 고품질 데모 모드 (API 키 없을 때)
+function generateDemoResponse(topic: string, audience: string, tone: string, model: string, isFailback = false) {
+  const content = generateDemoContent(topic, audience, tone)
+  const demoNote = isFailback ? 
+    '\n\n*⚠️ 현재 AI 서비스에 일시적 문제가 발생하여 데모 모드로 생성되었습니다. 잠시 후 다시 시도해주세요.*' :
+    '\n\n*🤖 이 콘텐츠는 AI 블로그 생성기 데모 버전으로 생성되었습니다. API 키를 설정하면 실제 AI 모델을 사용할 수 있습니다.*'
+  
+  return {
+    title: `${topic} - 완벽 가이드`,
+    content: content + demoNote,
+    model: `${model} (데모)`,
+    metadata: {
+      audience, tone, aiModel: model,
+      generatedAt: new Date().toISOString(),
+      isDemo: true, isFailback,
+      qualityScore: 75,
+      note: 'API 키를 Cloudflare Pages 환경변수로 설정하면 실제 AI 생성 가능'
+    }
+  }
+}
 
 function generateDemoContent(topic: string, audience: string, tone: string): string {
   const toneAdjective = tone === '친근한' ? '쉽고 재미있게' : tone === '전문적' ? '체계적이고 정확하게' : '유머러스하고 흥미롭게'
@@ -3289,7 +3713,10 @@ ${topic}에 대해 ${toneAdjective} 살펴봤습니다. ${audience}을 위한 �
 
 ---
 
-*🤖 이 콘텐츠는 AI 블로그 생성기 v4.1 데모 버전으로 생성되었습니다. 실제 서비스에서는 더욱 정교하고 전문적인 내용이 제공됩니다.*`
+**🚀 다음 단계 추천:**
+- 더 자세한 정보가 필요하다면 전문 자료를 참고해보세요
+- 실제 적용해보면서 경험을 쌓아가세요
+- 궁금한 점이 있으면 언제든 질문해주세요`
 }
 
 export default app
