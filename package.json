@@ -4,9 +4,10 @@
   "type": "module",
   "description": "AI-powered blog content generator with Phase 1 Quality Enhancement System - Version 4.1",
   "scripts": {
-    "dev": "vite",
+    "dev": "npm run build:css && vite",
     "dev:sandbox": "wrangler pages dev dist --ip 0.0.0.0 --port 3000",
-    "build": "vite build",
+    "build": "npm run build:css && vite build",
+    "build:css": "node build-css.js",
     "preview": "wrangler pages dev dist",
     "deploy": "./deploy.sh",
     "deploy:manual": "npm run build && wrangler pages deploy dist --project-name ai-blog-generator-v2",
@@ -20,10 +21,15 @@
     "hono": "^4.9.5"
   },
   "devDependencies": {
-    "@hono/vite-cloudflare-pages": "^0.4.2",
     "@cloudflare/workers-types": "^4.20250917.0",
+    "@hono/vite-cloudflare-pages": "^0.4.2",
+    "@tailwindcss/postcss": "^4.1.13",
+    "@tailwindcss/typography": "^0.5.16",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.13",
     "typescript": "^5.0.0",
-    "vite": "^6.3.5", 
+    "vite": "^6.3.5",
     "wrangler": "^3.78.0"
   }
 }

@@ -1,0 +1,111 @@
+@import 'tailwindcss';
+
+/* 커스텀 스타일 - 직접 CSS 작성 */
+.step-content {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.3s ease;
+}
+
+.step-content.active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.step-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.step-indicator.active .step-circle {
+  background: #3b82f6;
+  color: white;
+}
+
+.step-indicator.completed .step-circle {
+  background: #10b981;
+  color: white;
+}
+
+.step-circle {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: #e5e7eb;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+.option-card {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.option-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.option-card.selected {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+/* 알림 스타일 */
+.notification {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  max-width: 24rem;
+  z-index: 50;
+}
+
+.notification.error {
+  background: #ef4444;
+  color: white;
+}
+
+.notification.success {
+  background: #10b981;
+  color: white;
+}
+
+.notification.info {
+  background: #3b82f6;
+  color: white;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 640px) {
+  .step-indicator {
+    font-size: 0.75rem;
+  }
+  
+  .option-card {
+    padding: 0.75rem;
+  }
+}
+
+/* 로딩 애니메이션 */
+.loading-spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* 프린트 스타일 */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
