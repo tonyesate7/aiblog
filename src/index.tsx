@@ -4731,1009 +4731,113 @@ app.get('/advanced', (c) => {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>AI 블로그 생성기 v4.1 - Phase 1 품질 향상 + 5개 AI 모델</title>
-        <meta name="description" content="실시간 네이버 트렌드와 5개 AI 모델(Claude, Gemini, GPT, GROK, nano-banana)로 89점 품질의 고급 블로그를 자동 생성하는 완전 무료 플랫폼">
-        <meta name="keywords" content="AI 블로그 생성, Phase 1 품질 향상, 네이버 트렌드, Claude, Gemini, GPT, GROK, 이미지 생성, SEO 최적화">
-        <meta property="og:title" content="AI 블로그 생성기 v4.1 - Phase 1 품질 향상 시스템">
-        <meta property="og:description" content="네이버 실시간 트렌드 + 5개 AI 모델로 고품질 블로그 자동 생성">
-        <meta property="og:type" content="website">
-        <meta name="twitter:card" content="summary_large_image">
-        <meta name="robots" content="index, follow">
-        
-        <!-- Favicon -->
-        <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🤖%3C/text%3E%3C/svg%3E">
-        
-        <!-- 프리텐다드 폰트 -->
-        <link rel="preconnect" href="https://cdn.jsdelivr.net">
-        <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
-        
-        <!-- TailwindCSS UnoCSS 대안 (프로덕션 최적화) -->
-        <script src="https://cdn.jsdelivr.net/npm/@unocss/runtime/uno.global.js"></script>
-        <script>
-          // UnoCSS 설정
-          window.unocss = {
-            shortcuts: {
-              'btn': 'px-4 py-2 rounded font-medium transition-colors',
-              'btn-primary': 'bg-blue-600 text-white hover:bg-blue-700',
-              'btn-secondary': 'bg-gray-300 text-gray-700 hover:bg-gray-400'
-            },
-            theme: {
-              fontFamily: {
-                'pretendard': ['Pretendard', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'Roboto', 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'sans-serif']
-              }
-            }
-          }
-        </script>
-        
-        <!-- Production TailwindCSS -->
+        <title>AI 블로그 생성기 v4.1 - 고급 모드</title>
         <link href="/static/tailwind.css" rel="stylesheet">
-        <script>
-          tailwind.config = {
-            theme: {
-              extend: {
-                fontFamily: {
-                  'pretendard': ['Pretendard', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'Roboto', 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'sans-serif'],
-                }
-              }
-            }
-          }
-        </script>
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
         <link href="/static/styles.css" rel="stylesheet">
     </head>
-    <body class="bg-gray-50 min-h-screen font-pretendard">
+    <body class="bg-gray-50 min-h-screen">
         <div class="container mx-auto px-4 py-8">
-            <!-- 헤더 -->
-            <div class="text-center mb-12">
-                <h1 class="text-4xl font-bold text-gray-800 mb-4">
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold text-gray-800 mb-4">
                     <i class="fas fa-robot mr-3 text-blue-600"></i>
-                    AI 블로그 생성기 v4.1
+                    AI 블로그 생성기 v4.1 - 고급 모드
                 </h1>
-                <p class="text-xl text-gray-600">
-                    네이버 실시간 트렌드 + 5개 AI 모델 + Phase 1 품질 향상으로 89점 고품질 콘텐츠 제작
-                </p>
-                <div class="mt-4 flex justify-center space-x-4 text-sm text-gray-500 flex-wrap">
-                    <span><i class="fas fa-check text-green-500 mr-1"></i>📡 네이버 실시간 트렌드</span>
-                    <span><i class="fas fa-check text-green-500 mr-1"></i>🧠 5-AI 모델 통합</span>
-                    <span><i class="fas fa-check text-green-500 mr-1"></i>🎨 AI 이미지 생성</span>
-                    <span><i class="fas fa-check text-red-500 mr-1"></i>🔥 Phase 1 품질 향상 (v4.1 NEW!)</span>
-                    <span><i class="fas fa-check text-green-500 mr-1"></i>🛡️ 3단계 품질 검증</span>
-                    <span><i class="fas fa-check text-blue-500 mr-1"></i>⚡ 완전 무료 사용</span>
-                </div>
-                
-                <!-- 튜토리얼 및 빠른 시작 버튼들 -->
-                <div class="mt-6 flex justify-center flex-wrap gap-3">
-                    <button id="startTutorialBtn" class="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all shadow-md hover:shadow-lg">
-                        <i class="fas fa-graduation-cap mr-2"></i>사용법 가이드
-                    </button>
-                    
-                    <!-- 빠른 템플릿 버튼들 -->
-                    <div class="flex flex-wrap gap-2">
-                        <button data-template="tech" class="quick-template px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm hover:bg-blue-200 transition-all">
-                            📱 IT/기술
-                        </button>
-                        <button data-template="business" class="quick-template px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm hover:bg-green-200 transition-all">
-                            💼 비즈니스
-                        </button>
-                        <button data-template="lifestyle" class="quick-template px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm hover:bg-purple-200 transition-all">
-                            🌿 라이프스타일
-                        </button>
-                        <button data-template="trending" class="quick-template px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm hover:bg-red-200 transition-all">
-                            🔥 트렌드/바이럴
-                        </button>
-                    </div>
+                <p class="text-gray-600">고급 설정으로 더 정교한 블로그를 만들어보세요</p>
+                <div class="mt-4">
+                    <a href="/" class="text-blue-600 hover:text-blue-800">← 간단 모드로 돌아가기</a>
                 </div>
             </div>
 
-            <!-- 한국 트렌드 대시보드 -->
-            <div class="max-w-6xl mx-auto mb-12">
-                <div class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl shadow-lg p-8 border border-blue-200">
-                    <h2 class="text-3xl font-bold text-center text-gray-800 mb-8 flex items-center justify-center">
-                        <span class="mr-3">🇰🇷</span>
-                        실시간 한국 트렌드 대시보드
-                    </h2>
-                    
-                    <!-- 실시간 데이터 상태 표시 -->
-                    <div class="mb-6 p-4 bg-white rounded-lg shadow-sm border border-gray-100">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center">
-                                <span class="text-lg font-medium text-gray-800">📡 실시간 데이터 소스</span>
-                                <div id="realTimeDataStatus" class="ml-3 px-3 py-1 rounded-full text-sm bg-gray-100 text-gray-600">
-                                    시뮬레이션 모드
-                                </div>
-                            </div>
-                            <button onclick="alert('네이버 API가 이미 서버에 연동되어 실시간 트렌드 데이터를 제공하고 있습니다! 🎉')" 
-                                    class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all text-sm">
-                                <i class="fas fa-check-circle mr-1"></i>
-                                네이버 API 연동됨
-                            </button>
-                        </div>
-                        <div class="mt-2 text-xs text-gray-500">
-                            네이버 DataLab API를 연결하면 실제 검색 트렌드 데이터를 사용할 수 있습니다.
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        <!-- 인기 키워드 -->
-                        <div class="bg-white rounded-lg p-6 shadow-md border border-blue-100">
-                            <h3 class="text-xl font-semibold text-blue-800 mb-4 flex items-center">
-                                <span class="mr-2">🔥</span>
-                                지금 뜨는 키워드
-                            </h3>
-                            <div id="trendKeywordSuggestions" class="flex flex-wrap gap-2 mb-4">
-                                <div class="bg-gray-100 px-3 py-1 rounded-full text-sm text-gray-500 animate-pulse">트렌드 데이터 로딩 중...</div>
-                            </div>
-                            <p class="text-xs text-blue-600">클릭하면 주제에 자동 추가됩니다</p>
-                        </div>
-                        
-                        <!-- 시즌 컨텍스트 -->
-                        <div class="bg-white rounded-lg p-6 shadow-md border border-orange-100">
-                            <div id="seasonalContext" class="min-h-32">
-                                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 animate-pulse">
-                                    <div class="h-6 bg-gray-300 rounded mb-3"></div>
-                                    <div class="h-4 bg-gray-200 rounded mb-2"></div>
-                                    <div class="h-4 bg-gray-200 rounded w-2/3"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 소셜미디어 트렌드 -->
-                    <div id="socialMediaTrends" class="mt-8">
-                        <!-- 소셜미디어 트렌드 컨텐츠가 동적으로 여기에 추가됩니다 -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- 메인 콘텐츠 -->
             <div class="max-w-4xl mx-auto">
-                <!-- 블로그 생성 폼 -->
-                <div class="bg-white rounded-xl shadow-lg p-8 mb-8">
-                    <h2 class="text-2xl font-bold text-gray-800 mb-6">
-                        <i class="fas fa-edit mr-2 text-blue-600"></i>
-                        블로그 글 생성
-                    </h2>
-                    
-                    <form id="blogForm" class="space-y-6">
-                        <!-- 주제 입력 -->
+                <form id="blogForm" class="bg-white rounded-xl shadow-lg p-8">
+                    <div class="mb-6">
+                        <label for="topic" class="block text-lg font-semibold text-gray-800 mb-3">
+                            <i class="fas fa-lightbulb text-yellow-500 mr-2"></i>
+                            블로그 주제
+                        </label>
+                        <textarea 
+                            id="topic" 
+                            name="topic" 
+                            rows="3" 
+                            placeholder="구체적인 주제를 입력해주세요..."
+                            class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
+                            required></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">
-                                <i class="fas fa-lightbulb mr-2 text-yellow-500"></i>
-                                주제
-                            </label>
-                            <input 
-                                type="text" 
-                                id="topic" 
-                                placeholder="예: 인공지능의 미래, 건강한 식습관, 투자 초보자 가이드"
-                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                required
-                            >
+                            <label class="block text-sm font-medium text-gray-700 mb-2">대상 독자</label>
+                            <select id="audience" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                <option value="일반인">일반인</option>
+                                <option value="초보자">초보자</option>
+                                <option value="전문가">전문가</option>
+                            </select>
                         </div>
-
-                        <!-- 옵션들 -->
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <!-- 대상 독자 -->
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">
-                                    <i class="fas fa-users mr-2 text-green-500"></i>
-                                    대상 독자
-                                </label>
-                                <select id="audience" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                    <option value="일반인">일반인 (쉽게)</option>
-                                    <option value="초보자">초보자 (체계적으로)</option>
-                                    <option value="중급자">중급자 (심화)</option>
-                                    <option value="전문가">전문가 (전문적으로)</option>
-                                </select>
-                            </div>
-
-                            <!-- 글의 톤 -->
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">
-                                    <i class="fas fa-palette mr-2 text-purple-500"></i>
-                                    글의 톤
-                                </label>
-                                <select id="tone" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                    <option value="친근한">친근한</option>
-                                    <option value="전문적">전문적</option>
-                                    <option value="유머러스">유머러스</option>
-                                    <option value="진지한">진지한</option>
-                                </select>
-                            </div>
-
-                            <!-- AI 모델 -->
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">
-                                    <i class="fas fa-brain mr-2 text-red-500"></i>
-                                    AI 모델
-                                </label>
-                                <select id="aiModel" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                    <option value="auto">🧠 자동 선택 (전문가 시스템) - 권장!</option>
-                                    <option value="claude">🔬 Claude 3.5 Haiku (분석 전문가)</option>
-                                    <option value="gemini">🎓 Gemini 1.5 Flash (교육 전문가)</option>
-                                    <option value="openai">💬 GPT-4o-mini (소통 전문가)</option>
-                                    <option value="grok">🔥 Grok-2 Beta (트렌드 & 창의성 전문가) - NEW!</option>
-                                </select>
-                            </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">글의 톤</label>
+                            <select id="tone" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                <option value="친근한">친근한</option>
+                                <option value="전문적">전문적</option>
+                                <option value="유머러스">유머러스</option>
+                            </select>
                         </div>
+                    </div>
 
-                        <!-- API 키 설정 섹션 -->
-                        <div class="bg-blue-50 p-4 rounded-lg">
-                            <div class="flex items-center justify-between mb-3">
-                                <h3 class="text-lg font-medium text-gray-800">
-                                    <i class="fas fa-key mr-2 text-blue-600"></i>
-                                    API 키 설정 (선택사항)
-                                </h3>
-                                <button type="button" id="toggleApiKeys" class="text-blue-600 hover:text-blue-800">
-                                    <i class="fas fa-chevron-down"></i>
-                                </button>
-                            </div>
-                            
-                            <div id="apiKeysSection" class="hidden space-y-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Claude API Key</label>
-                                    <input type="password" id="claudeApiKey" placeholder="sk-ant-..." class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Gemini API Key</label>
-                                    <input type="password" id="geminiApiKey" placeholder="AIza..." class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">OpenAI API Key</label>
-                                    <input type="password" id="openaiApiKey" placeholder="sk-proj-..." class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Grok API Key (NEW! 🔥)</label>
-                                    <input type="password" id="grokApiKey" placeholder="xai-..." class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                                </div>
-                                <div class="text-sm text-gray-600 bg-white p-3 rounded border">
-                                    <div class="space-y-2">
-                                        <div class="flex items-start">
-                                            <i class="fas fa-check-circle text-green-500 mr-2 mt-0.5"></i>
-                                            <span><strong>서버 API 키 구성됨!</strong> Claude, Gemini, OpenAI 모델을 바로 사용하실 수 있습니다.</span>
-                                        </div>
-                                        <div class="flex items-start">
-                                            <i class="fas fa-info-circle text-blue-500 mr-2 mt-0.5"></i>
-                                            <span>개별 API 키를 입력하면 더 많은 사용량과 개인화된 설정이 가능합니다.</span>
-                                        </div>
-                                        <div class="flex items-start">
-                                            <i class="fas fa-lightbulb text-yellow-500 mr-2 mt-0.5"></i>
-                                            <span>GROK 모델 사용을 위해서는 X.AI API 키가 필요합니다.</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- SEO 최적화 옵션 섹션 -->
-                        <div class="bg-green-50 p-4 rounded-lg">
-                            <div class="flex items-center justify-between mb-3">
-                                <h3 class="text-lg font-medium text-gray-800">
-                                    <i class="fas fa-search mr-2 text-green-600"></i>
-                                    SEO 최적화 (NEW! 🔥)
-                                </h3>
-                                <button type="button" id="toggleSeoOptions" class="text-green-600 hover:text-green-800">
-                                    <i class="fas fa-chevron-down"></i>
-                                </button>
-                            </div>
-                            
-                            <div id="seoOptionsSection" class="hidden space-y-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">핵심 키워드</label>
-                                    <input type="text" id="focusKeyword" placeholder="예: 인공지능, 투자 방법, 건강 관리" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">추가 키워드 (쉼표로 구분)</label>
-                                    <input type="text" id="targetKeywords" placeholder="예: AI 기술, 머신러닝, 딥러닝" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                                </div>
-                                <div class="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">콘텐츠 길이</label>
-                                        <select id="contentLength" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                                            <option value="short">짧게 (1500-2000자)</option>
-                                            <option value="medium" selected>보통 (2500-4000자)</option>
-                                            <option value="long">길게 (4000-6000자)</option>
-                                        </select>
-                                    </div>
-                                    <div class="flex items-center">
-                                        <input type="checkbox" id="includeStructuredData" class="mr-2">
-                                        <label for="includeStructuredData" class="text-sm text-gray-700">구조화 데이터 포함</label>
-                                    </div>
-                                </div>
-                                <div class="text-sm text-green-600">
-                                    <i class="fas fa-info-circle mr-1"></i>
-                                    SEO 최적화로 검색 노출과 클릭률을 향상시킬 수 있습니다.
-                                </div>
-                            </div>
-                        </div>
-
-
-
-                        <!-- 이미지 생성 옵션 섹션 (NEW! 🎨) -->
-                        <div class="bg-purple-50 p-4 rounded-lg">
-                            <div class="flex items-center justify-between mb-3">
-                                <h3 class="text-lg font-medium text-gray-800">
-                                    <i class="fas fa-images mr-2 text-purple-600"></i>
-                                    🎨 AI 이미지 생성 (NEW! 혁신적!)
-                                </h3>
-                                <button type="button" id="toggleImageOptions" class="text-purple-600 hover:text-purple-800">
-                                    <i class="fas fa-chevron-down"></i>
-                                </button>
-                            </div>
-                            
-                            <div id="imageOptionsSection" class="space-y-4">
-                                <div class="flex items-center">
-                                    <input type="checkbox" id="includeImages" checked class="mr-2">
-                                    <label for="includeImages" class="text-sm text-gray-700 font-medium">블로그에 관련 이미지 자동 생성 (AI가 내용 분석 후 맞춤 이미지 생성)</label>
-                                </div>
-                                
-                                <div class="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">이미지 스타일</label>
-                                        <select id="imageStyle" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                                            <option value="realistic">🏆 사실적 - Imagen4 초고품질</option>
-                                            <option value="professional" selected>💼 전문적 - Imagen4 비즈니스용</option>
-                                            <option value="creative">🎨 창의적 - Gemini 2.5 Flash 예술적 ✨NEW</option>
-                                            <option value="editing">✏️ 이미지 편집 - Gemini 2.5 Flash 전용 ✨NEW</option>
-                                            <option value="lifestyle">✨ 라이프스타일 - 자연스러운 일상</option>
-                                            <option value="photographic">📸 사진품질 - 매거진급 퀄리티</option>
-                                            <option value="illustration">🎭 일러스트 - Ideogram V3 특화</option>
-                                            <option value="diagram">📊 다이어그램 - 교육용 infographic</option>
-                                            <option value="korean_poster">🇰🇷 한국어 포스터 - Qwen Image 특화</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">이미지 개수</label>
-                                        <select id="imageCount" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                                            <option value="3" selected>3개 (썸네일 + 2개 삽화) - 권장</option>
-                                            <option value="5">5개 (썸네일 + 4개 삽화) - 풍부</option>
-                                            <option value="1">1개 (대표 이미지만)</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                
-                                <div class="text-sm text-purple-600 bg-white p-3 rounded border">
-                                    <div class="space-y-2">
-                                        <div class="flex items-start">
-                                            <i class="fas fa-crown text-yellow-500 mr-2 mt-0.5"></i>
-                                            <span><strong>🏆 SOTA 기술:</strong> nano-banana (최고 성능 모델) 포함 - 업계 최고 품질 이미지 생성</span>
-                                        </div>
-                                        <div class="flex items-start">
-                                            <i class="fas fa-magic text-purple-500 mr-2 mt-0.5"></i>
-                                            <span><strong>AI 자동 생성:</strong> 블로그 주제와 내용을 분석해 완벽하게 매칭되는 맞춤형 이미지 자동 생성</span>
-                                        </div>
-                                        <div class="flex items-start">
-                                            <i class="fas fa-clock text-blue-500 mr-2 mt-0.5"></i>
-                                            <span><strong>생성 시간:</strong> 이미지당 15-45초 (SOTA 모델로 더욱 빠르고 정확한 생성)</span>
-                                        </div>
-                                        <div class="flex items-start">
-                                            <i class="fas fa-copyright text-green-500 mr-2 mt-0.5"></i>
-                                            <span><strong>저작권 안전:</strong> AI 생성 이미지로 상업적 사용 가능, 라이선스 걱정 없음</span>
-                                        </div>
-                                        <div class="flex items-start">
-                                            <i class="fas fa-rocket text-orange-500 mr-2 mt-0.5"></i>
-                                            <span><strong>생산성 혁신:</strong> 이미지 검색 시간 90% 절약, 원클릭으로 완성된 멀티미디어 블로그!</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 스마트 사용 가이드 시스템 -->
-                        <div id="smartGuideSection" class="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200 mb-4">
-                            <div class="flex items-center justify-between mb-3">
-                                <h3 class="text-lg font-medium text-gray-800">
-                                    <i class="fas fa-graduation-cap mr-2 text-blue-600"></i>
-                                    🎯 스마트 사용 가이드 (맞춤 추천)
-                                </h3>
-                                <button type="button" id="toggleGuide" class="text-blue-600 hover:text-blue-800 text-sm">
-                                    <i class="fas fa-lightbulb mr-1"></i>도움말
-                                </button>
-                            </div>
-                            
-                            <div id="dynamicGuide" class="space-y-3">
-                                <!-- 동적으로 업데이트되는 가이드 내용 -->
-                                <div id="topicGuide" class="hidden bg-white p-3 rounded-lg border-l-4 border-blue-500">
-                                    <div class="flex items-center mb-2">
-                                        <i class="fas fa-robot mr-2 text-blue-600"></i>
-                                        <span class="font-medium text-gray-800">AI 추천:</span>
-                                        <span id="recommendedAI" class="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"></span>
-                                    </div>
-                                    <p id="guideReason" class="text-sm text-gray-600"></p>
-                                </div>
-                                
-                                <div id="optimizationTips" class="hidden bg-green-50 p-3 rounded-lg">
-                                    <h4 class="font-medium text-green-800 mb-2">💡 최적화 팁</h4>
-                                    <ul id="tipsList" class="text-sm text-green-700 space-y-1"></ul>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- GROK 신규 추가 안내 -->
-                        <div class="bg-gradient-to-r from-orange-50 to-red-50 p-4 rounded-lg border border-orange-200 mb-4">
-                            <div class="flex items-center mb-3">
-                                <h3 class="text-lg font-medium text-gray-800">
-                                    <i class="fas fa-fire mr-2 text-orange-600"></i>
-                                    🔥 GROK-2 Beta 신규 추가! (NEW!)
-                                </h3>
-                            </div>
-                            <div class="text-sm text-gray-600 space-y-2">
-                                <div class="flex items-center">
-                                    <i class="fas fa-chart-line mr-2 text-orange-500"></i>
-                                    <span><strong>실시간 트렌드 반영:</strong> X(Twitter) 기반 최신 화제 분석</span>
-                                </div>
-                                <div class="flex items-center">
-                                    <i class="fas fa-lightbulb mr-2 text-yellow-500"></i>
-                                    <span><strong>창의적 콘텐츠:</strong> 바이럴 가능성 높은 재치있는 글쓰기</span>
-                                </div>
-                                <div class="flex items-center">
-                                    <i class="fas fa-users mr-2 text-blue-500"></i>
-                                    <span><strong>젊은층 특화:</strong> Z세대, 밀레니얼 맞춤 톤 & 스타일</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 품질 검증 시스템 안내 -->
-                        <div class="bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-lg border border-indigo-200 mb-4">
-                            <div class="flex items-center mb-3">
-                                <h3 class="text-lg font-medium text-gray-800">
-                                    <i class="fas fa-shield-alt mr-2 text-indigo-600"></i>
-                                    🛡️ 품질 검증 시스템 (NEW! 2.0)
-                                </h3>
-                            </div>
-                            <div class="text-sm text-gray-600 space-y-2">
-                                <div class="flex items-center">
-                                    <i class="fas fa-check-circle mr-2 text-green-500"></i>
-                                    <span><strong>3단계 품질 프로세스:</strong> 초기 생성 → AI 검토 → 자동 개선</span>
-                                </div>
-                                <div class="flex items-center">
-                                    <i class="fas fa-star mr-2 text-yellow-500"></i>
-                                    <span><strong>평균 20% 품질 향상:</strong> 전문가 수준 콘텐츠 품질 보장</span>
-                                </div>
-                                <div class="flex items-center">
-                                    <i class="fas fa-clock mr-2 text-blue-500"></i>
-                                    <span><strong>처리 시간:</strong> 약 2-3분 (일반 생성의 2배)</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 생성 버튼 -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                            <!-- K-트렌드 생성 (NEW!) -->
-                            <button 
-                                type="button" 
-                                id="generateKTrendBtn"
-                                class="w-full bg-gradient-to-r from-red-600 to-orange-600 text-white py-4 px-6 rounded-lg font-semibold text-lg hover:from-red-700 hover:to-orange-700 transition duration-300 shadow-lg border-2 border-yellow-300"
-                            >
-                                <div class="flex flex-col items-center">
-                                    <span class="text-2xl mb-1">🇰🇷</span>
-                                    <span>K-트렌드</span>
-                                </div>
-                            </button>
-                        
-                            <button 
-                                type="button" 
-                                id="generateBtn"
-                                class="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 px-6 rounded-lg font-semibold text-lg hover:from-blue-700 hover:to-purple-700 transition duration-300 shadow-lg"
-                            >
-                                <i class="fas fa-magic mr-2"></i>
-                                일반 생성
-                            </button>
-
-                            <button 
-                                type="button" 
-                                id="generateWithImagesBtn"
-                                class="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-4 px-6 rounded-lg font-semibold text-lg hover:from-purple-700 hover:to-pink-700 transition duration-300 shadow-lg border-2 border-yellow-400"
-                            >
-                                <i class="fas fa-images mr-2"></i>
-                                이미지 포함 🎨
-                            </button>
-                            
-                            <button 
-                                type="button" 
-                                id="generateSeoBtn"
-                                class="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-4 px-6 rounded-lg font-semibold text-lg hover:from-green-700 hover:to-emerald-700 transition duration-300 shadow-lg"
-                            >
-                                <i class="fas fa-search mr-2"></i>
-                                SEO 최적화 🔥
-                            </button>
-
-                            <button 
-                                type="button" 
-                                id="generateQaBtn"
-                                class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 px-6 rounded-lg font-semibold text-lg hover:from-indigo-700 hover:to-purple-700 transition duration-300 shadow-lg"
-                            >
-                                <i class="fas fa-shield-alt mr-2"></i>
-                                품질 검증 🛡️
-                            </button>
-                        </div>
-                    </form>
-                </div>
-
-                <!-- 성공 사례 쇼케이스 -->
-                <div class="bg-white rounded-xl shadow-lg p-8 mb-8">
-                    <div class="flex items-center justify-between mb-6">
-                        <h2 class="text-2xl font-bold text-gray-800">
-                            <i class="fas fa-star mr-2 text-yellow-500"></i>
-                            성공 사례 & 템플릿
-                        </h2>
-                        <button type="button" id="toggleExamples" class="text-gray-600 hover:text-gray-800">
-                            <i class="fas fa-chevron-down"></i>
+                    <div class="text-center">
+                        <button type="submit" class="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+                            <i class="fas fa-magic mr-2"></i>
+                            AI 블로그 생성하기
                         </button>
                     </div>
-                    
-                    <div id="examplesSection" class="hidden space-y-6">
-                        <!-- AI별 최적 사용 예시 -->
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <!-- GROK 예시 -->
-                            <div class="bg-gradient-to-r from-orange-50 to-red-50 p-4 rounded-lg border border-orange-200">
-                                <h3 class="font-bold text-gray-800 mb-3">
-                                    🔥 GROK - 바이럴 콘텐츠
-                                </h3>
-                                <div class="space-y-2 text-sm">
-                                    <div class="bg-white p-3 rounded">
-                                        <strong>주제:</strong> "2025년 MZ세대가 열광하는 AI 트렌드"<br>
-                                        <strong>독자:</strong> 일반인 | <strong>톤:</strong> 유머러스<br>
-                                        <span class="text-green-600">→ GROK 100% 선택, 바이럴 효과 극대화</span>
-                                    </div>
-                                </div>
-                            </div>
+                </form>
 
-                            <!-- Claude 예시 -->
-                            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
-                                <h3 class="font-bold text-gray-800 mb-3">
-                                    🔬 Claude - 전문 분석
-                                </h3>
-                                <div class="space-y-2 text-sm">
-                                    <div class="bg-white p-3 rounded">
-                                        <strong>주제:</strong> "2025년 AI 투자 시장 분석 및 전략"<br>
-                                        <strong>독자:</strong> 전문가 | <strong>톤:</strong> 전문적<br>
-                                        <span class="text-blue-600">→ Claude 90% 선택, 심층 분석 제공</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Gemini 예시 -->
-                            <div class="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-lg border border-green-200">
-                                <h3 class="font-bold text-gray-800 mb-3">
-                                    🎓 Gemini - 학습 가이드
-                                </h3>
-                                <div class="space-y-2 text-sm">
-                                    <div class="bg-white p-3 rounded">
-                                        <strong>주제:</strong> "프로그래밍 초보자를 위한 단계별 학습법"<br>
-                                        <strong>독자:</strong> 초보자 | <strong>톤:</strong> 친근한<br>
-                                        <span class="text-green-600">→ Gemini 85% 선택, 체계적 가이드</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- OpenAI 예시 -->
-                            <div class="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg border border-purple-200">
-                                <h3 class="font-bold text-gray-800 mb-3">
-                                    💬 OpenAI - 라이프스타일
-                                </h3>
-                                <div class="space-y-2 text-sm">
-                                    <div class="bg-white p-3 rounded">
-                                        <strong>주제:</strong> "건강한 아침 루틴으로 하루 시작하기"<br>
-                                        <strong>독자:</strong> 일반인 | <strong>톤:</strong> 친근한<br>
-                                        <span class="text-purple-600">→ OpenAI 88% 선택, 공감대 형성</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 퀵 템플릿 -->
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <h3 class="font-bold text-gray-800 mb-3">⚡ 퀵 템플릿 (클릭하면 자동 입력)</h3>
-                            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                                <button class="quick-template bg-white p-3 rounded text-sm hover:bg-blue-50 transition" 
-                                        data-topic="최신 AI 트렌드 분석" data-audience="전문가" data-tone="전문적">
-                                    🤖 AI 트렌드
-                                </button>
-                                <button class="quick-template bg-white p-3 rounded text-sm hover:bg-green-50 transition"
-                                        data-topic="프로그래밍 학습 가이드" data-audience="초보자" data-tone="친근한">
-                                    💻 학습 가이드
-                                </button>
-                                <button class="quick-template bg-white p-3 rounded text-sm hover:bg-orange-50 transition"
-                                        data-topic="MZ세대 소셜미디어 트렌드" data-audience="일반인" data-tone="유머러스">
-                                    🔥 바이럴 콘텐츠
-                                </button>
-                                <button class="quick-template bg-white p-3 rounded text-sm hover:bg-purple-50 transition"
-                                        data-topic="건강한 생활습관 만들기" data-audience="일반인" data-tone="친근한">
-                                    🌿 라이프스타일
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 생성된 콘텐츠 표시 영역 -->
-                <div id="resultSection" class="hidden bg-white rounded-xl shadow-lg p-8">
-                    <div class="flex items-center justify-between mb-6">
-                        <h2 class="text-2xl font-bold text-gray-800">
-                            <i class="fas fa-file-alt mr-2 text-green-600"></i>
-                            생성된 블로그 글
-                        </h2>
-                        <div class="flex space-x-3">
-                            <!-- 편집 모드 토글 -->
-                            <button id="editToggleBtn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-300">
-                                <i class="fas fa-edit mr-2"></i>
-                                편집 모드
-                            </button>
-                            <!-- 다운로드 옵션 -->
-                            <div class="relative">
-                                <button id="downloadBtn" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition duration-300">
-                                    <i class="fas fa-download mr-2"></i>
-                                    다운로드
-                                </button>
-                                <div id="downloadMenu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border z-50">
-                                    <button class="w-full text-left px-4 py-2 hover:bg-gray-50 rounded-t-lg" data-format="html">
-                                        <i class="fas fa-code mr-2 text-orange-500"></i>HTML
-                                    </button>
-                                    <button class="w-full text-left px-4 py-2 hover:bg-gray-50" data-format="markdown">
-                                        <i class="fas fa-markdown mr-2 text-blue-500"></i>Markdown
-                                    </button>
-                                    <button class="w-full text-left px-4 py-2 hover:bg-gray-50" data-format="docx">
-                                        <i class="fas fa-file-word mr-2 text-blue-600"></i>Word 문서
-                                    </button>
-                                    <button class="w-full text-left px-4 py-2 hover:bg-gray-50 rounded-b-lg" data-format="pdf">
-                                        <i class="fas fa-file-pdf mr-2 text-red-600"></i>PDF
-                                    </button>
-                                </div>
-                            </div>
-                            <button id="copyBtn" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition duration-300">
-                                <i class="fas fa-copy mr-2"></i>
-                                복사
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div id="generationInfo" class="mb-4 p-3 bg-blue-50 rounded-lg text-sm text-gray-700"></div>
-                    
-                    <!-- 품질 검증 진행 상황 (QA 모드일 때만 표시) -->
-                    <div id="qaProgressSection" class="hidden mb-6 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-200">
-                        <h3 class="text-lg font-semibold text-gray-800 mb-4">
-                            <i class="fas fa-shield-alt mr-2 text-indigo-600"></i>
-                            🛡️ 품질 검증 진행 상황
+                <!-- 결과 영역 -->
+                <div id="resultSection" class="hidden mt-8">
+                    <div class="bg-white rounded-xl shadow-lg p-8">
+                        <h3 class="text-2xl font-bold text-gray-800 mb-4">
+                            <i class="fas fa-check-circle text-green-500 mr-2"></i>
+                            생성 완료!
                         </h3>
-                        
-                        <!-- 진행 단계 표시 -->
-                        <div class="space-y-3">
-                            <div class="flex items-center p-3 bg-white rounded-lg border">
-                                <div id="step1Status" class="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center mr-4">
-                                    <i class="fas fa-clock text-gray-600 text-sm"></i>
-                                </div>
-                                <div class="flex-1">
-                                    <div class="font-medium text-gray-800">1단계: 초기 콘텐츠 생성</div>
-                                    <div id="step1Details" class="text-sm text-gray-600">전문가 시스템으로 최적 모델 선택 후 콘텐츠 생성</div>
-                                </div>
-                            </div>
-                            
-                            <div class="flex items-center p-3 bg-white rounded-lg border">
-                                <div id="step2Status" class="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center mr-4">
-                                    <i class="fas fa-clock text-gray-600 text-sm"></i>
-                                </div>
-                                <div class="flex-1">
-                                    <div class="font-medium text-gray-800">2단계: AI 품질 검토</div>
-                                    <div id="step2Details" class="text-sm text-gray-600">10개 항목 기준으로 콘텐츠 품질 분석</div>
-                                </div>
-                            </div>
-                            
-                            <div class="flex items-center p-3 bg-white rounded-lg border">
-                                <div id="step3Status" class="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center mr-4">
-                                    <i class="fas fa-clock text-gray-600 text-sm"></i>
-                                </div>
-                                <div class="flex-1">
-                                    <div class="font-medium text-gray-800">3단계: 콘텐츠 개선</div>
-                                    <div id="step3Details" class="text-sm text-gray-600">검토 결과를 바탕으로 콘텐츠 품질 향상</div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- 품질 지표 -->
-                        <div id="qaMetrics" class="hidden mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div class="bg-white p-3 rounded-lg border text-center">
-                                <div class="text-2xl font-bold text-blue-600" id="originalScore">0</div>
-                                <div class="text-sm text-gray-600">초기 점수</div>
-                            </div>
-                            <div class="bg-white p-3 rounded-lg border text-center">
-                                <div class="text-2xl font-bold text-green-600" id="improvedScore">0</div>
-                                <div class="text-sm text-gray-600">개선 후 점수</div>
-                            </div>
-                            <div class="bg-white p-3 rounded-lg border text-center">
-                                <div class="text-2xl font-bold text-purple-600" id="improvementPercentage">+0%</div>
-                                <div class="text-sm text-gray-600">품질 향상률</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- 전문가 시스템 정보 (자동 선택시만 표시) -->
-                    <div id="expertSystemInfo" class="hidden mb-4 p-4 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg border border-purple-200">
-                        <h3 class="text-lg font-semibold text-gray-800 mb-2">
-                            <i class="fas fa-robot mr-2 text-purple-600"></i>
-                            🧠 AI 전문가 시스템
-                        </h3>
-                        <div id="expertDetails" class="space-y-2 text-sm">
-                            <div class="flex items-center">
-                                <span class="font-medium text-gray-700">선택된 전문가:</span>
-                                <span id="selectedExpert" class="ml-2 px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium"></span>
-                                <span class="ml-2 text-gray-600">신뢰도: <span id="confidence" class="font-medium"></span>%</span>
-                            </div>
-                            <div class="text-gray-600">
-                                <span class="font-medium">선택 이유:</span>
-                                <div id="expertReasoning" class="mt-1 text-xs bg-white p-2 rounded border"></div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- SEO 분석 정보 (SEO 모드일 때만 표시) -->
-                    <div id="seoAnalysisSection" class="hidden mb-6">
-                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                            <!-- SEO 점수 -->
-                            <div class="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-lg border">
-                                <h3 class="text-lg font-semibold text-gray-800 mb-2">
-                                    <i class="fas fa-chart-line mr-2 text-green-600"></i>
-                                    SEO 점수
-                                </h3>
-                                <div class="flex items-center">
-                                    <div id="seoScore" class="text-3xl font-bold text-green-600">0</div>
-                                    <div class="ml-2 text-gray-600">/100</div>
-                                    <div id="seoScoreBar" class="ml-4 flex-1 bg-gray-200 rounded-full h-3">
-                                        <div id="seoScoreProgress" class="bg-green-500 h-3 rounded-full" style="width: 0%"></div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- 키워드 밀도 -->
-                            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border">
-                                <h3 class="text-lg font-semibold text-gray-800 mb-2">
-                                    <i class="fas fa-key mr-2 text-blue-600"></i>
-                                    키워드 밀도
-                                </h3>
-                                <div class="flex items-center">
-                                    <div id="keywordDensity" class="text-3xl font-bold text-blue-600">0%</div>
-                                    <div class="ml-2 text-sm text-gray-600">
-                                        <span id="focusKeywordDisplay"></span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- 읽기 시간 -->
-                            <div class="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg border">
-                                <h3 class="text-lg font-semibold text-gray-800 mb-2">
-                                    <i class="fas fa-clock mr-2 text-purple-600"></i>
-                                    읽기 시간
-                                </h3>
-                                <div class="flex items-center">
-                                    <div id="readingTime" class="text-3xl font-bold text-purple-600">0</div>
-                                    <div class="ml-2 text-gray-600">분</div>
-                                    <div class="ml-4 text-sm text-gray-600">
-                                        <span id="wordCount">0</span> 단어
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- SEO 메타데이터 -->
-                        <div class="bg-gray-50 p-4 rounded-lg mb-4">
-                            <h3 class="text-lg font-semibold text-gray-800 mb-3">
-                                <i class="fas fa-tags mr-2 text-gray-600"></i>
-                                SEO 메타데이터
-                            </h3>
-                            <div class="space-y-3">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-600 mb-1">SEO 제목</label>
-                                    <div id="seoTitle" class="p-2 bg-white rounded border text-sm"></div>
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-600 mb-1">메타 디스크립션</label>
-                                    <div id="metaDescription" class="p-2 bg-white rounded border text-sm"></div>
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-600 mb-1">키워드</label>
-                                    <div id="seoKeywords" class="p-2 bg-white rounded border text-sm"></div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- SEO 권장사항 -->
-                        <div id="seoRecommendations" class="bg-yellow-50 p-4 rounded-lg">
-                            <h3 class="text-lg font-semibold text-gray-800 mb-3">
-                                <i class="fas fa-lightbulb mr-2 text-yellow-600"></i>
-                                SEO 개선 권장사항
-                            </h3>
-                            <ul id="recommendationsList" class="space-y-2 text-sm">
-                            </ul>
-                        </div>
-                    </div>
-                    
-                    <!-- 콘텐츠 표시/편집 영역 -->
-                    <div class="relative">
-                        <!-- AI 편집 도구 바 (편집 모드일 때만 표시) -->
-                        <div id="aiToolbar" class="hidden mb-4 p-3 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
-                            <div class="flex flex-wrap items-center gap-3">
-                                <span class="font-medium text-gray-700">🤖 AI 편집 도구:</span>
-                                <button class="ai-tool-btn bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600 transition" data-action="rewrite">
-                                    ✍️ 재작성
-                                </button>
-                                <button class="ai-tool-btn bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600 transition" data-action="improve">
-                                    ✨ 개선
-                                </button>
-                                <button class="ai-tool-btn bg-purple-500 text-white px-3 py-1 rounded text-sm hover:bg-purple-600 transition" data-action="tone">
-                                    🎭 톤 변경
-                                </button>
-                                <button class="ai-tool-btn bg-orange-500 text-white px-3 py-1 rounded text-sm hover:bg-orange-600 transition" data-action="expand">
-                                    📝 확장
-                                </button>
-                                <button class="ai-tool-btn bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition" data-action="summarize">
-                                    📋 요약
-                                </button>
-                                <button class="ai-tool-btn bg-indigo-500 text-white px-3 py-1 rounded text-sm hover:bg-indigo-600 transition" data-action="translate">
-                                    🌍 번역
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- 읽기 모드 -->
-                        <div id="contentReader" class="prose max-w-none bg-gray-50 p-6 rounded-lg border"></div>
-                        
-                        <!-- 편집 모드 -->
-                        <div id="contentEditor" class="hidden">
-                            <!-- 포맷팅 툴바 -->
-                            <div class="bg-white border border-gray-300 rounded-t-lg p-2 flex flex-wrap items-center gap-2">
-                                <button class="format-btn p-2 hover:bg-gray-100 rounded" data-format="bold" title="굵게">
-                                    <i class="fas fa-bold"></i>
-                                </button>
-                                <button class="format-btn p-2 hover:bg-gray-100 rounded" data-format="italic" title="기울임">
-                                    <i class="fas fa-italic"></i>
-                                </button>
-                                <button class="format-btn p-2 hover:bg-gray-100 rounded" data-format="underline" title="밑줄">
-                                    <i class="fas fa-underline"></i>
-                                </button>
-                                <div class="border-l border-gray-300 h-6 mx-2"></div>
-                                <select class="format-select p-1 border border-gray-300 rounded" data-format="heading">
-                                    <option value="">본문</option>
-                                    <option value="1">제목 1</option>
-                                    <option value="2">제목 2</option>
-                                    <option value="3">제목 3</option>
-                                </select>
-                                <div class="border-l border-gray-300 h-6 mx-2"></div>
-                                <button class="format-btn p-2 hover:bg-gray-100 rounded" data-format="ul" title="불릿 목록">
-                                    <i class="fas fa-list-ul"></i>
-                                </button>
-                                <button class="format-btn p-2 hover:bg-gray-100 rounded" data-format="ol" title="번호 목록">
-                                    <i class="fas fa-list-ol"></i>
-                                </button>
-                                <button class="format-btn p-2 hover:bg-gray-100 rounded" data-format="link" title="링크">
-                                    <i class="fas fa-link"></i>
-                                </button>
-                                <button class="format-btn p-2 hover:bg-gray-100 rounded" data-format="quote" title="인용">
-                                    <i class="fas fa-quote-left"></i>
-                                </button>
-                                <button class="format-btn p-2 hover:bg-gray-100 rounded" data-format="code" title="코드">
-                                    <i class="fas fa-code"></i>
-                                </button>
-                                <div class="border-l border-gray-300 h-6 mx-2"></div>
-                                <button class="format-btn p-2 hover:bg-gray-100 rounded" data-format="undo" title="실행 취소">
-                                    <i class="fas fa-undo"></i>
-                                </button>
-                                <button class="format-btn p-2 hover:bg-gray-100 rounded" data-format="redo" title="다시 실행">
-                                    <i class="fas fa-redo"></i>
-                                </button>
-                            </div>
-                            
-                            <!-- 편집 가능한 텍스트 영역 -->
-                            <div 
-                                id="contentEditArea" 
-                                contenteditable="true" 
-                                class="min-h-96 p-6 border-l border-r border-b border-gray-300 rounded-b-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 prose max-w-none"
-                                placeholder="여기서 생성된 콘텐츠를 편집하세요..."
-                            ></div>
-                            
-                            <!-- 편집 완료 버튼들 -->
-                            <div class="mt-4 flex justify-end space-x-3">
-                                <button id="cancelEditBtn" class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
-                                    취소
-                                </button>
-                                <button id="saveEditBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
-                                    <i class="fas fa-save mr-2"></i>
-                                    저장
-                                </button>
-                            </div>
-                        </div>
+                        <div id="contentReader" class="prose max-w-none"></div>
                     </div>
                 </div>
             </div>
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
-        <script src="/static/phase1-functions.js"></script>
         <script src="/static/app.js"></script>
     </body>
     </html>
   `)
 })
 
-// 중복 함수 제거됨 - 위의 callFalAIAPI 함수 사용
+// API 라우트들
+app.post('/api/generate', async (c) => {
+  try {
+    const { topic, audience, tone, selectedModel } = await c.req.json()
+    
+    if (!topic) {
+      return c.json({ error: '주제를 입력해주세요.' }, 400)
+    }
 
-// Gemini 이미지 API 호출 함수
-async function callGeminiImageAPI(prompt: string, apiKey: string, referenceImages?: string[]): Promise<any> {
-  const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
-  
-  // 기본 텍스트 프롬프트
-  const parts = [{ text: prompt }]
-  
-  // 참조 이미지가 있다면 추가
-  if (referenceImages && referenceImages.length > 0) {
-    for (const imageUrl of referenceImages) {
-      try {
-        // 이미지를 base64로 변환
-        const imageResponse = await fetch(imageUrl)
-        const imageBuffer = await imageResponse.arrayBuffer()
-        const base64Image = Buffer.from(imageBuffer).toString('base64')
-        
-        parts.push({
-          inlineData: {
-            mimeType: 'image/jpeg',
-            data: base64Image
-          }
-        })
-      } catch (error) {
-        console.warn('참조 이미지 로드 실패:', error)
+    // 간단한 응답 생성 (실제 AI 구현 대신)
+    const response = {
+      title: `${topic}에 대한 완벽 가이드`,
+      content: `# ${topic}에 대한 완벽 가이드\n\n안녕하세요! 오늘은 ${topic}에 대해 자세히 알아보겠습니다.\n\n## 주요 내용\n\n${audience}을 위한 ${tone} 톤으로 작성된 내용입니다.\n\n이것은 데모 버전입니다. 실제 AI 생성 시스템은 더 복잡한 로직을 포함합니다.`,
+      metadata: {
+        audience,
+        tone,
+        selectedModel: selectedModel || 'auto',
+        generatedAt: new Date().toISOString()
       }
     }
+
+    return c.json(response)
+  } catch (error) {
+    console.error('Generation error:', error)
+    return c.json({ error: '생성 중 오류가 발생했습니다.' }, 500)
   }
-  
-  const requestBody = {
-    contents: [{
-      parts: parts
-    }],
-    generationConfig: {
-      maxOutputTokens: 1024,
-      temperature: 0.7
-    }
-  }
-  
-  const response = await fetch(`${endpoint}?key=${apiKey}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(requestBody)
-  })
-  
-  if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(`Gemini API 호출 실패 (${response.status}): ${errorText}`)
-  }
-  
-  const result = await response.json()
-  
-  // Gemini는 텍스트 응답을 주므로, 이미지 URL을 추출하거나 처리 필요
-  // 실제로는 Gemini 2.5 Flash Image Preview의 응답 형식에 맞게 조정
-  if (result.candidates?.[0]?.content?.parts?.[0]) {
-    const content = result.candidates[0].content.parts[0].text
-    
-    // 이미지 URL이 포함되어 있다면 추출
-    const imageUrlMatch = content.match(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp)/i)
-    if (imageUrlMatch) {
-      return { image_url: imageUrlMatch[0] }
-    }
-    
-    // 이미지가 생성되지 않았다면 텍스트 설명 반환
-    return { description: content }
-  }
-  
-  throw new Error('Gemini에서 유효한 응답을 받지 못했습니다')
-}
-
-
-
-
-
-
-
-
-
-
+})
 
 export default app
