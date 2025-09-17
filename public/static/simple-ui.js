@@ -10,6 +10,15 @@ class SimpleUI {
     }
     
     initializeEventListeners() {
+        // 🔥 폼 제출 이벤트 처리 - 가장 중요한 기능!
+        const blogForm = document.getElementById('blogForm');
+        if (blogForm) {
+            blogForm.addEventListener('submit', (e) => {
+                e.preventDefault(); // 기본 제출 동작 방지
+                this.generateBlog(); // 블로그 생성 함수 호출
+            });
+        }
+        
         // 주제 입력 감지
         const topicInput = document.getElementById('topic');
         if (topicInput) {
@@ -327,9 +336,406 @@ class SimpleUI {
         
         console.log(`🚀 시스템 상태: ${status.status} (${status.summary.configured})`, status.summary.message);
     }
+    
+    // 🚀 블로그 생성 메인 함수
+    async generateBlog() {
+        try {
+            // 1. 폼 데이터 수집
+            const topic = document.getElementById('topic').value.trim();
+            const audience = document.getElementById('audience').value;
+            const tone = document.getElementById('tone').value;
+            const aiModel = document.getElementById('aiModel').value;
+            
+            if (!topic) {
+                alert('블로그 주제를 입력해주세요!');
+                return;
+            }
+            
+            console.log('🚀 블로그 생성 시작:', { topic, audience, tone, aiModel });
+            
+            // 2. UI 상태 변경 - 결과 영역 보이기, 로딩 시작
+            const resultDiv = document.getElementById('result');
+            const loadingDiv = document.getElementById('loading');
+            const contentDiv = document.getElementById('content');
+            
+            if (resultDiv) resultDiv.classList.remove('hidden');
+            if (loadingDiv) loadingDiv.classList.remove('hidden');
+            if (contentDiv) contentDiv.classList.add('hidden');
+            
+            // 3. API 호출
+            const response = await fetch('/api/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    topic,
+                    audience,
+                    tone,
+                    aiModel,
+                    enablePhase1: true,
+                    enableSEO: false
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`API 오류: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            console.log('✅ 블로그 생성 완료:', result.metadata);
+            
+            // 4. 결과 화면 표시
+            this.displayResult(result);
+            
+        } catch (error) {
+            console.error('❌ 블로그 생성 오류:', error);
+            alert('블로그 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+            
+            // 에러 시 UI 초기화
+            const resultDiv = document.getElementById('result');
+            if (resultDiv) resultDiv.classList.add('hidden');
+        }
+    }
+    
+    // 🎨 결과 표시 함수
+    displayResult(result) {
+        const loadingDiv = document.getElementById('loading');
+        const contentDiv = document.getElementById('content');
+        const blogContentDiv = document.getElementById('blogContent');
+        const metadataDiv = document.getElementById('metadata');
+        
+        // 로딩 숨기고 콘텐츠 보이기
+        if (loadingDiv) loadingDiv.classList.add('hidden');
+        if (contentDiv) contentDiv.classList.remove('hidden');
+        
+        // 블로그 내용 표시 (Markdown을 HTML로 간단 변환)
+        if (blogContentDiv) {
+            const htmlContent = this.markdownToHtml(result.content);
+            blogContentDiv.innerHTML = htmlContent;
+        }
+        
+        // 메타데이터 표시
+        if (metadataDiv) {
+            metadataDiv.innerHTML = `
+                <div class="grid md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <strong>🤖 AI 모델:</strong> ${result.model || result.metadata?.aiModel || 'Unknown'}
+                    </div>
+                    <div>
+                        <strong>📊 품질 점수:</strong> ${result.metadata?.qualityScore || 'N/A'}/100
+                    </div>
+                    <div>
+                        <strong>👥 대상 독자:</strong> ${result.metadata?.audience || 'N/A'}
+                    </div>
+                    <div>
+                        <strong>🎭 글의 톤:</strong> ${result.metadata?.tone || 'N/A'}
+                    </div>
+                    <div class="md:col-span-2">
+                        <strong>📅 생성 시간:</strong> ${new Date(result.metadata?.generatedAt).toLocaleString('ko-KR')}
+                    </div>
+                    <div class="md:col-span-2">
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${result.metadata?.isLive ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">
+                            ${result.metadata?.isLive ? '🔥 라이브 AI 생성' : '🎭 데모 모드'}
+                        </span>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 전역 변수에 저장 (복사/다운로드용)
+        window.currentBlogContent = result.content;
+        window.currentBlogTitle = result.title || `${result.metadata?.topic || 'AI 블로그'} - 완벽 가이드`;
+    }
+    
+    // 📝 간단한 Markdown to HTML 변환
+    markdownToHtml(markdown) {
+        return markdown
+            .replace(/^# (.*$)/gm, '<h1 class="text-3xl font-bold text-gray-800 mb-6 mt-8">$1</h1>')
+            .replace(/^## (.*$)/gm, '<h2 class="text-2xl font-semibold text-gray-800 mb-4 mt-6">$1</h2>')
+            .replace(/^### (.*$)/gm, '<h3 class="text-xl font-medium text-gray-800 mb-3 mt-4">$1</h3>')
+            .replace(/^\- (.*$)/gm, '<li class="mb-2">$1</li>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-gray-900">$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
+            .replace(/^> (.*$)/gm, '<blockquote class="border-l-4 border-blue-500 pl-4 italic text-gray-700 my-4">$1</blockquote>')
+            .replace(/\n\n/g, '</p><p class="mb-4">')
+            .replace(/^(?!<[h|l|b])/gm, '<p class="mb-4">')
+            .replace(/<\/p><p class="mb-4">(<[h|l|b])/g, '$1')
+            .replace(/(<li class="mb-2">.*<\/li>)/gs, '<ul class="list-disc list-inside mb-4 space-y-2">$1</ul>')
+    }
+    
+    // 🇰🇷 한국 트렌드 데이터 가져오기
+    async loadKoreanTrends() {
+        try {
+            const response = await fetch('/api/korean-trends');
+            const trends = await response.json();
+            
+            if (trends.realtime) {
+                this.displayTrendSuggestions(trends.realtime.slice(0, 5));
+            }
+        } catch (error) {
+            console.error('트렌드 로드 실패:', error);
+        }
+    }
+    
+    // 트렌드 기반 주제 추천 표시
+    displayTrendSuggestions(trends) {
+        const container = document.getElementById('trendSuggestions');
+        if (!container) return;
+        
+        container.innerHTML = `
+            <div class="mb-4">
+                <h3 class="text-lg font-semibold text-gray-800 mb-3">🔥 실시간 한국 트렌드</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    ${trends.map(trend => `
+                        <button 
+                            class="trend-suggestion-btn px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all text-sm"
+                            data-topic="${trend.keyword}"
+                            onclick="selectTrendTopic('${trend.keyword}')"
+                        >
+                            ${trend.keyword} 📊 ${(trend.volume / 1000).toFixed(0)}k
+                        </button>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+    
+    // 🖼️ 이미지 생성 요청
+    async generateBlogImage(topic, content, imageType = 'thumbnail') {
+        try {
+            const response = await fetch('/api/generate-image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ topic, content, imageType })
+            });
+            
+            const result = await response.json();
+            return result;
+        } catch (error) {
+            console.error('이미지 생성 실패:', error);
+            return null;
+        }
+    }
+    
+    // 블로그와 이미지 함께 생성
+    async generateBlogWithImages() {
+        try {
+            // 기본 블로그 생성
+            await this.generateBlog();
+            
+            // 이미지 생성 (병렬 처리)
+            const topic = document.getElementById('topic').value;
+            const content = window.currentBlogContent;
+            
+            if (topic && content) {
+                const imagePromise = this.generateBlogImage(topic, content, 'thumbnail');
+                const multiImagePromise = this.generateMultipleImages(topic);
+                
+                const [thumbnailResult, multiImageResult] = await Promise.all([
+                    imagePromise,
+                    multiImagePromise
+                ]);
+                
+                this.displayGeneratedImages(thumbnailResult, multiImageResult);
+            }
+        } catch (error) {
+            console.error('블로그+이미지 생성 실패:', error);
+        }
+    }
+    
+    // 다중 이미지 생성
+    async generateMultipleImages(topic) {
+        try {
+            const response = await fetch('/api/generate-blog-images', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    topic, 
+                    imageCount: 3,
+                    sections: [`${topic} 개요`, `${topic} 활용법`, `${topic} 전망`]
+                })
+            });
+            
+            return await response.json();
+        } catch (error) {
+            console.error('다중 이미지 생성 실패:', error);
+            return null;
+        }
+    }
+    
+    // 생성된 이미지들 표시
+    displayGeneratedImages(thumbnailResult, multiImageResult) {
+        const imagesContainer = document.getElementById('generatedImages');
+        if (!imagesContainer) return;
+        
+        let imagesHtml = '<div class="mt-6"><h3 class="text-lg font-semibold mb-4">🎨 생성된 이미지들</h3>';
+        
+        // 썸네일 이미지
+        if (thumbnailResult?.success && thumbnailResult.image?.url) {
+            imagesHtml += `
+                <div class="mb-4">
+                    <h4 class="font-medium mb-2">📌 썸네일 이미지</h4>
+                    <img src="${thumbnailResult.image.url}" alt="블로그 썸네일" class="w-full max-w-md rounded-lg shadow-md">
+                    <p class="text-sm text-gray-600 mt-1">타입: ${thumbnailResult.image.type}</p>
+                </div>
+            `;
+        }
+        
+        // 다중 이미지들
+        if (multiImageResult?.success && multiImageResult.images) {
+            imagesHtml += `
+                <div class="mb-4">
+                    <h4 class="font-medium mb-2">🖼️ 컨텐츠 이미지들</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        ${multiImageResult.images.map((img, index) => `
+                            <div>
+                                <img src="${img.url}" alt="${img.topic}" class="w-full rounded-lg shadow-md">
+                                <p class="text-sm text-gray-600 mt-1">${img.topic}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+        
+        imagesHtml += '</div>';
+        imagesContainer.innerHTML = imagesHtml;
+    }
 }
 
-// 초기화
-document.addEventListener('DOMContentLoaded', () => {
-    new SimpleUI();
-});
+// 📋 전역 함수들 (HTML에서 직접 호출)
+function copyToClipboard() {
+    if (window.currentBlogContent) {
+        navigator.clipboard.writeText(window.currentBlogContent).then(() => {
+            alert('✅ 블로그 내용이 클립보드에 복사되었습니다!');
+        }).catch(err => {
+            console.error('복사 실패:', err);
+            alert('❌ 복사에 실패했습니다. 브라우저가 클립보드 접근을 지원하지 않습니다.');
+        });
+    } else {
+        alert('⚠️ 복사할 내용이 없습니다.');
+    }
+}
+
+function downloadAsFile() {
+    if (window.currentBlogContent && window.currentBlogTitle) {
+        const blob = new Blob([window.currentBlogContent], { type: 'text/markdown' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${window.currentBlogTitle}.md`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        alert('✅ 파일이 다운로드되었습니다!');
+    } else {
+        alert('⚠️ 다운로드할 내용이 없습니다.');
+    }
+}
+
+// 🇰🇷 트렌드 주제 선택 (전역 함수)
+function selectTrendTopic(topic) {
+    const topicInput = document.getElementById('topic');
+    if (topicInput) {
+        topicInput.value = topic;
+        document.getElementById('nextToStep2').disabled = false;
+        
+        // UI 인스턴스가 있으면 다음 단계로
+        if (window.simpleUI) {
+            window.simpleUI.nextStep();
+        }
+    }
+}
+
+// 🖼️ 이미지와 함께 블로그 생성 (전역 함수)
+function generateWithImages() {
+    if (window.simpleUI) {
+        window.simpleUI.generateBlogWithImages();
+    }
+}
+
+// 🔄 트렌드 새로고침 (전역 함수)
+function refreshTrends() {
+    if (window.simpleUI) {
+        window.simpleUI.loadKoreanTrends();
+    }
+}
+
+// 📊 트렌드 분석 요청 (전역 함수)
+async function analyzeTrend(keyword) {
+    try {
+        const response = await fetch('/api/trend-analysis', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ keyword, period: '7d' })
+        });
+        
+        const analysis = await response.json();
+        displayTrendAnalysis(analysis);
+    } catch (error) {
+        console.error('트렌드 분석 실패:', error);
+        alert('트렌드 분석에 실패했습니다.');
+    }
+}
+
+// 트렌드 분석 결과 표시
+function displayTrendAnalysis(analysis) {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    modal.innerHTML = `
+        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 class="text-lg font-bold mb-4">📊 ${analysis.keyword} 트렌드 분석</h3>
+            <div class="space-y-3">
+                <div>
+                    <strong>📈 트렌드 방향:</strong> 
+                    <span class="px-2 py-1 rounded text-sm ${analysis.trend.direction === 'up' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                        ${analysis.trend.direction === 'up' ? '상승' : '하락'} ${analysis.trend.change_percentage}%
+                    </span>
+                </div>
+                <div><strong>📊 현재 검색량:</strong> ${analysis.trend.current_volume.toLocaleString()}</div>
+                <div><strong>🎯 주 사용층:</strong> ${Object.entries(analysis.demographics.age_groups).map(([age, pct]) => `${age}: ${pct}%`).join(', ')}</div>
+                <div>
+                    <strong>💡 추천 주제:</strong>
+                    <ul class="mt-2 space-y-1">
+                        ${analysis.content_suggestions.slice(0, 3).map(suggestion => `
+                            <li class="text-sm text-gray-600">• ${suggestion}</li>
+                        `).join('')}
+                    </ul>
+                </div>
+            </div>
+            <button onclick="this.parentElement.parentElement.remove()" class="mt-4 w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">
+                닫기
+            </button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+// 즉시 초기화 함수
+function initializeSimpleUI() {
+    console.log('🔥 SimpleUI 초기화 시작...');
+    try {
+        const ui = new SimpleUI();
+        console.log('✅ SimpleUI 초기화 완료');
+        
+        // 폼 요소 확인
+        const form = document.getElementById('blogForm');
+        if (form) {
+            console.log('✅ blogForm 요소 발견');
+        } else {
+            console.error('❌ blogForm 요소를 찾을 수 없습니다');
+        }
+    } catch (error) {
+        console.error('❌ SimpleUI 초기화 실패:', error);
+    }
+}
+
+// DOM이 로드되면 즉시 실행
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeSimpleUI);
+} else {
+    // DOM이 이미 로드된 경우 즉시 실행
+    initializeSimpleUI();
+}
