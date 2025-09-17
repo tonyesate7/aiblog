@@ -598,7 +598,7 @@ class BlogGenerator {
     }
 
     async generateBlog() {
-        console.log('🔥🔥🔥 일반 생성 함수 호출됨! 🔥🔥🔥')
+        console.log('🚀 Phase 1 강화된 블로그 생성 시작!')
         console.log('🔥 현재 시간:', new Date().toISOString())
         console.log('🔥 this 객체:', this)
         
@@ -755,6 +755,9 @@ class BlogGenerator {
                 this.showMultimediaGenerationProgress(topic, finalAiModel, includeImages, false, imageCount, videoStyle)
             }
             
+            // Phase 1 진행률 표시
+            this.showPhase1Progress()
+            
             const response = await axios.post(apiEndpoint, {
                 topic,
                 audience: finalAudience,
@@ -767,6 +770,7 @@ class BlogGenerator {
                 includeVideo,
                 videoStyle,
                 videoAspectRatio,
+                enablePhase1: true, // Phase 1 활성화
                 sessionId: this.sessionId
             })
 
