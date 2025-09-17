@@ -4097,41 +4097,6 @@ app.get('/', (c) => {
 
 // ==================== 한국 트렌드 연동 시스템 ====================
 
-// 한국 실시간 트렌드 키워드 가져오기
-app.get('/api/korean-trends', async (c) => {
-  try {
-    // Google Trends를 대체하는 실시간 한국 트렌드 데이터
-    const koreanTrends = {
-      realtime: [
-        { keyword: '2025년 AI 기술 전망', category: 'technology', volume: 95000 },
-        { keyword: '한국형 ChatGPT 개발', category: 'ai', volume: 87000 },
-        { keyword: '스마트 워크 트렌드', category: 'work', volume: 75000 },
-        { keyword: '메타버스 교육 플랫폼', category: 'education', volume: 68000 },
-        { keyword: '친환경 에너지 정책', category: 'environment', volume: 62000 },
-        { keyword: '디지털 헬스케어', category: 'health', volume: 58000 },
-        { keyword: '온라인 쇼핑 트렌드', category: 'commerce', volume: 54000 },
-        { keyword: '부동산 투자 전략', category: 'investment', volume: 49000 },
-        { keyword: '전기차 충전 인프라', category: 'automotive', volume: 45000 },
-        { keyword: '로컬 크리에이터 마케팅', category: 'marketing', volume: 42000 }
-      ],
-      categories: {
-        technology: ['AI', '로봇', '자율주행', 'IoT', '블록체인'],
-        lifestyle: ['건강', '요리', '인테리어', '패션', '여행'],
-        business: ['스타트업', '창업', '투자', '마케팅', '경영'],
-        culture: ['K-pop', '드라마', '웹툰', '게임', '엔터테인먼트']
-      },
-      timestamp: new Date().toISOString(),
-      region: 'KR',
-      source: 'ai-blog-generator-trends'
-    }
-
-    return c.json(koreanTrends)
-  } catch (error) {
-    console.error('한국 트렌드 데이터 조회 실패:', error)
-    return c.json({ error: '트렌드 데이터를 가져올 수 없습니다' }, 500)
-  }
-})
-
 // 특정 키워드의 트렌드 분석
 app.post('/api/trend-analysis', async (c) => {
   try {
@@ -4252,12 +4217,15 @@ app.post('/api/generate-image', async (c) => {
     } catch (imageError) {
       console.error('이미지 생성 오류:', imageError)
       
-      // 실패 시 플레이스홀더 이미지 제공
+      // 실패 시 플레이스홀더 이미지 제공 (URL 인코딩된 SVG)
+      const svgContent = `<svg width="800" height="450" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#4F46E5;stop-opacity:1" /><stop offset="100%" style="stop-color:#7C3AED;stop-opacity:1" /></linearGradient></defs><rect width="800" height="450" fill="url(#grad)"/><text x="400" y="200" text-anchor="middle" fill="white" font-family="Arial" font-size="24" font-weight="bold">${topic}</text><text x="400" y="250" text-anchor="middle" fill="rgba(255,255,255,0.8)" font-family="Arial" font-size="16">이미지 생성 준비 중...</text><circle cx="400" cy="300" r="20" fill="none" stroke="white" stroke-width="2" opacity="0.7"><animate attributeName="r" values="20;25;20" dur="2s" repeatCount="indefinite"/></circle></svg>`
+      const placeholderSvg = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgContent)}`
+      
       return c.json({
         success: false,
         error: '이미지 생성 실패',
         placeholder: {
-          url: `https://via.placeholder.com/800x450/4F46E5/FFFFFF?text=${encodeURIComponent(topic)}`,
+          url: placeholderSvg,
           type: 'placeholder',
           message: '이미지 생성 서비스 일시 중단. 플레이스홀더 이미지를 제공합니다.'
         }
@@ -4308,9 +4276,12 @@ app.post('/api/generate-blog-images', async (c) => {
             index: i + 1
           })
         } else {
-          // 실패 시 플레이스홀더
+          // 실패 시 플레이스홀더 (URL 인코딩된 SVG)
+          const fallbackSvgContent = `<svg width="600" height="400" xmlns="http://www.w3.org/2000/svg"><rect width="600" height="400" fill="#E5E7EB"/><text x="300" y="180" text-anchor="middle" fill="#6B7280" font-family="Arial" font-size="18">${sectionTopic}</text><text x="300" y="220" text-anchor="middle" fill="#9CA3AF" font-family="Arial" font-size="14">이미지 생성 실패</text></svg>`
+          const fallbackSvg = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(fallbackSvgContent)}`
+          
           images.push({
-            url: `https://via.placeholder.com/600x400/4F46E5/FFFFFF?text=${encodeURIComponent(sectionTopic)}`,
+            url: fallbackSvg,
             type: 'placeholder',
             topic: sectionTopic,
             index: i + 1,
@@ -4319,8 +4290,11 @@ app.post('/api/generate-blog-images', async (c) => {
         }
       } catch (error) {
         console.error(`이미지 ${i + 1} 생성 실패:`, error)
+        const errorSvgContent = `<svg width="600" height="400" xmlns="http://www.w3.org/2000/svg"><rect width="600" height="400" fill="#FEE2E2"/><text x="300" y="180" text-anchor="middle" fill="#DC2626" font-family="Arial" font-size="18">${sectionTopic}</text><text x="300" y="220" text-anchor="middle" fill="#EF4444" font-family="Arial" font-size="14">이미지 생성 오류</text></svg>`
+        const errorSvg = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(errorSvgContent)}`
+        
         images.push({
-          url: `https://via.placeholder.com/600x400/6B7280/FFFFFF?text=${encodeURIComponent(sectionTopic)}`,
+          url: errorSvg,
           type: 'error',
           topic: sectionTopic,
           index: i + 1,

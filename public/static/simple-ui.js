@@ -470,11 +470,18 @@ class SimpleUI {
             const response = await fetch('/api/korean-trends');
             const trends = await response.json();
             
-            if (trends.realtime) {
-                this.displayTrendSuggestions(trends.realtime.slice(0, 5));
+            // 기존 API 구조에 맞춰 처리
+            if (trends.success && trends.data && trends.data.hotKeywords) {
+                this.displayTrendSuggestions(trends.data.hotKeywords.slice(0, 6));
+            } else if (trends.realtime) {
+                // 새로운 구조 대비
+                this.displayTrendSuggestions(trends.realtime.slice(0, 6));
+            } else {
+                console.warn('트렌드 데이터 형식을 인식할 수 없습니다:', trends);
             }
         } catch (error) {
             console.error('트렌드 로드 실패:', error);
+            this.showTrendError();
         }
     }
     
@@ -486,16 +493,38 @@ class SimpleUI {
         container.innerHTML = `
             <div class="mb-4">
                 <h3 class="text-lg font-semibold text-gray-800 mb-3">🔥 실시간 한국 트렌드</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
                     ${trends.map(trend => `
                         <button 
-                            class="trend-suggestion-btn px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all text-sm"
+                            class="trend-suggestion-btn px-3 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all text-sm"
                             data-topic="${trend.keyword}"
                             onclick="selectTrendTopic('${trend.keyword}')"
                         >
-                            ${trend.keyword} 📊 ${(trend.volume / 1000).toFixed(0)}k
+                            ${trend.keyword} 📈 ${trend.growth || trend.volume || ''}${trend.growth ? '%' : trend.volume ? 'k' : ''}
                         </button>
                     `).join('')}
+                </div>
+                <p class="text-xs text-gray-500 mt-2">💡 키워드를 클릭하면 자동으로 주제가 입력됩니다</p>
+            </div>
+        `;
+    }
+    
+    // 트렌드 로딩 오류 표시
+    showTrendError() {
+        const container = document.getElementById('trendSuggestions');
+        if (!container) return;
+        
+        container.innerHTML = `
+            <div class="mb-4">
+                <h3 class="text-lg font-semibold text-gray-800 mb-3">🔥 실시간 한국 트렌드</h3>
+                <div class="bg-gray-100 rounded-lg p-4 text-center">
+                    <p class="text-gray-600">트렌드 데이터를 불러올 수 없습니다.</p>
+                    <button 
+                        onclick="refreshTrends()" 
+                        class="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
+                    >
+                        🔄 다시 시도
+                    </button>
                 </div>
             </div>
         `;
