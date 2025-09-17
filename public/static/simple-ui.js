@@ -872,6 +872,9 @@ function initializeSimpleUI() {
     }
 }
 
+// SimpleUI 클래스를 전역에 노출
+window.SimpleUI = SimpleUI;
+
 // DOM이 로드되면 즉시 실행
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initializeSimpleUI);

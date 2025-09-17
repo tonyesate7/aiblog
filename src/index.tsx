@@ -4059,36 +4059,27 @@ app.get('/', (c) => {
         </div>
 
         <!-- JavaScript -->
-        <script src="/static/simple-ui.js"></script>
+        <script src="/static/simple-ui.js" onload="initializeAfterLoad()"></script>
         <script>
-            // 강제 초기화
-            console.log('🚀 HTML에서 강제 초기화 시작...');
-            
-            // DOM 로드 대기
-            function waitForDOM() {
-                if (document.getElementById('blogForm')) {
-                    console.log('✅ DOM 로드 완료, SimpleUI 초기화 시작');
-                    try {
-                        window.simpleUI = new SimpleUI();
-                        console.log('✅ SimpleUI 초기화 성공');
-                        
-                        // 한국 트렌드 데이터 로드
-                        setTimeout(() => {
-                            if (window.simpleUI && window.simpleUI.loadKoreanTrends) {
-                                window.simpleUI.loadKoreanTrends();
-                                console.log('🇰🇷 한국 트렌드 데이터 로딩 시작');
-                            }
-                        }, 500);
-                    } catch (error) {
-                        console.error('❌ SimpleUI 초기화 실패:', error);
+            // HTML 전용 초기화 함수
+            function initializeAfterLoad() {
+                console.log('🚀 JavaScript 파일 로드 완료, 초기화 시작...');
+                
+                // 추가 SimpleUI 인스턴스 생성 및 트렌드 로드
+                setTimeout(() => {
+                    if (window.simpleUI && window.simpleUI.loadKoreanTrends) {
+                        window.simpleUI.loadKoreanTrends();
+                        console.log('🇰🇷 한국 트렌드 데이터 로딩 시작');
+                    } else {
+                        console.warn('⚠️ simpleUI 인스턴스를 찾을 수 없습니다');
                     }
-                } else {
-                    console.log('⏳ DOM 로드 대기 중...');
-                    setTimeout(waitForDOM, 100);
-                }
+                }, 1000); // 1초 후 트렌드 로드
             }
             
-            waitForDOM();
+            // 즉시 실행 (fallback)
+            document.addEventListener('DOMContentLoaded', function() {
+                setTimeout(initializeAfterLoad, 100);
+            });
         </script>
     </body>
     </html>
