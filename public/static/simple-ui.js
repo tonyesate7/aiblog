@@ -857,7 +857,7 @@ function displayTrendAnalysis(analysis) {
 function initializeSimpleUI() {
     console.log('🔥 SimpleUI 초기화 시작...');
     try {
-        const ui = new SimpleUI();
+        window.simpleUI = new SimpleUI();
         console.log('✅ SimpleUI 초기화 완료');
         
         // 폼 요소 확인
