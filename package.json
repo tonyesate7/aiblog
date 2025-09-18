@@ -1,18 +1,18 @@
 {
-  "name": "webapp",
+  "name": "ai-blog-generator-production",
   "version": "4.2.0",
   "type": "module",
-  "description": "AI Blog Generator - Production Edition with Enhanced Security & Performance",
+  "description": "AI Blog Generator - Production Edition with Pretendard Font & Advanced Security",
   "author": "AI Blog Generator Team",
   "license": "MIT",
-  "keywords": ["ai", "blog", "generator", "content", "images", "cloudflare", "hono"],
+  "keywords": ["ai", "blog", "generator", "content", "images", "cloudflare", "hono", "pretendard", "korean"],
   
   "scripts": {
     "dev": "npm run build:css && vite",
     "dev:sandbox": "wrangler pages dev dist --ip 0.0.0.0 --port 3000",
     "dev:d1": "wrangler pages dev dist --d1=webapp-production --local --ip 0.0.0.0 --port 3000",
     
-    "build": "npm run clean && npm run build:css && vite build && npm run build:optimize",
+    "build": "npm run clean && vite build",
     "build:css": "node build-css.js",
     "build:optimize": "npm run build:compress",
     "build:compress": "echo 'Build optimization completed'",
@@ -21,8 +21,8 @@
     "preview:prod": "npm run build && wrangler pages dev dist",
     
     "deploy": "npm run pre-deploy && npm run build && npm run deploy:prod",
-    "deploy:prod": "wrangler pages deploy dist --project-name webapp --compatibility-date 2025-01-01",
-    "deploy:staging": "wrangler pages deploy dist --project-name webapp-staging",
+    "deploy:prod": "wrangler pages deploy dist --project-name ai-blog-gen-3879 --compatibility-date 2025-01-01",
+    "deploy:staging": "wrangler pages deploy dist --project-name ai-blog-gen-3879-staging",
     
     "pre-deploy": "npm run lint && npm run test:basic",
     "lint": "echo 'Linting completed'",
@@ -35,10 +35,10 @@
     "clean:cache": "rm -rf node_modules/.cache",
     "clean:all": "npm run clean && npm run clean:cache",
     
-    "secrets:set": "echo 'Use: wrangler pages secret put [KEY] --project-name webapp'",
-    "secrets:list": "wrangler pages secret list --project-name webapp",
+    "secrets:set": "echo 'Use: wrangler pages secret put [KEY] --project-name ai-blog-gen-3879'",
+    "secrets:list": "wrangler pages secret list --project-name ai-blog-gen-3879",
     
-    "logs": "wrangler pages deployment tail --project-name webapp",
+    "logs": "wrangler pages deployment tail --project-name ai-blog-gen-3879",
     "status": "wrangler pages project list",
     
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
