@@ -93,6 +93,7 @@ POST /api/generate-blog-images
 
 ### 🔧 배포 상태
 - **플랫폼**: ✅ Cloudflare Pages
+- **라이브 URL**: https://114d2c20.ai-blog-gen-3879.pages.dev
 - **상태**: ✅ 프로덕션 서비스 중
 - **마지막 업데이트**: 2025년 9월 18일
 - **버전**: v4.2.0 Production Edition
