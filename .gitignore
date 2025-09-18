@@ -81,3 +81,6 @@ speed-measure-plugin*.json
 # ==================== 기타 ====================
 .eslintcache
 .stylelintcache
+# Core dumps
+core
+core.*
