@@ -362,6 +362,13 @@ app.get('/debug-form', (c) => {
 <html>
 <head>
     <title>폼 제출 디버그</title>
+    <!-- Pretendard Font -->
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/variable/pretendardvariable.css" />
+    <style>
+        * {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+        }
+    </style>
 </head>
 <body>
     <h1>블로그 생성 폼 제출 테스트</h1>
@@ -457,6 +464,13 @@ app.get('/auto-test', (c) => {
 <html>
 <head>
     <title>자동 테스트</title>
+    <!-- Pretendard Font -->
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/variable/pretendardvariable.css" />
+    <style>
+        * {
+            font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+        }
+    </style>
 </head>
 <body>
     <h1>자동 블로그 생성 테스트</h1>
@@ -4931,8 +4945,18 @@ app.get('/', (c) => {
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>AI Blog Generator v4.2.0 - 프로덕션 에디션</title>
+        
+        <!-- Pretendard Font -->
+        <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/variable/pretendardvariable.css" />
+        
         <link href="/static/tailwind.css" rel="stylesheet">
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+        
+        <style>
+            * {
+                font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+            }
+        </style>
     </head>
     <body class="bg-gradient-to-br from-blue-50 via-white to-purple-50 min-h-screen">
         <div class="max-w-7xl mx-auto px-4 py-8">
@@ -5624,10 +5648,17 @@ app.get('/demo/content-image-matching', (c) => {
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>🍎 콘텐츠-이미지 연관성 데모 | AI Blog Generator</title>
+        
+        <!-- Pretendard Font -->
+        <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/variable/pretendardvariable.css" />
+        
         <script src="https://cdn.tailwindcss.com"></script>
         <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
         <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
         <style>
+            * {
+                font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+            }
             .typing-animation {
                 border-right: 2px solid #3B82F6;
                 animation: typing 3.5s steps(40, end), blink-caret 0.75s step-end infinite;
