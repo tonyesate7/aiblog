@@ -1,26 +1,33 @@
-# prod
+# ==================== 빌드 및 배포 파일 ====================
 dist/
+.wrangler/
+.output/
+build/
 
-# dev
+# ==================== 종속성 ====================
+node_modules/
 .yarn/
 !.yarn/releases
-.vscode/*
-!.vscode/launch.json
-!.vscode/*.code-snippets
-.idea/workspace.xml
-.idea/usage.statistics.xml
-.idea/shelf
+.pnpm-store/
+.npm/
 
-# deps
-node_modules/
-.wrangler
-
-# env
+# ==================== 환경 변수 및 보안 ====================
 .env
+.env.local
+.env.development
 .env.production
 .dev.vars
+.vars
+*.key
+*.pem
+*.p12
 
-# logs
+# API 키 파일들
+*api-key*
+*secret*
+*credentials*
+
+# ==================== 로그 파일 ====================
 logs/
 *.log
 npm-debug.log*
@@ -29,5 +36,48 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# misc
+# ==================== IDE 및 에디터 ====================
+.vscode/
+!.vscode/launch.json
+!.vscode/*.code-snippets
+.idea/
+*.swp
+*.swo
+*~
+
+# ==================== OS 관련 ====================
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ==================== 임시 파일 ====================
+*.tmp
+*.temp
+.cache/
+.parcel-cache/
+.next/
+.nuxt/
+
+# ==================== 백업 파일 ====================
+*.backup
+*.bak
+*.orig
+*.rej
+
+# ==================== 테스트 및 커버리지 ====================
+coverage/
+.nyc_output/
+.coverage/
+junit.xml
+
+# ==================== 프로파일링 ====================
+chrome-profiler-events*.json
+speed-measure-plugin*.json
+
+# ==================== 기타 ====================
+.eslintcache
+.stylelintcache

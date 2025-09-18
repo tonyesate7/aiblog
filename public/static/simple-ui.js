@@ -516,6 +516,11 @@ class SimpleUI {
         // 전역 변수에 저장 (복사/다운로드용)
         window.currentBlogContent = result.content;
         window.currentBlogTitle = result.title || `${result.metadata?.topic || 'AI 블로그'} - 완벽 가이드`;
+        
+        // 🔍 콘텐츠 기반 키워드 추출을 위한 로그
+        console.log('📝 블로그 내용 저장 완료 - 길이:', result.content.length);
+        console.log('🎯 제목:', window.currentBlogTitle);
+        console.log('📄 내용 미리보기:', result.content.substring(0, 300) + '...');
     }
     
     // 📝 간단한 Markdown to HTML 변환
@@ -677,75 +682,161 @@ class SimpleUI {
         }
     }
     
-    // 다중 이미지 생성
-    async generateMultipleImages(topic) {
+    // 다중 이미지 생성 (타임아웃 및 재시도 로직 적용)
+    async generateMultipleImages(topic, retryCount = 0) {
+        const maxRetries = 2;
+        const timeout = 45000; // 45초 타임아웃
+        
         try {
-            console.log('🖼️ 다중 이미지 생성 시작:', topic);
+            console.log(`🖼️ 다중 이미지 생성 시작: ${topic} (시도 ${retryCount + 1}/${maxRetries + 1})`);
             
-            // 현재 생성된 블로그 내용 가져오기
             const content = window.currentBlogContent || '';
             console.log('📝 블로그 내용 길이:', content.length);
+            
+            // 타임아웃 설정
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeout);
             
             const response = await fetch('/api/generate-blog-images', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     topic, 
-                    content: content, // 블로그 내용 추가
-                    imageCount: 3,
-                    sections: [`${topic} 개요`, `${topic} 활용법`, `${topic} 전망`]
-                })
+                    content: content,
+                    imageCount: 2, // 성능을 위해 2개로 제한
+                    sections: [`${topic} 개요`, `${topic} 활용법`]
+                }),
+                signal: controller.signal
             });
             
+            clearTimeout(timeoutId);
+            
             if (!response.ok) {
-                throw new Error(`다중 이미지 API 오류: ${response.status}`);
+                const errorText = await response.text();
+                throw new Error(`API 오류 (${response.status}): ${errorText}`);
             }
             
             const responseText = await response.text();
             if (!responseText || responseText.trim() === '') {
-                return null;
+                throw new Error('빈 응답을 받았습니다');
             }
             
-            try {
-                return JSON.parse(responseText);
-            } catch (parseError) {
-                console.error('다중 이미지 JSON 파싱 실패:', parseError);
-                return null;
+            const result = JSON.parse(responseText);
+            
+            // 성공 결과 검증
+            if (!result.success && result.error) {
+                throw new Error(result.error);
             }
+            
+            console.log('🎨 다중 이미지 생성 성공:', result);
+            return result;
+            
         } catch (error) {
-            console.error('다중 이미지 생성 실패:', error);
-            return null;
+            console.error(`다중 이미지 생성 실패 (${retryCount + 1}/${maxRetries + 1}):`, error);
+            
+            // 재시도 로직
+            if (retryCount < maxRetries && !error.name?.includes('AbortError')) {
+                console.log(`🔄 ${2 + retryCount * 2}초 후 재시도...`);
+                await new Promise(resolve => setTimeout(resolve, (2 + retryCount * 2) * 1000));
+                return this.generateMultipleImages(topic, retryCount + 1);
+            }
+            
+            // 최종 실패 시 폴백 처리
+            return {
+                success: false,
+                error: error.message,
+                images: [],
+                fallback: true
+            };
         }
     }
     
-    // 생성된 이미지들 표시
+    // 🎨 생성된 이미지들 표시 (개선된 UI)
     displayGeneratedImages(thumbnailResult, multiImageResult) {
         const imagesContainer = document.getElementById('generatedImages');
         if (!imagesContainer) return;
         
-        let imagesHtml = '<div class="mt-6"><h3 class="text-lg font-semibold mb-4">🎨 생성된 이미지들</h3>';
+        console.log('🖼️ 이미지 표시 시작');
+        console.log('📌 썸네일 결과:', thumbnailResult);
+        console.log('🎨 다중 이미지 결과:', multiImageResult);
         
-        // 썸네일 이미지
+        let imagesHtml = `
+            <div class="mt-8 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-6">
+                <h3 class="text-2xl font-bold text-gray-800 mb-6 text-center">
+                    🎨 AI가 생성한 콘텐츠 맞춤 이미지
+                </h3>
+                
+                <!-- 콘텐츠 연관성 설명 -->
+                <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
+                    <div class="flex items-center">
+                        <i class="fas fa-lightbulb text-blue-500 mr-2"></i>
+                        <p class="text-blue-700 text-sm">
+                            <strong>실제 블로그 내용을 분석</strong>하여 관련 키워드를 추출하고, 
+                            <strong>FAL AI nano-banana</strong>로 맞춤형 이미지를 생성했습니다!
+                        </p>
+                    </div>
+                </div>
+        `;
+        
+        // 썸네일 이미지 (메인 대표 이미지)
         if (thumbnailResult?.success && thumbnailResult.image?.url) {
             imagesHtml += `
-                <div class="mb-4">
-                    <h4 class="font-medium mb-2">📌 썸네일 이미지</h4>
-                    <img src="${thumbnailResult.image.url}" alt="블로그 썸네일" class="w-full max-w-md rounded-lg shadow-md">
-                    <p class="text-sm text-gray-600 mt-1">타입: ${thumbnailResult.image.type}</p>
+                <div class="mb-8">
+                    <h4 class="text-lg font-semibold mb-3 flex items-center">
+                        <span class="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm mr-3">1</span>
+                        📌 대표 썸네일 이미지
+                    </h4>
+                    <div class="bg-white rounded-lg p-4 shadow-md">
+                        <img src="${thumbnailResult.image.url}" 
+                             alt="블로그 대표 이미지" 
+                             class="w-full max-w-2xl mx-auto rounded-lg shadow-lg"
+                             onload="console.log('✅ 썸네일 이미지 로드 성공')"
+                             onerror="console.error('❌ 썸네일 이미지 로드 실패')">
+                        <div class="mt-3 text-center">
+                            <span class="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                <i class="fas fa-tag mr-1"></i>
+                                ${thumbnailResult.image.type || 'thumbnail'}
+                            </span>
+                            ${thumbnailResult.image.prompt ? `
+                                <p class="text-xs text-gray-500 mt-2">프롬프트: ${thumbnailResult.image.prompt.substring(0, 100)}...</p>
+                            ` : ''}
+                        </div>
+                    </div>
                 </div>
             `;
         }
         
-        // 다중 이미지들
-        if (multiImageResult?.success && multiImageResult.images) {
+        // 다중 콘텐츠 이미지들
+        if (multiImageResult?.success && multiImageResult.images && multiImageResult.images.length > 0) {
             imagesHtml += `
-                <div class="mb-4">
-                    <h4 class="font-medium mb-2">🖼️ 컨텐츠 이미지들</h4>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="mb-6">
+                    <h4 class="text-lg font-semibold mb-3 flex items-center">
+                        <span class="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center text-sm mr-3">2</span>
+                        🖼️ 섹션별 콘텐츠 이미지 (${multiImageResult.images.length}개)
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-${Math.min(multiImageResult.images.length, 3)} gap-6">
                         ${multiImageResult.images.map((img, index) => `
-                            <div>
-                                <img src="${img.url}" alt="${img.topic}" class="w-full rounded-lg shadow-md">
-                                <p class="text-sm text-gray-600 mt-1">${img.topic}</p>
+                            <div class="bg-white rounded-lg p-4 shadow-md transform hover:scale-105 transition-transform duration-200">
+                                <img src="${img.url}" 
+                                     alt="${img.topic}" 
+                                     class="w-full h-48 object-cover rounded-lg mb-3"
+                                     onload="console.log('✅ 이미지 ${index + 1} 로드 성공: ${img.topic}')"
+                                     onerror="console.error('❌ 이미지 ${index + 1} 로드 실패: ${img.topic}')">
+                                <h5 class="font-semibold text-gray-800 mb-2">${img.topic}</h5>
+                                <div class="flex flex-wrap gap-1 mb-2">
+                                    <span class="inline-flex items-center px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded">
+                                        <i class="fas fa-palette mr-1"></i>
+                                        ${img.type || 'auto'}
+                                    </span>
+                                    ${img.note ? `
+                                        <span class="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
+                                            ${img.note}
+                                        </span>
+                                    ` : ''}
+                                </div>
+                                ${img.prompt ? `
+                                    <p class="text-xs text-gray-500">키워드 반영: ${img.prompt.includes('Visual representation of key concepts') ? '✅' : '❌'}</p>
+                                ` : ''}
                             </div>
                         `).join('')}
                     </div>
@@ -753,8 +844,136 @@ class SimpleUI {
             `;
         }
         
-        imagesHtml += '</div>';
+        // 이미지 생성 통계
+        const totalImages = (thumbnailResult?.success ? 1 : 0) + (multiImageResult?.images?.length || 0);
+        const realImages = multiImageResult?.images?.filter(img => img.type !== 'error')?.length || 0;
+        
+        imagesHtml += `
+                <div class="bg-white rounded-lg p-4 mt-6">
+                    <div class="text-center">
+                        <div class="flex justify-center items-center space-x-6 text-sm">
+                            <div class="flex items-center">
+                                <i class="fas fa-images text-blue-500 mr-2"></i>
+                                <span>총 ${totalImages}개 이미지 생성</span>
+                            </div>
+                            <div class="flex items-center">
+                                <i class="fas fa-robot text-green-500 mr-2"></i>
+                                <span>FAL AI nano-banana 사용</span>
+                            </div>
+                            <div class="flex items-center">
+                                <i class="fas fa-check-circle text-purple-500 mr-2"></i>
+                                <span>콘텐츠 연관성 최적화</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
         imagesContainer.innerHTML = imagesHtml;
+        
+        // 🎯 이미지 생성 완료 알림
+        console.log(`🎉 이미지 표시 완료! 총 ${totalImages}개 이미지`);
+        
+        // 이미지 섹션으로 스크롤
+        setTimeout(() => {
+            imagesContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 500);
+    }
+    
+    // ==================== UI/UX 개선 기능들 ====================
+    
+    // 로딩 오버레이 표시
+    showLoadingOverlay(message) {
+        const overlay = document.createElement('div');
+        overlay.id = 'loadingOverlay';
+        overlay.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+        overlay.innerHTML = `
+            <div class="bg-white rounded-lg p-8 max-w-md w-mx-4 text-center">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                <h3 class="text-lg font-semibold mb-2">처리 중...</h3>
+                <p id="loadingMessage" class="text-gray-600 text-sm">${message}</p>
+                <div class="mt-4">
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div id="loadingProgress" class="bg-blue-600 h-2 rounded-full transition-all duration-500" style="width: 10%"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        return overlay;
+    }
+    
+    // 로딩 메시지 업데이트
+    updateLoadingMessage(overlay, message, progress = null) {
+        const messageEl = overlay.querySelector('#loadingMessage');
+        if (messageEl) messageEl.textContent = message;
+        
+        if (progress !== null) {
+            const progressBar = overlay.querySelector('#loadingProgress');
+            if (progressBar) progressBar.style.width = progress + '%';
+        }
+    }
+    
+    // 로딩 오버레이 숨기기
+    hideLoadingOverlay(overlay) {
+        if (overlay && overlay.parentNode) {
+            overlay.remove();
+        }
+    }
+    
+    // 성공 메시지 표시
+    showSuccessMessage(message) {
+        this.showToast(message, 'success');
+    }
+    
+    // 에러 메시지 표시
+    showErrorMessage(message, error = null) {
+        console.error('UI Error:', error);
+        this.showToast(message, 'error');
+    }
+    
+    // 토스트 알림
+    showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 transform translate-x-full transition-transform duration-300`;
+        
+        const colors = {
+            success: 'bg-green-500 text-white',
+            error: 'bg-red-500 text-white',
+            info: 'bg-blue-500 text-white',
+            warning: 'bg-yellow-500 text-black'
+        };
+        
+        toast.className += ' ' + (colors[type] || colors.info);
+        
+        const icons = {
+            success: '✅',
+            error: '❌', 
+            info: 'ℹ️',
+            warning: '⚠️'
+        };
+        
+        toast.innerHTML = `
+            <div class="flex items-center">
+                <span class="mr-2">${icons[type] || icons.info}</span>
+                <span>${message}</span>
+                <button onclick="this.parentNode.parentNode.remove()" class="ml-4 text-lg opacity-70 hover:opacity-100">&times;</button>
+            </div>
+        `;
+        
+        document.body.appendChild(toast);
+        
+        // 애니메이션 실행
+        setTimeout(() => {
+            toast.classList.remove('translate-x-full');
+        }, 100);
+        
+        // 자동 제거
+        setTimeout(() => {
+            toast.classList.add('translate-x-full');
+            setTimeout(() => toast.remove(), 300);
+        }, 5000);
     }
 }
 
