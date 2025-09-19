@@ -5103,35 +5103,107 @@ app.get('/', (c) => {
             </div>
 
             <!-- 결과 영역 -->
-            <div id="result" class="hidden bg-white rounded-xl shadow-lg p-8">
+            <div id="resultSection" class="hidden bg-white rounded-xl shadow-lg p-8">
                 <div id="loading" class="text-center py-12">
                     <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
                     <p class="text-lg text-gray-600">AI가 고품질 블로그를 생성하고 있습니다...</p>
                 </div>
+                
+                <!-- 생성 완료 후 표시되는 콘텐츠 -->
                 <div id="content" class="hidden">
                     <div class="flex justify-between items-center mb-6">
                         <h2 class="text-2xl font-bold text-gray-800">생성된 블로그</h2>
-                        <div class="flex space-x-2">
-                            <button onclick="copyToClipboard()" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
-                                <i class="fas fa-copy mr-1"></i> 복사
+                        <div id="generationInfo" class="text-sm text-gray-500">
+                            <!-- AI 모델 정보가 여기에 표시됩니다 -->
+                        </div>
+                    </div>
+                    
+                    <!-- 메인 콘텐츠 영역 -->
+                    <div class="relative">
+                        <!-- 읽기 모드 콘텐츠 -->
+                        <div id="contentReader" class="prose max-w-none bg-gray-50 p-6 rounded-lg border">
+                            <!-- 생성된 블로그 콘텐츠가 여기에 표시됩니다 -->
+                        </div>
+                        
+                        <!-- 편집 모드 텍스트영역 (기본 숨김) -->
+                        <textarea 
+                            id="contentEditArea" 
+                            class="hidden w-full h-96 p-4 border border-gray-300 rounded-lg resize-vertical font-mono text-sm" 
+                            placeholder="여기서 블로그를 편집하세요...">
+                        </textarea>
+                    </div>
+                    
+                    <!-- AI 편집 툴바 (편집 모드에서만 표시) -->
+                    <div id="aiToolbar" class="hidden mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <h4 class="font-semibold text-blue-800 mb-3">
+                            <i class="fas fa-magic mr-2"></i>AI 편집 도구
+                        </h4>
+                        <div class="flex flex-wrap gap-2">
+                            <button class="ai-edit-btn bg-blue-100 hover:bg-blue-200 text-blue-800 px-3 py-2 rounded text-sm transition-colors" data-edit-type="grammar">
+                                <i class="fas fa-spell-check mr-1"></i>맞춤법/문법 교정
                             </button>
-                            <button onclick="downloadAsFile()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-                                <i class="fas fa-download mr-1"></i> 다운로드
+                            <button class="ai-edit-btn bg-purple-100 hover:bg-purple-200 text-purple-800 px-3 py-2 rounded text-sm transition-colors" data-edit-type="tone">
+                                <i class="fas fa-palette mr-1"></i>톤앤매너 조정
+                            </button>
+                            <button class="ai-edit-btn bg-green-100 hover:bg-green-200 text-green-800 px-3 py-2 rounded text-sm transition-colors" data-edit-type="structure">
+                                <i class="fas fa-sitemap mr-1"></i>구조 개선
+                            </button>
+                            <button class="ai-edit-btn bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-3 py-2 rounded text-sm transition-colors" data-edit-type="expand">
+                                <i class="fas fa-expand mr-1"></i>내용 확장
+                            </button>
+                            <button class="ai-edit-btn bg-red-100 hover:bg-red-200 text-red-800 px-3 py-2 rounded text-sm transition-colors" data-edit-type="summarize">
+                                <i class="fas fa-compress mr-1"></i>내용 요약
                             </button>
                         </div>
                     </div>
-                    <div id="blogContent" class="prose max-w-none bg-gray-50 p-6 rounded-lg border"></div>
+                    
+                    <!-- 액션 버튼들 -->
+                    <div class="mt-6 pt-4 border-t border-gray-200">
+                        <!-- 기본 액션 버튼들 -->
+                        <div class="flex flex-wrap gap-3 mb-4">
+                            <button id="editToggleBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                                <i class="fas fa-edit mr-2"></i>편집 모드
+                            </button>
+                            
+                            <!-- 다운로드 버튼과 메뉴 -->
+                            <div class="relative">
+                                <button id="downloadBtn" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                                    <i class="fas fa-download mr-2"></i>다운로드
+                                </button>
+                                <div id="downloadMenu" class="hidden"></div>
+                            </div>
+                            
+                            <button id="copyBtn" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                                <i class="fas fa-copy mr-2"></i>복사
+                            </button>
+                        </div>
+                        
+                        <!-- 편집 모드 전용 액션 버튼들 (기본 숨김) -->
+                        <div id="editModeActions" class="hidden flex gap-2">
+                            <button id="saveEditBtn" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                                <i class="fas fa-save mr-2"></i>저장 (Ctrl+S)
+                            </button>
+                            <button id="cancelEditBtn" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                                <i class="fas fa-times mr-2"></i>취소 (ESC)
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 메타데이터 및 기타 정보 -->
                     <div id="metadata" class="mt-6 p-4 bg-blue-50 rounded-lg"></div>
                     <div id="generatedImages" class="mt-6"></div>
                 </div>
             </div>
         </div>
 
-        <!-- JavaScript - 성능 최적화 v4.2.0 -->
+        <!-- JavaScript - Axios 및 메인 앱 스크립트 -->
+        <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+        
+        <!-- 메인 애플리케이션 JavaScript -->
         <script>
           // 성능 최적화된 스크립트 로드
           const buildTimestamp = ${timestamp};
-          const scriptUrl = '/static/simple-ui.js?v=4.2.0&t=' + buildTimestamp;
+          const scriptUrl = '/static/app.js?v=4.2.0&t=' + buildTimestamp;
           
           // Preload 링크 추가
           const preload = document.createElement('link');
@@ -5153,7 +5225,7 @@ app.get('/', (c) => {
             document.body.appendChild(errorDiv);
           };
           script.onload = function() {
-            console.log('✅ JavaScript 로드 성공:', scriptUrl);
+            console.log('✅ JavaScript 로드 성공 (편집 기능 포함):', scriptUrl);
           };
           
           document.head.appendChild(script);
@@ -5170,7 +5242,7 @@ app.get('/', (c) => {
             }
           });
         </script>
-        <!-- 모든 초기화 로직을 simple-ui.js 내부에서 처리 -->
+        <!-- 편집 기능과 다운로드 기능이 포함된 app.js 로드 완료 -->
     </body>
     </html>
     `)
@@ -6082,6 +6154,482 @@ app.get('/demo/content-image-matching', (c) => {
     </body>
     </html>
   `)
+})
+
+// ==================== 블로그 편집 기능 API ====================
+
+// 블로그 콘텐츠 편집
+app.post('/api/edit-blog', async (c) => {
+  try {
+    const { content, editType, editInstruction, originalTitle } = await c.req.json()
+    
+    if (!content || !editType) {
+      return c.json({
+        success: false,
+        error: '편집할 콘텐츠와 편집 타입이 필요합니다.'
+      }, 400)
+    }
+    
+    const { env } = c
+    const apiKeys = await getAvailableApiKeys(env)
+    
+    // Claude를 편집 전용 모델로 사용 (논리적 분석과 체계적 글쓰기에 뛰어남)
+    let selectedModel = 'claude'
+    if (!apiKeys.claude) {
+      selectedModel = getFallbackModel('claude', apiKeys, env) || 'gemini'
+    }
+    
+    const modelConfig = aiModels[selectedModel]
+    if (!modelConfig) {
+      return c.json({
+        success: false,
+        error: '사용 가능한 AI 모델이 없습니다.'
+      }, 500)
+    }
+    
+    // 편집 타입별 프롬프트 생성
+    let editPrompt = ''
+    switch (editType) {
+      case 'grammar':
+        editPrompt = `
+다음 블로그 글의 맞춤법, 문법, 문체를 검토하고 수정해주세요:
+
+**원본 제목:** ${originalTitle || ''}
+
+**편집 요청:** 맞춤법과 문법 교정, 문체 일관성 확보
+
+**원본 내용:**
+${content}
+
+**편집 지침:**
+1. 한국어 맞춤법과 문법 오류 수정
+2. 문체의 일관성 확보 (존댓말/반말 통일)
+3. 자연스러운 문장 구조로 개선
+4. 전문 용어의 정확한 사용
+5. 가독성 향상을 위한 문장 길이 조절
+
+수정된 전체 내용을 제목과 함께 markdown 형식으로 제공해주세요.`
+        break
+        
+      case 'tone':
+        editPrompt = `
+다음 블로그 글의 톤앤매너를 수정해주세요:
+
+**원본 제목:** ${originalTitle || ''}
+
+**편집 요청:** ${editInstruction || '더 친근하고 읽기 쉬운 톤으로 변경'}
+
+**원본 내용:**
+${content}
+
+**편집 지침:**
+1. 요청된 톤에 맞게 문체 조정
+2. 독자와의 거리감 조절
+3. 전문성과 친근함의 균형
+4. 감정적 어조 반영
+5. 목표 독자층에 적합한 언어 사용
+
+수정된 전체 내용을 제목과 함께 markdown 형식으로 제공해주세요.`
+        break
+        
+      case 'structure':
+        editPrompt = `
+다음 블로그 글의 구조를 개선해주세요:
+
+**원본 제목:** ${originalTitle || ''}
+
+**편집 요청:** 글의 논리적 구조와 가독성 개선
+
+**원본 내용:**
+${content}
+
+**편집 지침:**
+1. 논리적이고 체계적인 구성으로 재구성
+2. 각 섹션 간 연결성 강화
+3. 헤딩과 소제목을 활용한 가독성 향상
+4. 중요한 내용의 강조 표시
+5. 결론 부분 강화
+
+수정된 전체 내용을 제목과 함께 markdown 형식으로 제공해주세요.`
+        break
+        
+      case 'expand':
+        editPrompt = `
+다음 블로그 글을 더 상세하고 풍부하게 확장해주세요:
+
+**원본 제목:** ${originalTitle || ''}
+
+**편집 요청:** ${editInstruction || '내용을 더 상세하고 구체적으로 확장'}
+
+**원본 내용:**
+${content}
+
+**편집 지침:**
+1. 각 주제에 대한 구체적인 설명과 예시 추가
+2. 실제 사례와 경험담 포함
+3. 통계 데이터와 연구 결과 추가
+4. 실용적인 팁과 조언 제공
+5. 관련 주제와 연결점 확장
+
+수정된 전체 내용을 제목과 함께 markdown 형식으로 제공해주세요.`
+        break
+        
+      case 'summarize':
+        editPrompt = `
+다음 블로그 글을 핵심 내용만 간추려 요약해주세요:
+
+**원본 제목:** ${originalTitle || ''}
+
+**편집 요청:** ${editInstruction || '핵심 내용만 간결하게 요약'}
+
+**원본 내용:**
+${content}
+
+**편집 지침:**
+1. 가장 중요한 메시지와 정보만 선별
+2. 간결하면서도 완성도 있는 구성
+3. 필수적인 세부사항만 유지
+4. 읽기 쉬운 단락 구성
+5. 핵심 결론과 요약 강화
+
+수정된 전체 내용을 제목과 함께 markdown 형식으로 제공해주세요.`
+        break
+        
+      case 'custom':
+        editPrompt = `
+다음 블로그 글을 사용자 요청에 따라 편집해주세요:
+
+**원본 제목:** ${originalTitle || ''}
+
+**편집 요청:** ${editInstruction || '사용자 지정 편집'}
+
+**원본 내용:**
+${content}
+
+**편집 지침:**
+사용자의 구체적인 요청사항을 반영하여 글을 수정하되, 다음 기본 원칙을 지켜주세요:
+1. 원본의 핵심 메시지 유지
+2. 자연스럽고 읽기 쉬운 문체
+3. 논리적 흐름과 구조
+4. 정확한 정보 전달
+5. 목적에 맞는 톤앤매너
+
+수정된 전체 내용을 제목과 함께 markdown 형식으로 제공해주세요.`
+        break
+        
+      default:
+        return c.json({
+          success: false,
+          error: '지원하지 않는 편집 타입입니다.'
+        }, 400)
+    }
+    
+    // AI 모델로 편집 요청
+    const response = await callAIModel(selectedModel, modelConfig, editPrompt, { maxTokens: 4000 }, env)
+    
+    if (!response) {
+      return c.json({
+        success: false,
+        error: '편집 처리 중 오류가 발생했습니다.'
+      }, 500)
+    }
+    
+    return c.json({
+      success: true,
+      editedContent: response,
+      editType,
+      model: selectedModel,
+      originalLength: content.length,
+      editedLength: response.length,
+      timestamp: new Date().toISOString()
+    })
+    
+  } catch (error: any) {
+    console.error('❌ 블로그 편집 오류:', error)
+    return c.json({
+      success: false,
+      error: '편집 처리 중 오류가 발생했습니다.',
+      details: error.message
+    }, 500)
+  }
+})
+
+// ==================== 다운로드 기능 API ====================
+
+// 블로그를 다양한 형식으로 다운로드
+app.post('/api/download-blog', async (c) => {
+  try {
+    const { content, title, format } = await c.req.json()
+    
+    if (!content || !title || !format) {
+      return c.json({
+        success: false,
+        error: '제목, 내용, 형식이 모두 필요합니다.'
+      }, 400)
+    }
+    
+    const supportedFormats = ['pdf', 'docx', 'txt', 'html', 'md']
+    if (!supportedFormats.includes(format)) {
+      return c.json({
+        success: false,
+        error: `지원하지 않는 형식입니다. 지원 형식: ${supportedFormats.join(', ')}`
+      }, 400)
+    }
+    
+    let downloadContent = ''
+    let mimeType = ''
+    let fileExtension = format
+    
+    const currentDate = new Date().toLocaleDateString('ko-KR')
+    const sanitizedTitle = title.replace(/[^a-zA-Z0-9가-힣\s]/g, '').substring(0, 50)
+    
+    switch (format) {
+      case 'txt':
+        downloadContent = `${title}\n\n생성일: ${currentDate}\n\n${content.replace(/[#*`]/g, '').replace(/\n\n+/g, '\n\n')}`
+        mimeType = 'text/plain; charset=utf-8'
+        break
+        
+      case 'html':
+        downloadContent = `<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${title}</title>
+    <style>
+        body {
+            font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            line-height: 1.8;
+            color: #333;
+        }
+        h1 { color: #2563eb; border-bottom: 3px solid #2563eb; padding-bottom: 10px; }
+        h2 { color: #1e40af; margin-top: 30px; }
+        h3 { color: #1d4ed8; }
+        p { margin-bottom: 16px; }
+        ul, ol { margin-bottom: 16px; }
+        li { margin-bottom: 8px; }
+        strong { color: #1e40af; }
+        .meta { color: #6b7280; font-size: 14px; margin-bottom: 30px; }
+        .footer { margin-top: 50px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <h1>${title}</h1>
+    <div class="meta">생성일: ${currentDate} | AI Blog Generator v4.2.0</div>
+    ${content
+      .replace(/\n/g, '<br>')
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/### ([^\n]+)/g, '<h3>$1</h3>')
+      .replace(/## ([^\n]+)/g, '<h2>$1</h2>')
+      .replace(/# ([^\n]+)/g, '<h1>$1</h1>')
+    }
+    <div class="footer">
+        본 문서는 AI Blog Generator v4.2.0으로 생성되었습니다.<br>
+        생성일시: ${new Date().toLocaleString('ko-KR')}
+    </div>
+</body>
+</html>`
+        mimeType = 'text/html; charset=utf-8'
+        break
+        
+      case 'md':
+        downloadContent = `# ${title}
+
+**생성일**: ${currentDate}  
+**생성도구**: AI Blog Generator v4.2.0
+
+---
+
+${content}
+
+---
+
+*본 문서는 AI Blog Generator v4.2.0으로 생성되었습니다.*  
+*생성일시: ${new Date().toLocaleString('ko-KR')}*`
+        mimeType = 'text/markdown; charset=utf-8'
+        break
+        
+      case 'pdf':
+        // PDF는 클라이언트 사이드에서 처리하도록 HTML 형식으로 전달
+        downloadContent = `<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>${title}</title>
+    <style>
+        @page { margin: 2cm; }
+        body {
+            font-family: 'Pretendard Variable', Pretendard, 'Noto Sans KR', sans-serif;
+            line-height: 1.8;
+            color: #333;
+            font-size: 14px;
+        }
+        h1 { color: #2563eb; font-size: 24px; margin-bottom: 20px; }
+        h2 { color: #1e40af; font-size: 20px; margin-top: 25px; margin-bottom: 15px; }
+        h3 { color: #1d4ed8; font-size: 16px; margin-top: 20px; margin-bottom: 10px; }
+        p { margin-bottom: 12px; text-align: justify; }
+        ul, ol { margin-bottom: 12px; }
+        li { margin-bottom: 6px; }
+        .meta { color: #6b7280; font-size: 12px; margin-bottom: 25px; }
+        .footer { margin-top: 40px; padding-top: 15px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h1>${title}</h1>
+    <div class="meta">생성일: ${currentDate} | AI Blog Generator v4.2.0</div>
+    ${content
+      .replace(/\n/g, '<br>')
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/### ([^\n]+)/g, '<h3>$1</h3>')
+      .replace(/## ([^\n]+)/g, '<h2>$1</h2>')
+      .replace(/# ([^\n]+)/g, '<h1>$1</h1>')
+    }
+    <div class="footer">
+        본 문서는 AI Blog Generator v4.2.0으로 생성되었습니다.<br>
+        생성일시: ${new Date().toLocaleString('ko-KR')}
+    </div>
+</body>
+</html>`
+        mimeType = 'text/html; charset=utf-8'
+        fileExtension = 'html' // PDF 변환용 HTML
+        break
+        
+      case 'docx':
+        // DOCX는 클라이언트 사이드에서 처리하도록 HTML 형식으로 전달
+        downloadContent = `<!DOCTYPE html>
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word'>
+<head>
+    <meta charset="UTF-8">
+    <title>${title}</title>
+    <style>
+        body { font-family: '맑은 고딕', 'Malgun Gothic', sans-serif; line-height: 1.8; }
+        h1 { color: #2563eb; font-size: 18pt; }
+        h2 { color: #1e40af; font-size: 16pt; }
+        h3 { color: #1d4ed8; font-size: 14pt; }
+        p { font-size: 11pt; }
+        .meta { color: #666; font-size: 10pt; }
+    </style>
+</head>
+<body>
+    <h1>${title}</h1>
+    <div class="meta">생성일: ${currentDate} | AI Blog Generator v4.2.0</div>
+    <br>
+    ${content
+      .replace(/\n/g, '<br>')
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/### ([^\n]+)/g, '<h3>$1</h3>')
+      .replace(/## ([^\n]+)/g, '<h2>$1</h2>')
+      .replace(/# ([^\n]+)/g, '<h1>$1</h1>')
+    }
+</body>
+</html>`
+        mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        fileExtension = 'html' // DOCX 변환용 HTML
+        break
+    }
+    
+    // Base64 인코딩
+    const encoder = new TextEncoder()
+    const data = encoder.encode(downloadContent)
+    const base64Content = btoa(String.fromCharCode(...data))
+    
+    return c.json({
+      success: true,
+      content: base64Content,
+      mimeType,
+      fileName: `${sanitizedTitle}_${new Date().toISOString().split('T')[0]}.${fileExtension}`,
+      originalFormat: format,
+      fileSize: data.length,
+      timestamp: new Date().toISOString()
+    })
+    
+  } catch (error: any) {
+    console.error('❌ 다운로드 처리 오류:', error)
+    return c.json({
+      success: false,
+      error: '다운로드 처리 중 오류가 발생했습니다.',
+      details: error.message
+    }, 500)
+  }
+})
+
+// 편집 히스토리 관리 (메모리 기반 - 프로덕션에서는 D1 Database 사용 권장)
+const editHistory: Map<string, any[]> = new Map()
+
+// 편집 히스토리 저장
+app.post('/api/save-edit-history', async (c) => {
+  try {
+    const { sessionId, originalContent, editedContent, editType, timestamp } = await c.req.json()
+    
+    if (!sessionId || !originalContent || !editedContent) {
+      return c.json({
+        success: false,
+        error: '필수 정보가 누락되었습니다.'
+      }, 400)
+    }
+    
+    if (!editHistory.has(sessionId)) {
+      editHistory.set(sessionId, [])
+    }
+    
+    const history = editHistory.get(sessionId)!
+    history.push({
+      id: Date.now().toString(),
+      originalContent,
+      editedContent,
+      editType,
+      timestamp: timestamp || new Date().toISOString()
+    })
+    
+    // 최대 10개까지만 저장 (메모리 절약)
+    if (history.length > 10) {
+      history.shift()
+    }
+    
+    return c.json({
+      success: true,
+      historyCount: history.length
+    })
+    
+  } catch (error: any) {
+    console.error('❌ 편집 히스토리 저장 오류:', error)
+    return c.json({
+      success: false,
+      error: '히스토리 저장 중 오류가 발생했습니다.'
+    }, 500)
+  }
+})
+
+// 편집 히스토리 조회
+app.get('/api/edit-history/:sessionId', async (c) => {
+  try {
+    const sessionId = c.req.param('sessionId')
+    
+    if (!sessionId) {
+      return c.json({
+        success: false,
+        error: '세션 ID가 필요합니다.'
+      }, 400)
+    }
+    
+    const history = editHistory.get(sessionId) || []
+    
+    return c.json({
+      success: true,
+      history: history.reverse(), // 최신순으로 정렬
+      count: history.length
+    })
+    
+  } catch (error: any) {
+    console.error('❌ 편집 히스토리 조회 오류:', error)
+    return c.json({
+      success: false,
+      error: '히스토리 조회 중 오류가 발생했습니다.'
+    }, 500)
+  }
 })
 
 export default app

@@ -5663,5 +5663,632 @@ BlogGenerator.prototype.hideEnhancedLoading = function() {
     }
 }
 
+// ==================== 블로그 편집 기능 ====================
+
+BlogGenerator.prototype.attachEditorListeners = function() {
+    // 편집 토글 버튼
+    if (this.editToggleBtn) {
+        this.editToggleBtn.addEventListener('click', () => {
+            this.toggleEditMode()
+        })
+    }
+
+    // 편집 모드 액션 버튼들
+    if (this.cancelEditBtn) {
+        this.cancelEditBtn.addEventListener('click', () => {
+            this.cancelEdit()
+        })
+    }
+
+    if (this.saveEditBtn) {
+        this.saveEditBtn.addEventListener('click', () => {
+            this.saveEdit()
+        })
+    }
+
+    // AI 편집 툴바 버튼들
+    if (this.aiToolbar) {
+        this.aiToolbar.addEventListener('click', (e) => {
+            if (e.target.classList.contains('ai-edit-btn')) {
+                const editType = e.target.dataset.editType
+                this.performAIEdit(editType)
+            }
+        })
+    }
+
+    // 다운로드 버튼과 메뉴
+    if (this.downloadBtn) {
+        this.downloadBtn.addEventListener('click', () => {
+            this.toggleDownloadMenu()
+        })
+    }
+
+    if (this.downloadMenu) {
+        this.downloadMenu.addEventListener('click', (e) => {
+            if (e.target.classList.contains('download-format-btn')) {
+                const format = e.target.dataset.format
+                this.downloadBlog(format)
+                this.hideDownloadMenu()
+            }
+        })
+    }
+
+    // 키보드 단축키
+    document.addEventListener('keydown', (e) => {
+        if (this.isEditMode && e.ctrlKey) {
+            switch (e.key) {
+                case 's':
+                    e.preventDefault()
+                    this.saveEdit()
+                    break
+                case 'Escape':
+                    e.preventDefault()
+                    this.cancelEdit()
+                    break
+            }
+        }
+    })
+}
+
+BlogGenerator.prototype.initializeBlogEditor = function() {
+    console.log('🛠️ 블로그 편집기 초기화')
+    
+    // 편집기 상태 초기화
+    this.isEditMode = false
+    this.originalContent = ''
+    this.currentTitle = ''
+    
+    // 편집 히스토리 초기화
+    this.editHistory = []
+    this.currentHistoryIndex = -1
+}
+
+BlogGenerator.prototype.toggleEditMode = function() {
+    if (!this.currentContent) {
+        this.showError('편집할 블로그 콘텐츠가 없습니다. 먼저 블로그를 생성해주세요.')
+        return
+    }
+
+    if (this.isEditMode) {
+        this.exitEditMode()
+    } else {
+        this.enterEditMode()
+    }
+}
+
+BlogGenerator.prototype.enterEditMode = function() {
+    console.log('📝 편집 모드 진입')
+    
+    this.isEditMode = true
+    this.originalContent = this.currentContent
+
+    // 편집 가능한 텍스트영역 생성
+    if (this.contentDiv && this.contentEditArea) {
+        // 현재 콘텐츠를 마크다운 형태로 편집영역에 설정
+        this.contentEditArea.value = this.currentContent
+        
+        // UI 전환
+        this.contentDiv.style.display = 'none'
+        this.contentEditArea.style.display = 'block'
+        
+        // 버튼 상태 변경
+        this.editToggleBtn.innerHTML = '<i class="fas fa-eye mr-2"></i>미리보기 모드'
+        this.editToggleBtn.className = 'bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors'
+        
+        // AI 툴바 표시
+        if (this.aiToolbar) {
+            this.aiToolbar.classList.remove('hidden')
+        }
+        
+        // 편집 액션 버튼들 표시
+        if (this.cancelEditBtn) this.cancelEditBtn.classList.remove('hidden')
+        if (this.saveEditBtn) this.saveEditBtn.classList.remove('hidden')
+        
+        // 포커스 설정
+        this.contentEditArea.focus()
+        
+        // 편집 가이드 표시
+        this.showEditGuide()
+    }
+}
+
+BlogGenerator.prototype.exitEditMode = function() {
+    console.log('👁️ 미리보기 모드 전환')
+    
+    this.isEditMode = false
+    
+    if (this.contentDiv && this.contentEditArea) {
+        // 편집된 내용 적용
+        const editedContent = this.contentEditArea.value
+        if (editedContent !== this.currentContent) {
+            this.currentContent = editedContent
+            this.contentDiv.innerHTML = this.markdownToHtml(editedContent)
+        }
+        
+        // UI 전환
+        this.contentDiv.style.display = 'block'
+        this.contentEditArea.style.display = 'none'
+        
+        // 버튼 상태 변경
+        this.editToggleBtn.innerHTML = '<i class="fas fa-edit mr-2"></i>편집 모드'
+        this.editToggleBtn.className = 'bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors'
+        
+        // AI 툴바 숨기기
+        if (this.aiToolbar) {
+            this.aiToolbar.classList.add('hidden')
+        }
+        
+        // 편집 액션 버튼들 숨기기
+        if (this.cancelEditBtn) this.cancelEditBtn.classList.add('hidden')
+        if (this.saveEditBtn) this.saveEditBtn.classList.add('hidden')
+    }
+}
+
+BlogGenerator.prototype.saveEdit = function() {
+    if (!this.isEditMode) return
+    
+    const editedContent = this.contentEditArea.value
+    
+    // 히스토리에 저장
+    this.addToEditHistory(this.currentContent, editedContent, 'manual')
+    
+    // 현재 콘텐츠 업데이트
+    this.currentContent = editedContent
+    
+    // 미리보기 업데이트
+    this.contentDiv.innerHTML = this.markdownToHtml(editedContent)
+    
+    // 편집 모드 종료
+    this.exitEditMode()
+    
+    // 성공 메시지
+    this.showTemporaryMessage('✅ 편집 내용이 저장되었습니다!', 'success')
+    
+    console.log('💾 편집 내용 저장 완료')
+}
+
+BlogGenerator.prototype.cancelEdit = function() {
+    if (!this.isEditMode) return
+    
+    // 원래 내용으로 복원
+    this.contentEditArea.value = this.originalContent
+    this.currentContent = this.originalContent
+    
+    // 편집 모드 종료
+    this.exitEditMode()
+    
+    // 취소 메시지
+    this.showTemporaryMessage('편집이 취소되었습니다.', 'info')
+    
+    console.log('❌ 편집 취소됨')
+}
+
+BlogGenerator.prototype.performAIEdit = function(editType) {
+    if (!this.isEditMode) {
+        this.showError('편집 모드에서만 AI 편집을 사용할 수 있습니다.')
+        return
+    }
+    
+    const currentContent = this.contentEditArea.value
+    if (!currentContent.trim()) {
+        this.showError('편집할 내용이 없습니다.')
+        return
+    }
+    
+    console.log(`🤖 AI 편집 시작: ${editType}`)
+    
+    // 로딩 상태 표시
+    this.showEditLoadingState(editType)
+    
+    // AI 편집 요청
+    this.requestAIEdit(currentContent, editType)
+}
+
+BlogGenerator.prototype.requestAIEdit = async function(content, editType) {
+    try {
+        const editInstruction = this.getEditInstruction(editType)
+        
+        const response = await axios.post('/api/edit-blog', {
+            content: content,
+            editType: editType,
+            editInstruction: editInstruction,
+            originalTitle: this.currentTitle || ''
+        })
+        
+        if (response.data.success) {
+            const editedContent = response.data.editedContent
+            
+            // 히스토리에 저장
+            this.addToEditHistory(content, editedContent, editType)
+            
+            // 편집 영역에 적용
+            this.contentEditArea.value = editedContent
+            
+            // 성공 메시지
+            this.showTemporaryMessage(`✅ ${this.getEditTypeName(editType)} 완료!`, 'success')
+            
+            console.log(`✅ AI 편집 완료: ${editType}`)
+        } else {
+            throw new Error(response.data.error || 'AI 편집에 실패했습니다.')
+        }
+        
+    } catch (error) {
+        console.error(`❌ AI 편집 실패 (${editType}):`, error)
+        this.showError(`AI 편집 중 오류가 발생했습니다: ${error.message}`)
+    } finally {
+        this.hideEditLoadingState()
+    }
+}
+
+BlogGenerator.prototype.getEditInstruction = function(editType) {
+    const instructions = {
+        grammar: '맞춤법과 문법을 교정해주세요.',
+        tone: '더 친근하고 읽기 쉬운 톤으로 변경해주세요.',
+        structure: '글의 논리적 구조와 가독성을 개선해주세요.',
+        expand: '내용을 더 상세하고 구체적으로 확장해주세요.',
+        summarize: '핵심 내용만 간결하게 요약해주세요.',
+        custom: '사용자 지정 편집을 수행해주세요.'
+    }
+    
+    return instructions[editType] || instructions.custom
+}
+
+BlogGenerator.prototype.getEditTypeName = function(editType) {
+    const names = {
+        grammar: '맞춤법/문법 교정',
+        tone: '톤앤매너 조정',
+        structure: '구조 개선',
+        expand: '내용 확장',
+        summarize: '내용 요약',
+        custom: '사용자 지정 편집'
+    }
+    
+    return names[editType] || '편집'
+}
+
+BlogGenerator.prototype.showEditLoadingState = function(editType) {
+    const editTypeName = this.getEditTypeName(editType)
+    
+    // AI 툴바의 해당 버튼을 로딩 상태로 변경
+    const editBtn = this.aiToolbar.querySelector(`[data-edit-type="${editType}"]`)
+    if (editBtn) {
+        editBtn.disabled = true
+        editBtn.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i>${editTypeName}...`
+    }
+}
+
+BlogGenerator.prototype.hideEditLoadingState = function() {
+    // 모든 편집 버튼을 원래 상태로 복원
+    const editBtns = this.aiToolbar.querySelectorAll('.ai-edit-btn')
+    editBtns.forEach(btn => {
+        btn.disabled = false
+        const editType = btn.dataset.editType
+        const editTypeName = this.getEditTypeName(editType)
+        const icons = {
+            grammar: 'fas fa-spell-check',
+            tone: 'fas fa-palette',
+            structure: 'fas fa-sitemap',
+            expand: 'fas fa-expand',
+            summarize: 'fas fa-compress',
+            custom: 'fas fa-magic'
+        }
+        btn.innerHTML = `<i class="${icons[editType]} mr-1"></i>${editTypeName}`
+    })
+}
+
+BlogGenerator.prototype.showEditGuide = function() {
+    const guide = document.createElement('div')
+    guide.id = 'editGuide'
+    guide.className = 'fixed top-4 right-4 bg-blue-50 border border-blue-200 rounded-lg p-4 shadow-lg z-50 max-w-sm'
+    guide.innerHTML = `
+        <h4 class="font-bold text-blue-800 mb-2">📝 편집 모드 가이드</h4>
+        <div class="text-sm text-blue-700 space-y-1">
+            <p>• 마크다운 문법 사용 가능</p>
+            <p>• AI 툴바로 자동 편집</p>
+            <p>• Ctrl+S: 저장</p>
+            <p>• ESC: 취소</p>
+        </div>
+        <button onclick="this.parentElement.remove()" class="absolute top-2 right-2 text-blue-400 hover:text-blue-600">
+            <i class="fas fa-times"></i>
+        </button>
+    `
+    
+    document.body.appendChild(guide)
+    
+    // 5초 후 자동 제거
+    setTimeout(() => {
+        if (guide.parentElement) {
+            guide.remove()
+        }
+    }, 5000)
+}
+
+BlogGenerator.prototype.addToEditHistory = function(originalContent, editedContent, editType) {
+    const historyItem = {
+        id: Date.now().toString(),
+        originalContent,
+        editedContent,
+        editType,
+        timestamp: new Date().toISOString()
+    }
+    
+    this.editHistory.push(historyItem)
+    this.currentHistoryIndex = this.editHistory.length - 1
+    
+    // 최대 10개까지만 유지
+    if (this.editHistory.length > 10) {
+        this.editHistory.shift()
+        this.currentHistoryIndex = Math.max(0, this.currentHistoryIndex - 1)
+    }
+    
+    // 서버에 저장 (선택적)
+    this.saveEditHistoryToServer(historyItem)
+    
+    console.log('📚 편집 히스토리 추가:', editType)
+}
+
+BlogGenerator.prototype.saveEditHistoryToServer = async function(historyItem) {
+    try {
+        await axios.post('/api/save-edit-history', {
+            sessionId: this.sessionId,
+            ...historyItem
+        })
+    } catch (error) {
+        console.warn('편집 히스토리 서버 저장 실패:', error.message)
+    }
+}
+
+// ==================== 다운로드 기능 ====================
+
+BlogGenerator.prototype.toggleDownloadMenu = function() {
+    if (!this.currentContent) {
+        this.showError('다운로드할 블로그 콘텐츠가 없습니다.')
+        return
+    }
+    
+    if (this.downloadMenu.classList.contains('hidden')) {
+        this.showDownloadMenu()
+    } else {
+        this.hideDownloadMenu()
+    }
+}
+
+BlogGenerator.prototype.showDownloadMenu = function() {
+    this.downloadMenu.classList.remove('hidden')
+    this.downloadMenu.innerHTML = `
+        <div class="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+            <div class="py-1">
+                <button class="download-format-btn flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left" data-format="pdf">
+                    <i class="fas fa-file-pdf text-red-500 mr-3 w-4"></i>
+                    PDF 다운로드
+                </button>
+                <button class="download-format-btn flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left" data-format="docx">
+                    <i class="fas fa-file-word text-blue-500 mr-3 w-4"></i>
+                    Word 다운로드
+                </button>
+                <button class="download-format-btn flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left" data-format="html">
+                    <i class="fas fa-file-code text-orange-500 mr-3 w-4"></i>
+                    HTML 다운로드
+                </button>
+                <button class="download-format-btn flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left" data-format="md">
+                    <i class="fas fa-file-alt text-gray-500 mr-3 w-4"></i>
+                    Markdown 다운로드
+                </button>
+                <button class="download-format-btn flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left" data-format="txt">
+                    <i class="fas fa-file-text text-gray-600 mr-3 w-4"></i>
+                    텍스트 다운로드
+                </button>
+            </div>
+        </div>
+    `
+    
+    // 외부 클릭 시 메뉴 닫기
+    document.addEventListener('click', this.handleOutsideClick.bind(this), { once: true })
+}
+
+BlogGenerator.prototype.hideDownloadMenu = function() {
+    this.downloadMenu.classList.add('hidden')
+    this.downloadMenu.innerHTML = ''
+}
+
+BlogGenerator.prototype.handleOutsideClick = function(e) {
+    if (!this.downloadBtn.contains(e.target) && !this.downloadMenu.contains(e.target)) {
+        this.hideDownloadMenu()
+    }
+}
+
+BlogGenerator.prototype.downloadBlog = async function(format) {
+    if (!this.currentContent) {
+        this.showError('다운로드할 콘텐츠가 없습니다.')
+        return
+    }
+    
+    console.log(`📥 블로그 다운로드 시작: ${format}`)
+    
+    // 로딩 상태 표시
+    this.showDownloadLoadingState(format)
+    
+    try {
+        const response = await axios.post('/api/download-blog', {
+            content: this.currentContent,
+            title: this.currentTitle || '블로그 포스트',
+            format: format
+        })
+        
+        if (response.data.success) {
+            const { content, mimeType, fileName } = response.data
+            
+            // Base64 디코딩
+            const binaryString = atob(content)
+            const bytes = new Uint8Array(binaryString.length)
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i)
+            }
+            
+            // 블롭 생성 및 다운로드
+            const blob = new Blob([bytes], { type: mimeType })
+            
+            // 특별 처리가 필요한 형식들
+            if (format === 'pdf') {
+                this.downloadAsPDF(response.data.content, fileName)
+            } else if (format === 'docx') {
+                this.downloadAsDocx(response.data.content, fileName)
+            } else {
+                // 일반 다운로드
+                this.triggerDownload(blob, fileName)
+            }
+            
+            this.showTemporaryMessage(`✅ ${format.toUpperCase()} 다운로드 완료!`, 'success')
+            
+        } else {
+            throw new Error(response.data.error || '다운로드 처리에 실패했습니다.')
+        }
+        
+    } catch (error) {
+        console.error(`❌ 다운로드 실패 (${format}):`, error)
+        this.showError(`다운로드 중 오류가 발생했습니다: ${error.message}`)
+    } finally {
+        this.hideDownloadLoadingState()
+    }
+}
+
+BlogGenerator.prototype.downloadAsPDF = function(htmlContent, fileName) {
+    // PDF.js나 jsPDF를 사용한 PDF 생성
+    // 클라이언트 사이드에서 HTML을 PDF로 변환
+    const printWindow = window.open('', '_blank')
+    printWindow.document.write(atob(htmlContent))
+    printWindow.document.close()
+    
+    printWindow.onload = function() {
+        printWindow.print()
+        printWindow.close()
+    }
+}
+
+BlogGenerator.prototype.downloadAsDocx = function(htmlContent, fileName) {
+    // HTML을 Word 문서로 변환하여 다운로드
+    const blob = new Blob([atob(htmlContent)], { 
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
+    })
+    this.triggerDownload(blob, fileName.replace('.html', '.docx'))
+}
+
+BlogGenerator.prototype.triggerDownload = function(blob, fileName) {
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+}
+
+BlogGenerator.prototype.showDownloadLoadingState = function(format) {
+    this.downloadBtn.disabled = true
+    this.downloadBtn.innerHTML = `
+        <i class="fas fa-spinner fa-spin mr-2"></i>
+        ${format.toUpperCase()} 생성 중...
+    `
+}
+
+BlogGenerator.prototype.hideDownloadLoadingState = function() {
+    this.downloadBtn.disabled = false
+    this.downloadBtn.innerHTML = `
+        <i class="fas fa-download mr-2"></i>
+        다운로드
+    `
+}
+
+// displayResult 함수 확장 (편집/다운로드 버튼 표시)
+const originalDisplayResult = BlogGenerator.prototype.displayResult
+BlogGenerator.prototype.displayResult = function(result) {
+    // 기존 displayResult 호출
+    originalDisplayResult.call(this, result)
+    
+    // 현재 콘텐츠와 제목 저장
+    this.currentContent = result.content
+    this.currentTitle = result.title || ''
+    
+    // 편집/다운로드 버튼 표시
+    this.showEditDownloadButtons()
+}
+
+BlogGenerator.prototype.showEditDownloadButtons = function() {
+    // 결과 섹션에 편집/다운로드 버튼 추가
+    let buttonContainer = document.getElementById('editDownloadButtons')
+    if (!buttonContainer) {
+        buttonContainer = document.createElement('div')
+        buttonContainer.id = 'editDownloadButtons'
+        buttonContainer.className = 'mt-6 pt-4 border-t border-gray-200 flex flex-wrap gap-3'
+        
+        // 결과 섹션에 추가
+        this.resultSection.appendChild(buttonContainer)
+    }
+    
+    buttonContainer.innerHTML = `
+        <button id="editToggleBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+            <i class="fas fa-edit mr-2"></i>편집 모드
+        </button>
+        
+        <div class="relative">
+            <button id="downloadBtn" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                <i class="fas fa-download mr-2"></i>다운로드
+            </button>
+            <div id="downloadMenu" class="hidden"></div>
+        </div>
+        
+        <button onclick="blogGenerator.copyContent()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+            <i class="fas fa-copy mr-2"></i>복사
+        </button>
+        
+        <!-- AI 편집 툴바 (편집 모드에서만 표시) -->
+        <div id="aiToolbar" class="hidden w-full mt-4 p-4 bg-gray-50 rounded-lg">
+            <h4 class="font-semibold text-gray-800 mb-3">🤖 AI 편집 도구</h4>
+            <div class="flex flex-wrap gap-2">
+                <button class="ai-edit-btn bg-blue-100 hover:bg-blue-200 text-blue-800 px-3 py-2 rounded text-sm transition-colors" data-edit-type="grammar">
+                    <i class="fas fa-spell-check mr-1"></i>맞춤법/문법 교정
+                </button>
+                <button class="ai-edit-btn bg-purple-100 hover:bg-purple-200 text-purple-800 px-3 py-2 rounded text-sm transition-colors" data-edit-type="tone">
+                    <i class="fas fa-palette mr-1"></i>톤앤매너 조정
+                </button>
+                <button class="ai-edit-btn bg-green-100 hover:bg-green-200 text-green-800 px-3 py-2 rounded text-sm transition-colors" data-edit-type="structure">
+                    <i class="fas fa-sitemap mr-1"></i>구조 개선
+                </button>
+                <button class="ai-edit-btn bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-3 py-2 rounded text-sm transition-colors" data-edit-type="expand">
+                    <i class="fas fa-expand mr-1"></i>내용 확장
+                </button>
+                <button class="ai-edit-btn bg-red-100 hover:bg-red-200 text-red-800 px-3 py-2 rounded text-sm transition-colors" data-edit-type="summarize">
+                    <i class="fas fa-compress mr-1"></i>내용 요약
+                </button>
+            </div>
+        </div>
+        
+        <!-- 편집 모드 전용 요소들 -->
+        <textarea id="contentEditArea" class="hidden w-full h-96 p-4 border border-gray-300 rounded-lg resize-vertical font-mono text-sm" placeholder="여기서 블로그를 편집하세요..."></textarea>
+        
+        <div class="hidden w-full flex gap-2" id="editModeActions">
+            <button id="saveEditBtn" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                <i class="fas fa-save mr-2"></i>저장 (Ctrl+S)
+            </button>
+            <button id="cancelEditBtn" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                <i class="fas fa-times mr-2"></i>취소 (ESC)
+            </button>
+        </div>
+    `
+    
+    // 새로 생성된 요소들을 클래스 프로퍼티로 연결
+    this.editToggleBtn = document.getElementById('editToggleBtn')
+    this.downloadBtn = document.getElementById('downloadBtn') 
+    this.downloadMenu = document.getElementById('downloadMenu')
+    this.aiToolbar = document.getElementById('aiToolbar')
+    this.contentEditArea = document.getElementById('contentEditArea')
+    this.saveEditBtn = document.getElementById('saveEditBtn')
+    this.cancelEditBtn = document.getElementById('cancelEditBtn')
+    
+    // 이벤트 리스너 다시 연결
+    this.attachEditorListeners()
+}
+
 // 안전한 초기화 실행
 safeInitialize()
